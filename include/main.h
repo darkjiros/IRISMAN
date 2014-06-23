@@ -48,6 +48,23 @@ int LoadJPG(JpgDatas *jpg, char *filename);
                                  if(v > 9) {v = 0; new_pad |= b;} \
                                  } else v = 0;
 
+enum screens_types
+{
+    SCR_MAIN_GAME_LIST = 0,
+    SCR_MENU_GAME_OPTIONS = 1,
+    SCR_MENU_GAME_OPTIONS_CONFIG = 2,
+    SCR_MENU_ISO_OPTIONS = 128,
+    SCR_MENU_GLOBAL_OPTIONS = 3,
+    SCR_MENU_TOOLS = 4,
+    SCR_MENU_GAME_LIST = 123,
+    SCR_MENU_CONSOLE_ID_TOOLS = 222,
+    SCR_MENU_PSX_OPTIONS = 444,
+    SCR_MENU_PSX_VIDEO_OPTIONS = 445,
+    SCR_TOOL_DELETE_CACHE = 5,
+    SCR_TOOL_BUILD_ISO = 777,
+    SCR_TOOL_EXTRACT_ISO = 778,
+    SCR_TOOL_COPY_ISO = 779,
+};
 
 enum ResourceImages
 {
@@ -66,6 +83,7 @@ enum ResourceImages
     IMG_MOVIE_ICON = 20,
     IMG_USB_ICON = 1,
     IMG_USB_ICON2 = 14,
+    IMG_NETHOST = 19,
 
     // File Manager Icons
     IMG_FOLDER_ICON = 7,
@@ -76,14 +94,45 @@ enum ResourceImages
     IMG_ISO_ICON = 12,
 };
 
+enum RetroModes
+{
+    RETRO_ALL   = 0,
+    RETRO_PSX   = 1,
+    RETRO_PS2   = 2,
+    RETRO_PSP   = 3,
+    RETRO_SNES  = 4,
+    RETRO_GBA   = 5,
+    RETRO_GEN   = 6,
+    RETRO_NES   = 7,
+    RETRO_MAME  = 8,
+    RETRO_FBA   = 9,
+    RETRO_QUAKE = 10,
+    RETRO_DOOM  = 11,
+    RETRO_PCE   = 12,
+    RETRO_GBC   = 13,
+    RETRO_ATARI = 14,
+    RETRO_VBOY  = 15,
+    RETRO_NXE   = 16,
+    RETRO_WSWAN = 17,
+    RETRO_PSALL = 18,
+    NET_GAMES   = 19,
+};
+
+enum game_list_categories
+{
+    GAME_LIST_ALL      = 0,
+    GAME_LIST_PS3_ONLY = 1,  // PS3 / Movies
+    GAME_LIST_CUSTOM   = 2,  // Homebrews / Retro / NET
+};
+
 void load_gamecfg (int current_dir);
 void read_settings();
 
 // FLAGS
 #define HDD0_FLAG      (1)
-#define BDVD_FLAG      (1<<11)
+#define BDVD_FLAG      (1<<11)    //2048
 #define NTFS_FLAG      (1<<15)
-#define USB_FLAG       (0x3ff<<1)
+#define USB_FLAG       (0x3ff<<1) //2046
 
 #define HOMEBREW_FLAG  (1<<31)
 
@@ -153,8 +202,13 @@ MKV file : D_FLAG_HOMEB_DPL | D_FLAG_HOMEB_MKV | x (from /MKV    , x = D_FLAG_HD
 #define SUCCESS 0
 #define FAILED -1
 
+#define DISABLED -1
+
 #define NTFS_DEVICE_MOUNT    1
 #define NTFS_DEVICE_UNMOUNT -1
+
+#define MODE_NOBDVD      1
+#define MODE_DISCLESS    2
 
 #define MM_PATH                  "/dev_hdd0/game/BLES80608"
 #define PS2_CLASSIC_PLACEHOLDER  "/dev_hdd0/game/PS2U10000/USRDIR"
@@ -167,6 +221,8 @@ MKV file : D_FLAG_HOMEB_DPL | D_FLAG_HOMEB_MKV | x (from /MKV    , x = D_FLAG_HD
 #define MAX_RESOURCES    24
 
 #define ROMS_MAXPATHLEN  64
+
+#define GIGABYTES 1073741824.0
 
 extern int scr_grid_games;
 extern int scr_grid_w;
@@ -181,6 +237,8 @@ extern PngDatas Png_res[MAX_RESOURCES];
 extern u32 Png_res_offset[MAX_RESOURCES];
 
 void SaveGameList();
+int get_net_status();
+void return_to_game_list(bool update);
 
 #endif
 

@@ -85,7 +85,7 @@ DRAWGLOPT_SWMUSICOFF    = Απενεργοποίηση μουσικής
 DRAWGLOPT_SWMUSICON     = Ενεργοποίηση μουσικής
 DRAWGLOPT_INITFTP       = Παραμετροποίηση διακομιστή FTP 
 DRAWGLOPT_TOOLS         = Εργαλεία
-DRAWGLOPT_REFRESH       = Ανανέωση Λίστα παιχνιδιών
+DRAWGLOPT_REFRESH       = Λίστα παιχνιδιών
 DRAWGLOPT_CREDITS       = Συντελεστές
 DRAWGLOPT_FTPINITED     = Διακομιστής FTP παραμετροποιήθηκε@Αυτόματη ενεργοποίηση του;
 DRAWGLOPT_FTPARINITED   = Διακομιστής FTP έχει ήδη παραμετροποιηθεί
@@ -233,3 +233,17 @@ OUT_OFMEMORY            = Γεμάτη μνήμη
 OPERATION_DONE          = Τέλος!
 PLUG_STORAGE1           = Θυμήσου να τοποθετήσεις ένα δίσκο USB για να δημιουργηθεί ο ψεύτικος δίσκος
 PLUG_STORAGE2           = Ψεύτικος δίσκος μπήκε
+
+# GAME LIST
+GAMELIST_ALLGAMES       = All Games
+GAMELIST_PS3GAMES       = PS3 Games
+GAMELIST_VIDEOS         = Videos
+GAMELIST_NETGAMES       = Network Games (via webMAN)
+GAMELIST_STATUS1        = SQUARE  All Retro games       <  >  Select Retro mode       X  Select List
+GAMELIST_STATUS2        = X  Select Game List mode             O  Go Back
+GAMELIST_SCANNING0      = Scanning all games...
+GAMELIST_SCANNING1      = Scanning PS3 games...
+GAMELIST_SCANNING2      = Scanning PlayStation games...
+GAMELIST_SCANNING3      = Scanning Videos...
+GAMELIST_SCANNING4      = Scanning Retro games...
+GAMELIST_SCANNING5      = Scanning network games (webMAN)...

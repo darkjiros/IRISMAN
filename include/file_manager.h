@@ -26,6 +26,7 @@ enum FindModes
 
 enum FileIconTypes
 {
+    FILE_TYPE_FOLDER = 0,
     FILE_TYPE_NORMAL = 1,
     FILE_TYPE_PKG = 2,
     FILE_TYPE_SELF = 3,
@@ -33,6 +34,7 @@ enum FileIconTypes
     FILE_TYPE_PNG = 4,
     FILE_TYPE_JPG = 44,
     FILE_TYPE_ISO = 5,
+    FILE_TYPE_LUA = 5,
     FILE_TYPE_BIN = 55,
 };
 
@@ -68,3 +70,6 @@ int copy_archive_file(char *path1, char *path2, char *file, u64 free);
 int CopyFile(char* path, char* path2);
 
 #endif
+
+void draw_file_manager();
+void draw_hex_editor();

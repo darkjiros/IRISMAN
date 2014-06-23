@@ -457,7 +457,7 @@ cdup:           bytes = 0;
                                 ((stat.st_mode & S_IXOTH) != 0) ? "x" : "-",
                                 (unsigned long long)stat.st_size, tstr, entry.d_name);
 
-                            if(send(data_s, temp, bytes, 0)<0) break;
+                            if(send(data_s, temp, bytes, 0) < 0) break;
                         }
 
                         bytes = ftpresp(temp, 226, "Transfer complete");
@@ -590,7 +590,7 @@ cdup:           bytes = 0;
                                         ((stat.st_mode & S_IXOTH) != 0) ? "x" : "-",
                                         (unsigned long long)stat.st_size, tstr, i - 1);
 
-                                    if(send(data_s, temp, bytes, 0)<0) break;
+                                    if(send(data_s, temp, bytes, 0) < 0) break;
                                 }
                             }
                         }
@@ -717,7 +717,7 @@ cdup:           bytes = 0;
                             (((stat.st_mode & S_IROTH) != 0) * 4 + ((stat.st_mode & S_IWOTH) != 0) * 2 + ((stat.st_mode & S_IXOTH) != 0) * 1),
                             entry.d_name);
 
-                        if(send(data_s, temp, bytes, 0)<0) break;
+                        if(send(data_s, temp, bytes, 0) < 0) break;
 
                         dqueue--;
                     }
@@ -791,7 +791,7 @@ cdup:           bytes = 0;
 
                         dirtype[1] = '\0';
 
-                        bytes = sprintf(temp, " type=%s%s;siz%s=%llu;modify=%s;UNIX.mode=0%i%i%i;UNIX.uid=nobody;UNIX.gid=nobody; %s\r\n",
+                        bytes = sprintf(temp, "type=%s%s;siz%s=%llu;modify=%s;UNIX.mode=0%i%i%i;UNIX.uid=nobody;UNIX.gid=nobody; %s\r\n",
                             dirtype, fis_dir(stat) ? "dir" : "file",
                             fis_dir(stat) ? "d" : "e", (unsigned long long)stat.st_size, tstr,
                             (((stat.st_mode & S_IRUSR) != 0) * 4 + ((stat.st_mode & S_IWUSR) != 0) * 2 + ((stat.st_mode & S_IXUSR) != 0) * 1),
@@ -799,7 +799,7 @@ cdup:           bytes = 0;
                             (((stat.st_mode & S_IROTH) != 0) * 4 + ((stat.st_mode & S_IWOTH) != 0) * 2 + ((stat.st_mode & S_IXOTH) != 0) * 1),
                             entry.d_name);
 
-                        if(send(conn_s, temp, bytes, 0)<0) break;
+                        if(send(conn_s, temp, bytes, 0) < 0) break;
 
                         dqueue--;
                     }
@@ -879,7 +879,7 @@ cdup:           bytes = 0;
                         {
                             pad_last_time = 0;
                             bytes = sprintf(temp, "%s\r\n", entry.d_name);
-                            if(send(data_s, temp, bytes, 0)<0) break;
+                            if(send(data_s, temp, bytes, 0) < 0) break;
                         }
 
                         bytes = ftpresp(temp, 226, "Transfer complete");
@@ -951,20 +951,17 @@ cdup:           bytes = 0;
                         {
                             pad_last_time = 0;
                             bytes = sprintf(temp, "%s\r\n", entry.d_name);
-                            if(send(data_s, temp, bytes, 0)<0) break;
+                            if(send(data_s, temp, bytes, 0) < 0) break;
                         }
 
                         if(!strcmp(cwd, "/"))
                         {
-                            char tstr[14];
-                            sprintf(tstr, "Jan  1 00:00");
-
                             for(int i = 1; i < 9; i++)
                             {
                                 if(mounts[i])
                                 {
                                     bytes = sprintf(temp, "ntfs%i:\r\n", i - 1);
-                                    if(send(data_s, temp, bytes, 0)<0) break;
+                                    if(send(data_s, temp, bytes, 0) < 0) break;
                                 }
                             }
                         }

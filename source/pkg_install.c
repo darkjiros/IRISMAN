@@ -106,7 +106,7 @@ void draw_pkginstall(float x, float y)
     //sprintf(path_pkghdd, "%s/PKG", self_path);
     sprintf(path_pkghdd, "/dev_hdd0/packages");
 
-    while(1)
+    while(true)
     {
         flash = (frame_count >> 4) & 1;
 
@@ -151,22 +151,24 @@ void draw_pkginstall(float x, float y)
             if(autolist > 1 && autolist!=12)
                 {sprintf(path_name,"/dev_usb00%c", 46 + autolist);}
 
-            dir = opendir (path_name);
+            dir = opendir(path_name);
             is_hdd=0;
             if(!dir)
             {
-                dir = opendir (path_pkghdd);
+                dir = opendir(path_pkghdd);
                 if(dir) {is_hdd=1;autolist=12;}
                 else autolist = 2;
             }
 
             if(dir)
             {
-                while(1)
+                while(true)
                 {
-                    struct dirent *entry=readdir (dir);
-                    if(!entry) break;
                     if(nentries >= 1024) break;
+
+                    struct dirent *entry = readdir(dir);
+
+                    if(!entry) break;
                     if(entry->d_name[0] == '.' && entry->d_name[1] == 0) continue;
 
                     if((entry->d_type & DT_DIR) && is_hdd) continue;
@@ -174,8 +176,12 @@ void draw_pkginstall(float x, float y)
                     if((entry->d_type & DT_DIR)) entries[nentries].flags = 1;
                     else
                     {
-                        if(strncmp(entry->d_name + strlen(entry->d_name)-4, ".pkg",5) && strncmp(entry->d_name + strlen(entry->d_name)-4, ".PKG",5))
-                            continue;
+                        int flen = strlen(entry->d_name) - 4;
+
+                        if (flen < 0) continue;
+
+                        if(strncmp(entry->d_name + flen, ".pkg", 5) && strncmp(entry->d_name + flen, ".PKG", 5)) continue;
+
                         entries[nentries].flags = 0;
                     }
 
@@ -183,7 +189,7 @@ void draw_pkginstall(float x, float y)
                     nentries++;
                 }
 
-                closedir (dir);
+                closedir(dir);
 
                 qsort(entries, nentries, sizeof(t_list), compare);
 

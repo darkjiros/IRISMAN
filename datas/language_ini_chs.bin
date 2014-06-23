@@ -34,7 +34,7 @@ DRAWSCREEN_GAMEICANTFD  = 未找到USB设备挂载 /dev_hdd0/game
 DRAWSCREEN_GAMEIWLAUNCH = 确认加载游戏?
 DRAWSCREEN_EXTEXENOTFND = 外置执行文件未发现
 DRAWSCREEN_EXTEXENOTCPY = 使用 '导入EBOOT' 来导入..
-DRAWSCREEN_REQBR        = 请放入正版Playstation®3游戏光盘@                    重试?
+DRAWSCREEN_REQBR        = 请放入正版PlayStation3游戏光盘@                    重试?
 
 # DRAW OPTIONS
 DRAWGMOPT_OPTS          = 选项
@@ -242,3 +242,17 @@ OUT_OFMEMORY            = 内存不足
 OPERATION_DONE          = 完成!
 PLUG_STORAGE1           = 轻按两次PS键激活虚拟光盘(或插入USB存储设备)
 PLUG_STORAGE2           = 虚拟光盘已激活
+
+# GAME LIST
+GAMELIST_ALLGAMES       = All Games
+GAMELIST_PS3GAMES       = PS3 Games
+GAMELIST_VIDEOS         = Videos
+GAMELIST_NETGAMES       = Network Games (via webMAN)
+GAMELIST_STATUS1        = SQUARE  All Retro games       <  >  Select Retro mode       X  Select List
+GAMELIST_STATUS2        = X  Select Game List mode             O  Go Back
+GAMELIST_SCANNING0      = Scanning all games...
+GAMELIST_SCANNING1      = Scanning PS3 games...
+GAMELIST_SCANNING2      = Scanning PlayStation games...
+GAMELIST_SCANNING3      = Scanning Videos...
+GAMELIST_SCANNING4      = Scanning Retro games...
+GAMELIST_SCANNING5      = Scanning network games (webMAN)...

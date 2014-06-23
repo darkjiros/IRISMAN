@@ -10,7 +10,7 @@
 
 extern int background_sel;
 extern int background_fx;
-extern int bBackgroundGears;
+extern bool bBackgroundGears;
 
 struct {
     float x, y, dx, dy, r, rs;
@@ -531,7 +531,7 @@ float DrawButton2(float x, float y, float w, char * t, int select)
 float DrawButton1_UTF8(float x, float y, float w, char * t, int select)
 {
     int len = 0;
-    u32 rgba = 0xffffffff, brgba = 0x101010ff;
+    u32 rgba = 0xffffffff, brgba = 0x101010ee;
     u32 brgba2 = 0x404040ff;
 
     set_ttf_window(0, 0, 848, 512, WIN_SKIP_LF);
@@ -539,9 +539,9 @@ float DrawButton1_UTF8(float x, float y, float w, char * t, int select)
 
     if(w < (len + 24)) w = (len + 24);
 
-    if(select == 1) {rgba = 0x000000ff; brgba2 = 0xc0c0c0ff;brgba = 0xffffffff;}
-        else
-    if(select == -1) {rgba = 0x0000006f; brgba = brgba2 = 0xffffff6f;}
+    if(select ==  1) {rgba = 0x000000ff; brgba2 = 0xc0c0c0ff; brgba = 0xffffffee;}
+    else
+    if(select == -1) {rgba = 0x0000006f; brgba2 = brgba = 0xffffff6f;}
 
 
     DrawBox2(x, y, 0.0f, w, 40, brgba, brgba2);
@@ -558,19 +558,19 @@ float DrawButton1_UTF8(float x, float y, float w, char * t, int select)
 float DrawButton2_UTF8(float x, float y, float w, char * t, int select)
 {
     int len = 0;
-    u32 rgba = 0xffffffff, brgba = 0x0030d0ff;
-    u32 brgba2 = 0x003080ff;
+    u32 rgba = 0xffffffff, brgba = 0x0030d044;
+    u32 brgba2 = 0x00308044;
 
     set_ttf_window(0, 0, 848, 512, WIN_SKIP_LF);
     len = display_ttf_string(0, 0, t, 0, 0, 14, 32);
 
     if(w < (len + 20)) w = (len + 20);
 
-    if(select == 2) {rgba = 0xffffffff; brgba = 0xd01000ff;brgba2 = 0x801000ff;}
-        else
-    if(select == 1) {rgba = 0xffffffff; brgba = 0x00d000ff;brgba2 = 0x008030ff;}
-        else
-    if(select == -1) {rgba = 0xffffff6f; brgba= 0x0040006f; brgba2 = 0x00d0006f;}
+    if(select ==  2) {rgba = 0xffffffff; brgba = 0xd01000ff; brgba2 = 0x801000ff;}
+    else
+    if(select ==  1) {rgba = 0xffffffff; brgba = 0x00d000ff; brgba2 = 0x008030ff;}
+    else
+    if(select == -1) {rgba = 0xffffff6f; brgba = 0x0040006f; brgba2 = 0x00d0006f;}
 
     DrawBox2(x, y, 0.0f, w, 40, brgba, brgba2);
     DrawLineBox(x, y, 0.0f, w, 40, 0xc0c0c0ff);
@@ -597,8 +597,8 @@ void update_twat(int background)
     {
         int i = BIG_PICT + 1;
         tiny3d_SetTextureWrap(0, Png_offset[i], Png_datas[i].width,
-            Png_datas[i].height, Png_datas[i].wpitch,
-            TINY3D_TEX_FORMAT_A8R8G8B8,  TEXTWRAP_CLAMP, TEXTWRAP_CLAMP,1);
+                              Png_datas[i].height, Png_datas[i].wpitch,
+                              TINY3D_TEX_FORMAT_A8R8G8B8,  TEXTWRAP_CLAMP, TEXTWRAP_CLAMP,1);
 
         DrawTextBox(-1, -1, 128000.0f, 850, 514, (background_sel & 1) ? 0xffffffff : 0xcfcfcfff);
     }
@@ -763,7 +763,6 @@ void draw_twat2(float x, float y, float angle)
 // GUI alternative
 
 static struct {
-
     float x, y;
     float dx, dy;
     float rad;

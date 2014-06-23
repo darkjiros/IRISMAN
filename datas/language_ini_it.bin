@@ -83,7 +83,7 @@ DRAWGLOPT_SWMUSICOFF    = Disattivare la Musica (Off)
 DRAWGLOPT_SWMUSICON     = Attivare la musica (On)
 DRAWGLOPT_INITFTP       = Inizializzare il server FTP
 DRAWGLOPT_TOOLS         = Strumenti
-DRAWGLOPT_REFRESH       = Aggiorna Elenco giochi
+DRAWGLOPT_REFRESH       = Elenco giochi
 DRAWGLOPT_CREDITS       = Riconoscimenti
 DRAWGLOPT_FTPINITED     = Server FTP inizializzato@Vuoi avviare in automatico il server FTP ogni qual volta si apre Iris Manager ?
 DRAWGLOPT_FTPARINITED   = Server FTP già inizializzato
@@ -232,3 +232,16 @@ OPERATION_DONE          = Finito!
 PLUG_STORAGE1           = Ricorda di creare un dispositivo di massa USB per creare un FAKE DISC EVENT
 PLUG_STORAGE2           = Fake Disc Inserito
 
+# GAME LIST
+GAMELIST_ALLGAMES       = Tutti i giochi
+GAMELIST_PS3GAMES       = Giochi PS3
+GAMELIST_VIDEOS         = Vídeos
+GAMELIST_NETGAMES       = Giochi in rete (via webMAN)
+GAMELIST_STATUS1        = []  Tutti i giochi Retro       <  >  Selezionare il modo      X  Selezionare Elenco
+GAMELIST_STATUS2        = X  Selezionare il modo Elenco giochi             O  Ritorno
+GAMELIST_SCANNING0      = Cerca tutti i giochi...
+GAMELIST_SCANNING1      = Cerca giochi PS3...
+GAMELIST_SCANNING2      = Cerca giochi PlayStation...
+GAMELIST_SCANNING3      = Cerca vídeos...
+GAMELIST_SCANNING4      = Cerca giochi Retro...
+GAMELIST_SCANNING5      = Cerca giochi in rete (webMAN)...

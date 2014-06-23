@@ -85,7 +85,7 @@ DRAWGLOPT_SWMUSICOFF    = Desactivar Música
 DRAWGLOPT_SWMUSICON     = Activar Música
 DRAWGLOPT_INITFTP       = Iniciar Servidor FTP
 DRAWGLOPT_TOOLS         = Herramientas
-DRAWGLOPT_REFRESH       = Refrescar Lista de Juegos
+DRAWGLOPT_REFRESH       = Lista de Juegos
 DRAWGLOPT_CREDITS       = Créditos
 DRAWGLOPT_FTPINITED     = Servidor FTP inicializado@Desea iniciar el servicio FTP automáticamente cada vez?
 DRAWGLOPT_FTPARINITED   = Servidor FTP ya fue iniciado
@@ -224,7 +224,7 @@ DRAWPSX_PUTFNAME        = Introduce un Nombre de Carpeta:
 DRAWPSX_FMUSTB          = El Nombre de la carpeta debe ser >=3 caracteres
 DRAWPSX_PUTADISC        = Mete un disco PSX y pulsa SI para continuar o NO para cancelar@@Disco a copiar: 
 DRAWPSX_UNREC           = Disco no reconocido
-DRAWPSX_ERROPENING      = Error abriendo dispositivo BDVB
+DRAWPSX_ERROPENING      = Error abriendo dispositivo BDVD
 DRAWPSX_ASKEFOLDER      = La Carpeta Existe@@Continuar?
 DRAWPSX_ISOEXITS        = existe@@Saltar?
        
@@ -234,3 +234,16 @@ OPERATION_DONE          = Hecho!
 PLUG_STORAGE1           = Recuerda enchufar un dispositivo de almacenamiento masivo para crear el evento del falso disco
 PLUG_STORAGE2           = Falso Disco Insertado
 
+# GAME LIST
+GAMELIST_ALLGAMES       = Todos los Juegos
+GAMELIST_PS3GAMES       = Juegos PS3
+GAMELIST_VIDEOS         = Videos
+GAMELIST_NETGAMES       = Juegos en la Red (via webMAN)
+GAMELIST_STATUS1        = []  Todos los Juegos Retro     <  >  Seleccionar modo Retro      X  Seleccionar Lista
+GAMELIST_STATUS2        = X  Seleccionar Lista de Juegos             O  Retornar
+GAMELIST_SCANNING0      = Buscando todos los juegos...
+GAMELIST_SCANNING1      = Buscando juegos PS3...
+GAMELIST_SCANNING2      = Buscando juegos PlayStation...
+GAMELIST_SCANNING3      = Buscando videos...
+GAMELIST_SCANNING4      = Buscando juegos Retro...
+GAMELIST_SCANNING5      = Buscando juegos en la red (webMAN)...

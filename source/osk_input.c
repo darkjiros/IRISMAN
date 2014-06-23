@@ -18,6 +18,7 @@
 #include <ppu-lv2.h>
 
 #include "sysregistry.h"
+#include "file_manager.h"
 
 int osk_action = 0;
 
@@ -27,7 +28,7 @@ int osk_action = 0;
 #define OSKDIALOG_INPUT_CANCELED    0x506
 
 volatile int osk_event = 0;
-volatile int osk_unloaded = 0;
+volatile bool osk_unloaded = false;
 
 static sys_mem_container_t container_mem;
 
@@ -40,19 +41,19 @@ static void my_eventHandle(u64 status, u64 param, void * userdata)
     switch((u32) status)
     {
         case OSKDIALOG_INPUT_CANCELED:
-            osk_event= OSKDIALOG_INPUT_CANCELED;
+            osk_event = OSKDIALOG_INPUT_CANCELED;
             break;
 
         case OSKDIALOG_UNLOADED:
-            osk_unloaded= 1;
+            osk_unloaded = true;
             break;
 
         case OSKDIALOG_INPUT_ENTERED:
-            osk_event=OSKDIALOG_INPUT_ENTERED;
+            osk_event = OSKDIALOG_INPUT_ENTERED;
             break;
 
         case OSKDIALOG_FINISHED:
-            osk_event=OSKDIALOG_FINISHED;
+            osk_event = OSKDIALOG_FINISHED;
             break;
 
         default:
@@ -93,7 +94,7 @@ void UTF32_to_UTF8(u32 *stw, u8 *stb)
         stw++;
     }
 
-    *stb= 0;
+    *stb = 0;
 }
 
 void UTF16_to_UTF8(u16 *stw, u8 *stb)
@@ -126,7 +127,7 @@ void UTF16_to_UTF8(u16 *stw, u8 *stb)
         stw++;
     }
 
-    *stb= 0;
+    *stb = 0;
 }
 
 void UTF8_to_UTF16(u8 *stb, u16 *stw)
@@ -183,6 +184,7 @@ void UTF8_to_UTF16(u8 *stb, u16 *stw)
 
    *stw++ = 0;
 }
+
 /*
 void UTF8_to_Ansi(char *utf8, char *ansi, int len)
 {
@@ -228,6 +230,7 @@ u8 c;
 }
 
 */
+
 static int osk_level = 0;
 
 static void OSK_exit(void)
@@ -236,9 +239,8 @@ static void OSK_exit(void)
     {
         oskAbort();
         oskUnloadAsync(&OutputReturnedParam);
-
-        osk_event  =  0;
-        osk_action = -1;
+        osk_event  = 0;
+        osk_action = FAILED;
     }
 
     if(osk_level >= 1)
@@ -248,23 +250,22 @@ static void OSK_exit(void)
     }
 }
 
-
 int Get_OSK_String(char *caption, char *str, int len)
 {
-    int ret = 0;
+    int ret = SUCCESS;
 
     u16 * message = NULL;
     u16 * OutWcharTex = NULL;
     u16 * InWcharTex = NULL;
 
-    if(len>256) len = 256;
+    if(len > 256) len = 256;
 
     osk_level = 0;
     atexit(OSK_exit);
 
     int lang= sys_language;
 
-    if(sysMemContainerCreate(&container_mem, 8 * 1024 * 1024) < 0) return -1;
+    if(sysMemContainerCreate(&container_mem, 8 * 1024 * 1024) < 0) return FAILED;
 
     osk_level = 1;
 
@@ -373,7 +374,7 @@ int Get_OSK_String(char *caption, char *str, int len)
     sysUtilRegisterCallback(SYSUTIL_EVENT_SLOT0, my_eventHandle, NULL);
 
     osk_action = 0;
-    osk_unloaded = 0;
+    osk_unloaded = false;
 
     if(oskLoadAsync(container_mem, (const void *) &DialogOskParam, (const void *)  &inputFieldInfo)<0) {ret= -6; goto end;}
 
@@ -381,71 +382,75 @@ int Get_OSK_String(char *caption, char *str, int len)
 
     while(!osk_unloaded)
     {
-        float x= 28, y = 0;
+        if(len == 250)
+            draw_hex_editor();
+        else
+            draw_file_manager();
+/*
+        else
+        {
+            float x = 28, y = 0;
 
-        cls();
+            cls();
 
-        update_twat(1);
+            update_twat(1);
 
 
-        SetCurrentFont(FONT_TTF);
+            SetCurrentFont(FONT_TTF);
 
-        // header title
+            // header title
 
-        DrawBox(x, y, 0, 200 * 4 - 8, 20, 0x00000028);
+            DrawBox(x, y, 0, 200 * 4 - 8, 20, 0x00000028);
 
-        SetFontColor(0xffffffff, 0x00000000);
+            SetFontColor(0xffffffff, 0x00000000);
 
-        SetFontSize(18, 20);
+            SetFontSize(18, 20);
 
-        SetFontAutoCenter(0);
+            SetFontAutoCenter(0);
 
-        DrawFormatString(x, y, "%s", caption);
+            DrawFormatString(x, y - 2, "%s", caption);
 
-        y += 24;
+            y += 24;
 
-        DrawBox(x, y, 0, 200 * 4 - 8, 150 * 3 - 8, 0x00000028);
+            DrawBox(x, y, 0, 200 * 4 - 8, 150 * 3 - 8, 0x00000028);
 
-        tiny3d_Flip();
-        ps3pad_read();
+            tiny3d_Flip();
+            ps3pad_read();
+        }
+*/
 
-        switch(osk_event) {
+        switch(osk_event)
+        {
+            case OSKDIALOG_INPUT_ENTERED:
+                oskGetInputText(&OutputReturnedParam);
+                osk_event = 0;
+                break;
 
-        case OSKDIALOG_INPUT_ENTERED:
-            oskGetInputText(&OutputReturnedParam);
+            case OSKDIALOG_INPUT_CANCELED:
+                oskAbort();
+                oskUnloadAsync(&OutputReturnedParam);
+                osk_event  = 0;
+                osk_action = FAILED;
+                break;
 
-            osk_event = 0;
-            break;
+            case OSKDIALOG_FINISHED:
+                if(osk_action != FAILED) osk_action = 1;
+                oskUnloadAsync(&OutputReturnedParam);
+                osk_event = 0;
+                break;
 
-        case OSKDIALOG_INPUT_CANCELED:
-            oskAbort();
-            oskUnloadAsync(&OutputReturnedParam);
-
-            osk_event = 0;
-            osk_action=-1;
-            break;
-
-        case OSKDIALOG_FINISHED:
-            if(osk_action != -1) osk_action = 1;
-            oskUnloadAsync(&OutputReturnedParam);
-            osk_event = 0;
-            break;
-
-        default:
-            break;
+            default:
+                break;
         }
 
     }
 
     usleep(150000); // unnecessary but...
 
-    if(OutputReturnedParam.res == OSK_OK && osk_action == 1) {
-
-
+    if(OutputReturnedParam.res == OSK_OK && osk_action == 1)
         UTF16_to_UTF8((u16 *) OutWcharTex, (u8 *) str);
-
-    } else ret= -666;
-
+    else
+        ret= -666;
 
 end:
 
@@ -458,24 +463,23 @@ end:
     if(InWcharTex) free(InWcharTex);
 
     return ret;
-
 }
 
 int Get_OSK_String_no_lang(char *caption, char *str, int len)
 {
 
-    int ret = 0;
+    int ret = SUCCESS;
 
     u16 * message = NULL;
     u16 * OutWcharTex = NULL;
     u16 * InWcharTex = NULL;
 
-    if(len>256) len = 256;
+    if(len > 256) len = 256;
 
     osk_level = 0;
     atexit(OSK_exit);
 
-    if(sysMemContainerCreate(&container_mem, 8*1024*1024)<0) return -1;
+    if(sysMemContainerCreate(&container_mem, 8*1024*1024) < 0) return FAILED;
 
     osk_level = 1;
 
@@ -522,7 +526,7 @@ int Get_OSK_String_no_lang(char *caption, char *str, int len)
     sysUtilRegisterCallback(SYSUTIL_EVENT_SLOT0, my_eventHandle, NULL);
 
     osk_action = 0;
-    osk_unloaded = 0;
+    osk_unloaded = false;
 
     if(oskLoadAsync(container_mem, (const void *) &DialogOskParam, (const void *)  &inputFieldInfo)<0) {ret= -6; goto end;}
 
@@ -530,7 +534,7 @@ int Get_OSK_String_no_lang(char *caption, char *str, int len)
 
     while(!osk_unloaded)
     {
-        float x= 28, y = 0;
+        float x = 28, y = 0;
 
         cls();
 
@@ -558,30 +562,28 @@ int Get_OSK_String_no_lang(char *caption, char *str, int len)
         tiny3d_Flip();
         ps3pad_read();
 
-        switch(osk_event) {
+        switch(osk_event)
+        {
+            case OSKDIALOG_INPUT_ENTERED:
+                oskGetInputText(&OutputReturnedParam);
+                osk_event = 0;
+                break;
 
-        case OSKDIALOG_INPUT_ENTERED:
-            oskGetInputText(&OutputReturnedParam);
+            case OSKDIALOG_INPUT_CANCELED:
+                oskAbort();
+                oskUnloadAsync(&OutputReturnedParam);
+                osk_event  = 0;
+                osk_action = FAILED;
+                break;
 
-            osk_event = 0;
-            break;
+            case OSKDIALOG_FINISHED:
+                if(osk_action != FAILED) osk_action = 1;
+                oskUnloadAsync(&OutputReturnedParam);
+                osk_event = 0;
+                break;
 
-        case OSKDIALOG_INPUT_CANCELED:
-            oskAbort();
-            oskUnloadAsync(&OutputReturnedParam);
-
-            osk_event = 0;
-            osk_action=-1;
-            break;
-
-        case OSKDIALOG_FINISHED:
-            if(osk_action != -1) osk_action = 1;
-            oskUnloadAsync(&OutputReturnedParam);
-            osk_event = 0;
-            break;
-
-        default:
-            break;
+            default:
+                break;
         }
 
     }
@@ -589,11 +591,9 @@ int Get_OSK_String_no_lang(char *caption, char *str, int len)
     usleep(150000); // unnecessary but...
 
     if(OutputReturnedParam.res == OSK_OK && osk_action == 1)
-    {
         UTF16_to_UTF8((u16 *) OutWcharTex, (u8 *) str);
-    }
-    else ret= -666;
-
+    else
+        ret= -666;
 
 end:
 
@@ -606,5 +606,4 @@ end:
     if(InWcharTex) free(InWcharTex);
 
     return ret;
-
 }

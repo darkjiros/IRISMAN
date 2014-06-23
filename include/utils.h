@@ -65,6 +65,7 @@ typedef struct {
 
 #define GAMEBASE_MODE 0
 #define HOMEBREW_MODE 2
+#define VIDEOS_MODE   3
 
 //#define PSDEBUG 1
 
@@ -76,8 +77,9 @@ extern u32 fdevices_old;
 extern u32 forcedevices;
 
 extern int noBDVD;
-extern int use_cobra;
-extern int use_mamba;
+
+extern bool use_cobra;
+extern bool use_mamba;
 
 extern char hdd_folder[64];
 extern char bluray_game[64];
@@ -114,8 +116,11 @@ void utf8_truncate(char *utf8, char *utf8_trunc, int len);
 void sort_entries(t_directories *list, int *max);
 void sort_entries2(t_directories *list, int *max, u32 mode);
 
+void add_custom_icons(t_directories *list, int *max);
+int delete_custom_icons(t_directories *list, int *max);
+
 int delete_entries(t_directories *list, int *max, u32 flag);
-int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag, int sel, int append);
+int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag, int sel, bool append);
 int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int *max);
 void fill_psx_iso_entries_from_device(char *path, u32 flag, t_directories *list, int *max);
 
@@ -165,6 +170,7 @@ int is_file_exist( char* path );
 char * get_extension(char *path);
 char * get_filename(char *path);
 int strcmpext(char *path, char *ext);
+char *str_replace(char *orig, char *rep, char *with);
 
 // console
 
@@ -194,4 +200,6 @@ int covers_update(int pass);
 int download_file(char *url, char *file, int mode, u64 *size);
 
 u64 string_to_ull( char *string );
+
+int edit_title_param_sfo(char * file);
 #endif

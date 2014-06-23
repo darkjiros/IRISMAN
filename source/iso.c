@@ -48,6 +48,9 @@
 
 #define NOPS3_UPDATE 1
 
+#define SUCCESS 0
+#define FAILED -1
+
 #define TICKS_PER_SEC 0x4c1a6bdULL
 
 static u16 wstring[1024];
@@ -68,16 +71,17 @@ static int get_input_char()
 {
     pad_last_time = 0;
 
-    while(1) {
+    while(true)
+    {
         tiny3d_Flip();
         ps3pad_read();
 
         tiny3d_Project2D();
         DbgDraw();
 
-        if(new_pad & BUTTON_CROSS) return 1;
-        if(new_pad & BUTTON_TRIANGLE) return -1;
-        if(new_pad & BUTTON_CIRCLE) return 0;
+        if(new_pad & BUTTON_CROSS)    return 1;   // YES
+        if(new_pad & BUTTON_TRIANGLE) return -1;  // NO
+        if(new_pad & BUTTON_CIRCLE)   return 0;   // CANCEL
     }
 
     return 0;
@@ -352,13 +356,14 @@ u64 get_disk_free_space(char *path)
 
     if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = 1;
 
-    if(!is_ntfs) {
+    if(!is_ntfs)
+    {
         if(sysFsGetFreeSize(path, &blockSize, &freeSize) !=0) return (u64) (-1LL);
         return (((u64)blockSize * freeSize));
-    } else {
-
-        if(ps3ntfs_statvfs((const char *) path, &svfs) != 0)
-            return (u64) (-1LL);
+    }
+    else
+    {
+        if(ps3ntfs_statvfs((const char *) path, &svfs) != 0) return (u64) (-1LL);
     }
 
     return ( ((u64)svfs.f_bsize * svfs.f_bfree));
@@ -382,9 +387,9 @@ int get_iso_file_pos(FILE *fp, unsigned char *path, u32 *flba, u64 *size)
     u8 *sectors = NULL;
 
     #ifdef USE_64BITS_LSEEK
-    if(fd <= 0 || !size || !flba) return -1;
+    if(fd <= 0 || !size || !flba) return FAILED;
     #else
-    if(!fp || !size || !flba) return -1;
+    if(!fp || !size || !flba) return FAILED;
     #endif
 
     *size = 0;
@@ -462,7 +467,7 @@ int get_iso_file_pos(FILE *fp, unsigned char *path, u32 *flba, u64 *size)
                 if(fseek(fp, file_lba * 2048, SEEK_SET) != 0) goto err;
                 #endif
 
-                return 0;
+                return SUCCESS;
             }
         }
 
@@ -551,7 +556,7 @@ int get_iso_file_pos(FILE *fp, unsigned char *path, u32 *flba, u64 *size)
     int p2 = 0;
 
     p = 0;
-    while(1)
+    while(true)
     {
         if(nsplit >= nfolder_split) break;
         idr = (struct iso_directory_record *) &sectors[p];
@@ -576,7 +581,7 @@ int get_iso_file_pos(FILE *fp, unsigned char *path, u32 *flba, u64 *size)
             if(fread((void *) sectors, 1, 2048, fp) != 2048) goto err;
             #endif
 
-            p = 0; p2= (p2 & ~2047) + 2048;
+            p = 0; p2 = (p2 & ~2047) + 2048;
 
             idr = (struct iso_directory_record *) &sectors[p];
             if((int) idr->length[0] == 0) break;
@@ -617,7 +622,7 @@ int get_iso_file_pos(FILE *fp, unsigned char *path, u32 *flba, u64 *size)
 
     if(sectors) free(sectors);
 
-    return 0;
+    return SUCCESS;
 
 err:
     if(sectors) free(sectors);
@@ -630,7 +635,7 @@ int create_fake_file_iso(char *path, char *filename, u64 size)
     int len_string;
     u8 *mem = malloc(sizeof(build_iso_data));
     u16 *string = (u16 *) malloc(256);
-    if(!mem || !string) return -1;
+    if(!mem || !string) return FAILED;
 
     char name[65];
     strncpy(name, filename, 64);
@@ -722,7 +727,7 @@ int create_fake_file_iso(char *path, char *filename, u64 size)
     free(mem);
     free(string);
 
-    return 0;
+    return SUCCESS;
 }
 
 char * create_fake_file_iso_mem(char *filename, u64 size, u32 *nsize)
@@ -969,7 +974,7 @@ static int iso_parse_param_sfo(char * file, char *title_id, char *title_name)
             if(ct == 2)
             {
                 free(mem);
-                return 0;
+                return SUCCESS;
             }
 
             while(mem[str]) str++;str++;
@@ -980,7 +985,7 @@ static int iso_parse_param_sfo(char * file, char *title_id, char *title_name)
         if(mem) free(mem);
     }
 
-    return -1;
+    return FAILED;
 }
 
 static int calc_entries(char *path, int parent)
@@ -1017,7 +1022,7 @@ static int calc_entries(char *path, int parent)
     if(!cur)
     {
         directory_iso[cur].name = malloc(16);
-        if(!directory_iso[cur].name) return -1;
+        if(!directory_iso[cur].name) return FAILED;
         directory_iso[cur].name[0] = 0;
     }
 
@@ -1030,7 +1035,7 @@ static int calc_entries(char *path, int parent)
     dir = opendir (path);
     if(dir)
     {
-        while(1)
+        while(true)
         {
             struct dirent *entry = readdir (dir);
 
@@ -1153,7 +1158,7 @@ static int calc_entries(char *path, int parent)
         dir = opendir (path);
         if(dir)
         {
-            while(1)
+            while(true)
             {
                 struct dirent *entry = readdir (dir);
 
@@ -1227,7 +1232,7 @@ static int calc_entries(char *path, int parent)
     dir = opendir (path);
     if(dir)
     {
-        while(1)
+        while(true)
         {
             struct dirent *entry = readdir (dir);
 
@@ -1247,7 +1252,7 @@ static int calc_entries(char *path, int parent)
             //DPrintf("ss %s\n", path);
 
             directory_iso[cur_isop].name = malloc(strlen(entry->d_name) + 1);
-            if(!directory_iso[cur_isop].name) {closedir(dir); return -1;}
+            if(!directory_iso[cur_isop].name) {closedir(dir); return FAILED;}
             strcpy(directory_iso[cur_isop].name, entry->d_name);
 
             int ret = calc_entries(path, cur2 + 1);
@@ -1328,7 +1333,7 @@ static int calc_entries(char *path, int parent)
     }
     */
 
-    return 0;
+    return SUCCESS;
 }
 
 static int fill_dirpath(void)
@@ -1427,7 +1432,7 @@ static int fill_dirpath(void)
 
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 static int fill_entries(char *path1, char *path2, int level)
@@ -1563,7 +1568,7 @@ static int fill_entries(char *path1, char *path2, int level)
     dir = opendir (path1);
     if(dir)
     {
-        while(1)
+        while(true)
         {
             struct dirent *entry = readdir (dir);
 
@@ -1901,7 +1906,7 @@ static int fill_entries(char *path1, char *path2, int level)
 
     path2[len2] = 0;
 
-    return 0;
+    return SUCCESS;
 
 }
 
@@ -1915,7 +1920,7 @@ static int write_split0(int *fd, u32 lba, u8 *mem, int sectors, int sel)
     if(!iso_split)
     {
         if(ps3ntfs_write(*fd, (void *) mem, (int) sectors * 2048) != sectors * 2048) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     int cur = lba / SPLIT_LBA;
@@ -1924,7 +1929,7 @@ static int write_split0(int *fd, u32 lba, u8 *mem, int sectors, int sel)
     if(cur == cur2 && (iso_split - 1) == cur)
     {
         if(ps3ntfs_write(*fd, (void *) mem, (int) sectors * 2048) != sectors * 2048) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     u32 lba2 = lba + sectors;
@@ -1938,7 +1943,7 @@ static int write_split0(int *fd, u32 lba, u8 *mem, int sectors, int sel)
         {
             if (*fd >= 0) ps3ntfs_close(*fd); *fd = -1;
 
-            if(sel == 0) return 0;
+            if(sel == 0) return SUCCESS;
 
             if(iso_split == 1)
             {
@@ -1952,14 +1957,14 @@ static int write_split0(int *fd, u32 lba, u8 *mem, int sectors, int sel)
             sprintf(filename, "%s.%i", output_name, iso_split - 1);
 
             *fd = ps3ntfs_open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0766);
-            if(*fd < 0) return -1;
+            if(*fd < 0) return FAILED;
         }
 
         if(ps3ntfs_write(*fd, (void *) mem + pos, 2048) != 2048) return -667;
         pos += 2048;
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 #include "event_threads.h"
@@ -2051,7 +2056,7 @@ static int write_split(int *fd, u32 lba, u8 *mem, int sectors, int sel)
         }
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 static int build_file_iso(int *fd, char *path1, char *path2, int level)
@@ -2088,7 +2093,7 @@ static int build_file_iso(int *fd, char *path1, char *path2, int level)
     dir = opendir (path1);
     if(dir)
     {
-        while(1)
+        while(true)
         {
             struct dirent *entry=readdir (dir);
 
@@ -2388,7 +2393,7 @@ static int build_file_iso(int *fd, char *path1, char *path2, int level)
     }
 
 
-    return 0;
+    return SUCCESS;
 
 }
 
@@ -2467,13 +2472,18 @@ int makeps3iso(char *g_path, char *f_iso, int split)
     {
         DPrintf("ERROR: stat st_size must be a 64 bit number!  (size %i)\n\nPress CIRCLE button to continue\n\n", (int) sizeof(s.st_size));
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
 
     fixpath(path1);
 
-    if(stat(path1, &s)<0 || !(S_ISDIR(s.st_mode))) {DPrintf("ERROR: Invalid Path!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;}
+    if(stat(path1, &s) < 0 || !(S_ISDIR(s.st_mode)))
+    {
+        DPrintf("ERROR: Invalid Path!\n\nPress CIRCLE button to continue\n");
+        get_input_char();
+        return FAILED;
+    }
 
     strcpy(path2, path1);
     strcat(path2, "/PS3_GAME/PARAM.SFO");
@@ -2483,7 +2493,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
         DPrintf("ERROR: PARAM.SFO not found!\n");
         DPrintf("\nPress CIRCLE button to continue\n");
         get_input_char();
-        return -1;
+        return FAILED;
     }
     else
     {
@@ -2508,7 +2518,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
 
     int nlen = strlen(output_name);
 
-    if(nlen < 1) {strcpy(output_name, path2);/*DPrintf("ISO name too short!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;*/}
+    if(nlen < 1) {strcpy(output_name, path2);/*DPrintf("ISO name too short!\n\nPress CIRCLE button to continue\n"); get_input_char();return FAILED;*/}
     else
     {
 
@@ -2530,7 +2540,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
     {
         DPrintf("\nFile Exists. Do you want to Overwrite it? (CROSS - Yes/ TRIANGLE - No):\n");
 
-        if(get_input_char() <= 0) return -1;
+        if(get_input_char() <= 0) return FAILED;
     }
 
     strcpy(output_name2, output_name);
@@ -2544,7 +2554,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
         c = get_input_char();
 
         if(c ==  1) iso_split = 1; else
-        if(c == -1) iso_split = 0; else {cls(); tiny3d_Flip(); return -1;}
+        if(c == -1) iso_split = 0; else {cls(); tiny3d_Flip(); return FAILED;}
 
     }
     else
@@ -2565,7 +2575,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
         DPrintf("Out of Memory (directory_iso mem)\n");
         DPrintf("\nPress CIRCLE button to continue\n");
         get_input_char();
-        cls(); tiny3d_Flip(); return -1;
+        cls(); tiny3d_Flip(); return FAILED;
     }
 
     memset(directory_iso, 0, (MAX_ISO_PATHS + 1) * sizeof(_directory_iso));
@@ -2590,7 +2600,8 @@ int makeps3iso(char *g_path, char *f_iso, int split)
 
     ret = calc_entries(path1, 1);
     if(ret < 0 ) {
-        switch(ret) {
+        switch(ret)
+        {
             case -1:
                 DPrintf("Out of Memory (calc_entries())\n");
                 goto err;
@@ -2934,7 +2945,7 @@ int makeps3iso(char *g_path, char *f_iso, int split)
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    cls(); tiny3d_Flip(); return 0;
+    cls(); tiny3d_Flip(); return SUCCESS;
 
 err:
     if(directory_iso) {
@@ -2975,7 +2986,7 @@ err:
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    cls(); tiny3d_Flip(); return -1;
+    cls(); tiny3d_Flip(); return FAILED;
 }
 
 /*************************************************************************************/
@@ -2988,7 +2999,7 @@ static void get_iso_path(char *path, int indx)
 
     if(!indx) {path[0] = '/'; path[1] = 0; return;}
 
-    while(1)
+    while(true)
     {
         strcpy(aux, directory_iso2[indx].name);
         strcat(aux, path);
@@ -3016,7 +3027,7 @@ static int read_split(u64 position, u8 *mem, int size)
         }
 
         if(ps3ntfs_read(fd_split0, (void *) mem, size) != size) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     u64 relpos0 = 0;
@@ -3041,7 +3052,6 @@ static int read_split(u64 position, u8 *mem, int size)
         if(split_index && fd_split >= 0) {ps3ntfs_close(fd_split); fd_split = -1;}
         split_index = 0;
         fd_split = fd_split0;
-
     }
     else
     {
@@ -3068,7 +3078,7 @@ static int read_split(u64 position, u8 *mem, int size)
     if(position >= relpos0 && (position + size) < relpos1)
     {
         if(ps3ntfs_read(fd_split, (void *) mem, (int) size) != size) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     int lim = (int) (relpos1 - position);
@@ -3086,7 +3096,7 @@ static int read_split(u64 position, u8 *mem, int size)
 
     if(ps3ntfs_read(fd_split, (void *) mem, (int) size) != size) return -667;
 
-    return 0;
+    return SUCCESS;
 }
 
 int extractps3iso(char *f_iso, char *g_path, int split)
@@ -3135,7 +3145,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     {
         DPrintf("ERROR: stat st_size must be a 64 bit number!  (size %i)\n\nPress CIRCLE button to continue\n\n", (int) sizeof(s.st_size));
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     split_file = malloc(sizeof(_split_file) * 64);
@@ -3143,7 +3153,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     {
         DPrintf("ERROR: out of memory! (split_file)\n\nPress CIRCLE button to continue\n\n");
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     strcpy(path1, f_iso);
@@ -3151,7 +3161,9 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     if(path1[0] == 0)
     {
          free(split_file); split_file = NULL;
-         DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+         DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n");
+         get_input_char();
+         return FAILED;
     }
 
     fixpath(path1);
@@ -3165,7 +3177,9 @@ int extractps3iso(char *f_iso, char *g_path, int split)
         if(stat(split_file[0].path, &s)<0)
         {
             free(split_file); split_file = NULL;
-            DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+            DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n");
+            get_input_char();
+            return FAILED;
         }
 
         split_file[0].size = s.st_size;
@@ -3194,7 +3208,9 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     else
     {
         free(split_file); split_file = NULL;
-        DPrintf("Error: file must be with .iso, .ISO .iso.0 or .ISO.0 extension\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+        DPrintf("Error: file must be with .iso, .ISO .iso.0 or .ISO.0 extension\n\nPress CIRCLE button to continue\n");
+        get_input_char();
+        return FAILED;
     }
 
     path2[0] = 0;
@@ -3205,8 +3221,9 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     if(path2[0] == 0)
     {
         free(split_file); split_file = NULL;
-        DPrintf("Error: Invalid game path\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
-
+        DPrintf("Error: Invalid game path\n\nPress CIRCLE button to continue\n");
+        get_input_char();
+        return FAILED;
     }
     else if(stat(path2, &s) == 0)
     {
@@ -3249,7 +3266,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
         free(split_file); split_file = NULL;
         DPrintf("ERROR: Cannot open ISO file\n\nPress CIRCLE button to continue\n\n");
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     t_start = get_ticks();
@@ -3401,7 +3418,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
         int q2 = 0;
         int size_directory = 0;
 
-        while(1)
+        while(true)
         {
             if(ps3ntfs_seek64(fd, lba * 2048, SEEK_SET)<0)
             {
@@ -3435,7 +3452,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
 
             int signal_idr_correction = 0;
 
-            while(1)
+            while(true)
             {
                 if(signal_idr_correction)
                 {
@@ -3721,7 +3738,7 @@ int extractps3iso(char *f_iso, char *g_path, int split)
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    return 0;
+    return SUCCESS;
 
 err:
 
@@ -3753,7 +3770,7 @@ err:
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    return -1;
+    return FAILED;
 }
 
 static int write_split2(u64 position, u8 *mem, int size)
@@ -3772,7 +3789,7 @@ static int write_split2(u64 position, u8 *mem, int size)
         }
 
         if(ps3ntfs_write(fd_split0, (void *) mem, size) != size) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     u64 relpos0 = 0;
@@ -3824,7 +3841,7 @@ static int write_split2(u64 position, u8 *mem, int size)
     if(position >= relpos0 && (position + size) < relpos1)
     {
         if(ps3ntfs_write(fd_split, (void *) mem, (int) size) != size) return -667;
-        return 0;
+        return SUCCESS;
     }
 
     int lim = (int) (relpos1 - position);
@@ -3842,7 +3859,7 @@ static int write_split2(u64 position, u8 *mem, int size)
 
     if(ps3ntfs_write(fd_split, (void *) mem, (int) size) != size) return -667;
 
-    return 0;
+    return SUCCESS;
 }
 
 static int iso_param_sfo_util(u32 lba, u32 len)
@@ -3864,7 +3881,7 @@ static int iso_param_sfo_util(u32 lba, u32 len)
     if(read_split(file_pos, (void *) mem, (int) len) < 0)
     {
         DPrintf("\nERROR: reading in ISO PARAM.SFO file\n\n");
-        return -1;
+        return FAILED;
     }
 
     str = (mem[8] + (mem[9]<<8));
@@ -3898,11 +3915,11 @@ static int iso_param_sfo_util(u32 lba, u32 len)
         if(write_split2(file_pos, (void *) mem, (int) len) < 0)
         {
             DPrintf("\nERROR: reading in ISO PARAM.SFO file\n\n");
-            return -1;
+            return FAILED;
         }
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 static int iso_patch_exe_error_09(u32 lba, char *filename)
@@ -3916,7 +3933,7 @@ static int iso_patch_exe_error_09(u32 lba, char *filename)
 
     u64 file_pos = ((u64) lba * 2048ULL);
 
-    //if(firmware < 0x421C || firmware >= 0x460C) return 0;
+    //if(firmware < 0x421C || firmware >= 0x460C) return SUCCESS;
 
     // open self/sprx and changes the fw version
 
@@ -3925,7 +3942,7 @@ static int iso_patch_exe_error_09(u32 lba, char *filename)
     if(read_split(file_pos + 0xCULL, (void *) &offset_fw, (int) 4) < 0)
     {
         DPrintf("\nERROR: reading in ISO SPRX/SELF file\n\n");
-        return -1;
+        return FAILED;
     }
 
     offset_fw = SWAP32(offset_fw);
@@ -3935,7 +3952,7 @@ static int iso_patch_exe_error_09(u32 lba, char *filename)
     if(read_split(file_pos + ((u64) offset_fw), (void *) &ver, (int) 2) < 0)
     {
         DPrintf("\nERROR: reading in ISO SPRX/SELF file\n\n");
-        return -1;
+        return FAILED;
     }
 
     ver = SWAP16(ver);
@@ -3949,7 +3966,7 @@ static int iso_patch_exe_error_09(u32 lba, char *filename)
         if(write_split2(file_pos + ((u64) offset_fw), (void *) &cur_firm, (int) 2) < 0)
         {
             DPrintf("\nERROR: writing ISO file\n\n");
-            return -1;
+            return FAILED;
         }
 
         flag = 1;
@@ -3958,7 +3975,7 @@ static int iso_patch_exe_error_09(u32 lba, char *filename)
     }
     else if(ver > cur_firm)
     {
-         DPrintf("\nERROR: this SELF/SPRX uses a bigger version of %u.%uC (%u.%u)\n\n", cur_firm/10000, (cur_firm % 10000)/100, ver/10000, (ver % 10000)/100);
+        DPrintf("\nERROR: this SELF/SPRX uses a bigger version of %u.%uC (%u.%u)\n\n", cur_firm/10000, (cur_firm % 10000)/100, ver/10000, (ver % 10000)/100);
         flag = -1; //
     }
 
@@ -4012,7 +4029,7 @@ int patchps3iso(char *f_iso, int nopause)
     {
         DPrintf("ERROR: stat st_size must be a 64 bit number!  (size %i)\n\nPress CIRCLE button to continue\n\n", (int) sizeof(s.st_size));
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     split_file = malloc(sizeof(_split_file) * 64);
@@ -4020,7 +4037,7 @@ int patchps3iso(char *f_iso, int nopause)
     {
         DPrintf("ERROR: out of memory! (split_file)\n\nPress CIRCLE button to continue\n\n");
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     strcpy(path1, f_iso);
@@ -4028,7 +4045,9 @@ int patchps3iso(char *f_iso, int nopause)
     if(path1[0] == 0)
     {
         free(split_file); split_file = NULL;
-        DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+        DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n");
+        get_input_char();
+        return FAILED;
     }
 
     fixpath(path1);
@@ -4041,7 +4060,9 @@ int patchps3iso(char *f_iso, int nopause)
         sprintf(split_file[0].path, "%s", path1);
         if(stat(split_file[0].path, &s)<0) {
             free(split_file); split_file = NULL;
-            DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+            DPrintf("Error: ISO file don't exists!\n\nPress CIRCLE button to continue\n");
+            get_input_char();
+            return FAILED;
 
         }
 
@@ -4068,7 +4089,9 @@ int patchps3iso(char *f_iso, int nopause)
     }
     else
     {
-        DPrintf("Error: file must be with .iso, .ISO .iso.0 or .ISO.0 extension\n\nPress CIRCLE button to continue\n"); get_input_char();return -1;
+        DPrintf("Error: file must be with .iso, .ISO .iso.0 or .ISO.0 extension\n\nPress CIRCLE button to continue\n");
+        get_input_char();
+        return FAILED;
     }
 
     DPrintf("\n");
@@ -4079,7 +4102,7 @@ int patchps3iso(char *f_iso, int nopause)
         free(split_file); split_file = NULL;
         DPrintf("ERROR: Cannot open ISO file\n\nPress CIRCLE button to continue\n\n");
         get_input_char();
-        return -1;
+        return FAILED;
     }
 
     t_start = get_ticks();
@@ -4215,7 +4238,7 @@ int patchps3iso(char *f_iso, int nopause)
         int q2 = 0;
         int size_directory = 0;
 
-        while(1)
+        while(true)
         {
             if(ps3ntfs_seek64(fd, lba * 2048, SEEK_SET)<0)
             {
@@ -4249,7 +4272,7 @@ int patchps3iso(char *f_iso, int nopause)
 
             int signal_idr_correction = 0;
 
-            while(1)
+            while(true)
             {
                 if(signal_idr_correction)
                 {
@@ -4460,12 +4483,12 @@ int patchps3iso(char *f_iso, int nopause)
     else
         DPrintf("Total ISO Size %u MB\nTotal folders %i\nTotal files %i\n", (u32) (file_size/0x100000LL), num_dir - 1, num_files);
 
-    if(nopause) return 0;
+    if(nopause) return SUCCESS;
 
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    return 0;
+    return SUCCESS;
 
 err:
 
@@ -4485,7 +4508,7 @@ err:
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    return -1;
+    return FAILED;
 }
 
 int delps3iso(char *f_iso)
@@ -4530,5 +4553,5 @@ int delps3iso(char *f_iso)
     DPrintf("\nPress CIRCLE button to continue\n");
     get_input_char();
 
-    return 0;
+    return SUCCESS;
 }

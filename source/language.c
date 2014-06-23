@@ -120,7 +120,7 @@ t_lngstr lang_strings[] =
     { DRAWPSX_VIDEOMODE, "DRAWPSX_VIDEOMODE"  , "Video Mode" },
     { DRAWPSX_VIDEOASP,  "DRAWPSX_VIDEOASP"   , "Video Aspect (480/576)" },
     { DRAWPSX_FULLSCR,   "DRAWPSX_FULLSCR"    , "Full Screen" },
-    { DRAWPSX_SMOOTH,    "DRAWPSX_SMOOTH"     , "Smooting" },
+    { DRAWPSX_SMOOTH,    "DRAWPSX_SMOOTH"     , "Smoothing" },
     { DRAWPSX_EXTROM,    "DRAWPSX_EXTROM"     , "External ROM" },
     { DRAWPSX_FORMAT,    "DRAWPSX_FORMAT"     , "Format Internal_MC" },
     { DRAWPSX_ASKFORMAT, "DRAWPSX_ASKFORMAT"  , "Do you want you format Internal_MC?\n\nYou LOSE the saves in this operation" },
@@ -169,7 +169,7 @@ t_lngstr lang_strings[] =
     { DRAWGLOPT_SWMUSICON, "DRAWGLOPT_SWMUSICON"     , "Switch Music On" },
     { DRAWGLOPT_INITFTP, "DRAWGLOPT_INITFTP"         , "Initialize FTP server" },
     { DRAWGLOPT_TOOLS, "DRAWGLOPT_TOOLS"             , "Tools" },
-    { DRAWGLOPT_REFRESH, "DRAWGLOPT_REFRESH"         , "Refresh Game List" },
+    { DRAWGLOPT_REFRESH, "DRAWGLOPT_REFRESH"         , "Game List" },
     { DRAWGLOPT_CREDITS, "DRAWGLOPT_CREDITS"         , "Credits" },
     { DRAWGLOPT_FTPINITED, "DRAWGLOPT_FTPINITED"     , "Server FTP initialized\nDo you want auto-enable FTP service on init?" },
     { DRAWGLOPT_FTPARINITED, "DRAWGLOPT_FTPARINITED" , "Server FTP already initialized" },
@@ -303,6 +303,20 @@ t_lngstr lang_strings[] =
         "Recuerda enchufar un dispositivo de almacenamiento masivo para crear el evento del falso disco" },
     { PLUG_STORAGE2, "PLUG_STORAGE2" , "Fake Disc Inserted\n\nFalso Disco Insertado" },
 
+
+    //GAME LIST
+    { GAMELIST_ALLGAMES,  "GAMELIST_ALLGAMES"  , "All Games" },
+    { GAMELIST_PS3GAMES,  "GAMELIST_PS3GAMES"  , "PS3 Games" },
+    { GAMELIST_VIDEOS,    "GAMELIST_VIDEOS"    , "Videos" },
+    { GAMELIST_NETGAMES,  "GAMELIST_NETGAMES"  , "Network Games (via webMAN)" },
+    { GAMELIST_STATUS1,   "GAMELIST_STATUS1"   , "SQUARE  All Retro games       <  >  Select Retro mode       X  Select mode" },
+    { GAMELIST_STATUS2,   "GAMELIST_STATUS2"   , "X  Select Game List mode             O  Go Back" },
+    { GAMELIST_SCANNING0, "GAMELIST_SCANNING0" , "Scanning all games..." },
+    { GAMELIST_SCANNING1, "GAMELIST_SCANNING1" , "Scanning PS3 games..." },
+    { GAMELIST_SCANNING2, "GAMELIST_SCANNING2" , "Scanning PlayStation® games..." },
+    { GAMELIST_SCANNING3, "GAMELIST_SCANNING3" , "Scanning Videos..." },
+    { GAMELIST_SCANNING4, "GAMELIST_SCANNING4" , "Scanning Retro games..." },
+    { GAMELIST_SCANNING5, "GAMELIST_SCANNING5" , "Scanning network games (webMAN)..." },
 
 
     { LANGSTRINGS_COUNT, "", ""}

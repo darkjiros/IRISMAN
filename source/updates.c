@@ -515,6 +515,8 @@ int download_file(char *url, char *file, int mode, u64 *size)
         cpart = 0;
     }
 
+    if(!file) goto err;
+
     fp = fopen(file, "wb");
     if(!fp) {DrawDialogOKTimer("Error saving file", 2000.0f); goto err;}
 

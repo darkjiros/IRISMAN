@@ -1,6 +1,19 @@
 #ifndef PSX_H
 #define PSX_H
 
+enum PsxVideoOptionsFlags
+{
+    PSX_VIDEO_MODE = 0xf,
+    PSX_VIDEO_ASPECT_RATIO = 0xf0,
+};
+
+enum PsxOptionsFlags
+{
+    PSX_EMULATOR = 0x3,
+    PSX_VIDEO_SMOOTHING = 0x4,
+    PSX_VIDEO_FULLSCREEN = 0x8,
+    PSX_EXTERNAL_ROM = 0x10,
+};
 
 typedef struct {
     u32 version;

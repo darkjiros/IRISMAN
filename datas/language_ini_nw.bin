@@ -83,7 +83,7 @@ DRAWGLOPT_SWMUSICOFF    = Slå av musikk
 DRAWGLOPT_SWMUSICON     = Slå på musikk
 DRAWGLOPT_INITFTP       = Start FTP tjener
 DRAWGLOPT_TOOLS         = Verktøy
-DRAWGLOPT_REFRESH       = Oppdater spill Liste
+DRAWGLOPT_REFRESH       = Spill Liste
 DRAWGLOPT_CREDITS       = Opphavsrett
 DRAWGLOPT_FTPINITED     = FTP tjener startet@Vil du at FTP tjeneren skal starte ved oppstart?
 DRAWGLOPT_FTPARINITED   = FTP tjener kjører allerede
@@ -231,3 +231,17 @@ OUT_OFMEMORY            = Minne er fult
 OPERATION_DONE          = Ferdig!
 PLUG_STORAGE1           = Remember you to plug an USB storage massive device to create the fake disc event
 PLUG_STORAGE2           = Fake Disc Inserted
+
+# GAME LIST
+GAMELIST_ALLGAMES       = All Games
+GAMELIST_PS3GAMES       = PS3 Games
+GAMELIST_VIDEOS         = Videos
+GAMELIST_NETGAMES       = Network Games (via webMAN)
+GAMELIST_STATUS1        = SQUARE  All Retro games       <  >  Select Retro mode       X  Select List
+GAMELIST_STATUS2        = X  Select Game List mode             O  Go Back
+GAMELIST_SCANNING0      = Scanning all games...
+GAMELIST_SCANNING1      = Scanning PS3 games...
+GAMELIST_SCANNING2      = Scanning PlayStation games...
+GAMELIST_SCANNING3      = Scanning Videos...
+GAMELIST_SCANNING4      = Scanning Retro games...
+GAMELIST_SCANNING5      = Scanning network games (webMAN)...

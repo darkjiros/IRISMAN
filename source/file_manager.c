@@ -25,7 +25,6 @@
 #include <unistd.h>
 #include <math.h>
 
-
 #include <sysutil/osk.h>
 #include "sysutil/sysutil.h"
 #include <sys/memory.h>
@@ -54,6 +53,9 @@
 
 #define MAX_SECTIONS    ((0x10000-sizeof(rawseciso_args))/8)
 
+#define ROT_INC(x ,y , z) {x++; if(x > y) x = z;}
+#define ROT_DEC(x ,y , z) {x--; if(x < y) x = z;}
+
 typedef struct
 {
     uint64_t device;
@@ -66,8 +68,12 @@ typedef struct
 } __attribute__((packed)) rawseciso_args;
 
 extern int noBDVD;
-extern int use_cobra;
-extern int use_mamba;
+
+extern bool use_cobra;
+extern bool use_mamba;
+
+extern bool bAllowNetGames;
+
 extern int options_locked;
 extern char psp_launcher_path[MAXPATHLEN];
 extern char retroarch_path[MAXPATHLEN];
@@ -89,7 +95,7 @@ extern char retro_gbc_path[ROMS_MAXPATHLEN];
 extern char retro_atari_path[ROMS_MAXPATHLEN];
 extern char retro_vb_path[ROMS_MAXPATHLEN];
 extern char retro_nxe_path[ROMS_MAXPATHLEN];
-extern char retro_wswam_path[ROMS_MAXPATHLEN];
+extern char retro_wswan_path[ROMS_MAXPATHLEN];
 
 char rom_extension[10];
 
@@ -115,9 +121,62 @@ extern int num_box;
 #define CURSORCOLOR 0x062662FF
 #define POPUPMENUCOLOR 0x04244280
 
-#define GIGABYTES 1073741824.0
-
 #define SHOWTIME "/dev_hdd0/game/HTSS00003/USRDIR/showtime.self"
+
+////////////////
+int pos1 = 0;
+int pos2 = 0;
+
+int sel1 = 0;
+int sel2 = 0;
+
+#define MAX_PATH_LEN   0x420
+
+static char path1[MAX_PATH_LEN];
+static char path2[MAX_PATH_LEN];
+
+char hex_path[MAX_PATH_LEN];
+
+
+#define MAX_ENTRIES 2048
+
+sysFSDirent entries1[MAX_ENTRIES];
+sysFSDirent entries2[MAX_ENTRIES];
+
+int entries1_type[MAX_ENTRIES];
+int entries2_type[MAX_ENTRIES];
+
+s64 entries1_size[MAX_ENTRIES];
+s64 entries2_size[MAX_ENTRIES];
+
+int nentries1, nentries2;
+int selcount1, selcount2;
+s64 selsize1, selsize2;
+
+MATRIX mat_unit, mat_win1, mat_win2;
+
+u32 frame = 1000;
+int fm_pane = 0;
+
+bool is_vsplit;
+
+int set_menu2 = 0;
+
+int change_path1 = 0, change_path2 = 0;
+
+sysFSStat stat1;
+sysFSStat stat2;
+
+u64 free_device1 = 0ULL;
+u64 free_device2 = 0ULL;
+////////////////
+
+u64 pos = 0;
+u64 readed = 0;
+int e_x = 0, e_y = 0;
+
+
+////////////////
 
 int LoadTexturePNG(char * filename, int index);
 int LoadTextureJPG(char * filename, int index);
@@ -128,6 +187,7 @@ extern char temp_buffer[8192];
 extern int firmware;
 extern char self_path[MAXPATHLEN];
 
+int mount_option = 0;
 bool allow_shadow_copy = true;
 
 int mount_psp_iso(char *path);
@@ -135,7 +195,7 @@ int mount_psp_iso(char *path);
 int sys_fs_mount(char const* deviceName, char const* deviceFileSystem, char const* devicePath, int writeProt);
 int sys_fs_umount(char const* devicePath);
 
-//void MSGBOX(char *text, char *text2) {sprintf(temp_buffer + 4096, "%s = %s", text, text2); DrawDialogOKTimer(temp_buffer + 4096, 3000.0f);}    //debug message
+void MSGBOX(char *text, char *text2) {sprintf(temp_buffer + 0x1000, "%s = %s", text, text2); DrawDialogOKTimer(temp_buffer + 0x1000, 3000.0f);}    //debug message
 
 char * getlv2error(s32 error)
 {
@@ -373,13 +433,13 @@ static void progress_callback(msgButton button, void *userdata)
 static void update_bar(u32 cpart)
 {
     msgDialogProgressBarInc(MSG_PROGRESSBAR_INDEX0, (u32) cpart);
-    sysUtilCheckCallback();tiny3d_Flip();
+    sysUtilCheckCallback(); tiny3d_Flip();
 }
 
 static void update_bar2(u32 cpart)
 {
     msgDialogProgressBarInc(MSG_PROGRESSBAR_INDEX1, (u32) cpart);
-    sysUtilCheckCallback();tiny3d_Flip();
+    sysUtilCheckCallback(); tiny3d_Flip();
 }
 
 static void single_bar(char *caption)
@@ -394,6 +454,8 @@ static void single_bar(char *caption)
 }
 
 static int Files_To_Copy = 0;
+static int Folders_To_Copy = 0;
+
 static float progress_0 = 0.0f;
 
 static void double_bar(char *caption)
@@ -428,16 +490,6 @@ void DrawBox2(float x, float y, float z, float w, float h)
     tiny3d_End();
 }
 
-sysFSDirent entries1[2048];
-sysFSDirent entries2[2048];
-
-int entries1_type[2048];
-int entries2_type[2048];
-
-s64 entries1_size[2048];
-s64 entries2_size[2048];
-
-int nentries1, nentries2;
 
 static int entry_compare(const void *va, const void *vb)
 {
@@ -472,7 +524,7 @@ static char *dyn_get_name(char *p)
     return &p[n+1];
 }
 
-static int CountFiles(char* path, int *nfiles, u64 *size)
+static int CountFiles(char* path, int *nfiles, int *nfolders, u64 *size)
 {
     int dfd;
     u64 read;
@@ -481,11 +533,11 @@ static int CountFiles(char* path, int *nfiles, u64 *size)
     int p1=strlen(path);
     DIR_ITER *pdir = NULL;
     struct stat st;
-    int is_ntfs = 0;
+    bool is_ntfs = false;
 
     if(!strncmp(path, "/ntfs", 5)  || !strncmp(path, "/ext", 4))
     {
-        is_ntfs = 1;
+        is_ntfs = true;
 
         ret = ps3ntfs_stat(path, &st);
         if (ret < 0) return ret;
@@ -533,7 +585,9 @@ static int CountFiles(char* path, int *nfiles, u64 *size)
         {
             if(dir.d_type & IS_DIRECTORY)
             {
-                ret = CountFiles(path, nfiles, size);
+                (*nfolders) ++;
+
+                ret = CountFiles(path, nfiles, nfolders, size);
                 if(ret) goto skip;
             }
             else
@@ -543,7 +597,7 @@ static int CountFiles(char* path, int *nfiles, u64 *size)
                 ret = sysLv2FsStat(path, &stat);
                 if(ret < 0) goto skip;
 
-                (*size)+= stat.st_size;
+                (*size) += stat.st_size;
                 (*nfiles) ++;
             }
         }
@@ -551,7 +605,9 @@ static int CountFiles(char* path, int *nfiles, u64 *size)
         {
             if(S_ISDIR(st.st_mode))
             {
-                ret = CountFiles(path, nfiles, size);
+                (*nfolders) ++;
+
+                ret = CountFiles(path, nfiles, nfolders, size);
                 if(ret) goto skip;
             }
             else
@@ -559,7 +615,7 @@ static int CountFiles(char* path, int *nfiles, u64 *size)
                 ret = ps3ntfs_stat(path, &st);
                 if (ret < 0) goto skip;
 
-                (*size)+= st.st_size;
+                (*size) += st.st_size;
                 (*nfiles) ++;
             }
         }
@@ -588,7 +644,7 @@ static int level_dump(char *path, int mode)
     float parts;
     float cpart;
 
-    int is_ntfs = 0; if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = 1;
+    bool is_ntfs = false; if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = true;
 
     time(&timer);
     timed = localtime(&timer);
@@ -656,6 +712,7 @@ static int level_dump(char *path, int mode)
             {fd = ps3ntfs_open(temp_buffer, O_WRONLY | O_CREAT | O_TRUNC, 0);if(fd < 0) ret = FAILED; else ret = SUCCESS;}
         else
             ret = sysLv2FsOpen(temp_buffer, SYS_O_WRONLY | SYS_O_CREAT | SYS_O_TRUNC, &fd, 0777, NULL, 0);
+
         if(ret < 0) goto skip;
         if(!is_ntfs) sysLv2FsChmod(temp_buffer, FS_S_IFMT | 0777);
     }
@@ -673,9 +730,11 @@ static int level_dump(char *path, int mode)
     {
         readed = length - pos; if(readed > 0x100000ULL) readed = 0x100000ULL;
 
-        if(is_ntfs) {ret = ps3ntfs_write(fd, (void *) &mem[pos>>3], (int) readed); writed = (u64) ret; if(ret>0) ret = 0;}
+        if(is_ntfs)
+           {ret = ps3ntfs_write(fd, (void *) &mem[pos>>3], (int) readed); writed = (u64) ret; if(ret > 0) ret = 0;}
         else
             ret = sysLv2FsWrite(fd, &mem[pos>>3], readed, &writed);
+
         if(ret < 0) goto skip;
         if(readed != writed) {ret = 0x8001000C; goto skip;}
 
@@ -928,8 +987,9 @@ int CopyFile(char* path, char* path2)
             msgDialogProgressBarSetMsg(MSG_PROGRESSBAR_INDEX1, dyn_get_name(path2));
 
             if(flags & CPY_FILE1_IS_NTFS)
-                {ret = ps3ntfs_stat(path, &fstat);stat.st_size = fstat.st_size;}
-            else ret = sysLv2FsStat(path, &stat);
+               {ret = ps3ntfs_stat(path, &fstat);stat.st_size = fstat.st_size;}
+            else
+                ret = sysLv2FsStat(path, &stat);
 
             if(ret < 0 || stat.st_size == 0) {ret = 0;goto skip2;}
 
@@ -1000,8 +1060,9 @@ int CopyFile(char* path, char* path2)
             msgDialogProgressBarSetMsg(MSG_PROGRESSBAR_INDEX1, dyn_get_name(path2));
 
             if(flags & CPY_FILE1_IS_NTFS)
-                {ret = ps3ntfs_stat(path, &fstat);stat.st_size = fstat.st_size;}
-            else ret = sysLv2FsStat(path, &stat);
+               {ret = ps3ntfs_stat(path, &fstat);stat.st_size = fstat.st_size;}
+            else
+                ret = sysLv2FsStat(path, &stat);
 
             if(ret < 0 || stat.st_size == 0) {ret = 0;goto skip2;}
 
@@ -1276,6 +1337,7 @@ static int copy_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
     reset_copy = 1;
     cpy_str = "Copy";
     Files_To_Copy = 0;
+    Folders_To_Copy = 0;
 
     int msg_en = 0;
 
@@ -1302,7 +1364,7 @@ static int copy_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
 
             if(ent[sel].d_type & IS_DIRECTORY)
             {
-                ret = CountFiles(temp_buffer, &Files_To_Copy, &size);
+                ret = CountFiles(temp_buffer, &Files_To_Copy, &Folders_To_Copy, &size);
 
                 if(ret < 0) goto end;
                 if(allow_shadow_copy == false && size > free) goto end;
@@ -1354,7 +1416,7 @@ static int copy_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
 
                 sprintf(temp_buffer, "%s/%s", path1, ent[n].d_name);
 
-                if(ent[n].d_type & IS_DIRECTORY) ret = CountFiles(temp_buffer, &Files_To_Copy, &size);
+                if(ent[n].d_type & IS_DIRECTORY) ret = CountFiles(temp_buffer, &Files_To_Copy, &Folders_To_Copy, &size);
                 else
                 {
                     if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4))
@@ -1450,6 +1512,7 @@ int copy_archive_file(char *path1, char *path2, char *file, u64 free)
     cpy_str = "Copy";
 
     Files_To_Copy = 0;
+    Folders_To_Copy = 0;
 
     use_iso_splits = 0;
     if(!strncmp(path2, "/dev_hdd0", 9)) use_iso_splits = 1;
@@ -1582,12 +1645,13 @@ static int move_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
 
     pause_music(1);
 
-    n=1;while(path1[n] != '/' && path1[n] != 0) n++;
+    n = 1; while(path1[n] != '/' && path1[n] != 0) n++;
 
     if(!strncmp(path1, path2, n - 1)) flag = 1; // can move
 
     cpy_str = "Move";
     Files_To_Copy = 0;
+    Folders_To_Copy = 0;
 
     reset_copy = 1;
 
@@ -1612,7 +1676,7 @@ static int move_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
             }
             else if(ent[sel].d_type & IS_DIRECTORY)
             {
-                ret = CountFiles(temp_buffer, &Files_To_Copy, &size);
+                ret = CountFiles(temp_buffer, &Files_To_Copy, &Folders_To_Copy, &size);
 
                 if(ret < 0) goto end;
                 if(size > free) goto end;
@@ -1670,7 +1734,7 @@ static int move_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
                 sprintf(temp_buffer, "%s/%s", path1, ent[n].d_name);
 
 
-                if(ent[n].d_type & IS_DIRECTORY) ret = CountFiles(temp_buffer, &Files_To_Copy, &size);
+                if(ent[n].d_type & IS_DIRECTORY) ret = CountFiles(temp_buffer, &Files_To_Copy, &Folders_To_Copy, &size);
                 else
                 {
                     if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4))
@@ -1960,7 +2024,7 @@ int write_LV2(u64 pos, char *mem, int size)
     return SUCCESS;
 }
 
-static int load_hex(s32 is_ntfs, s32 fd, u64 pos, void *buffer, u64 readed)
+static int load_hex(bool is_ntfs, s32 fd, u64 pos, void *buffer, u64 readed)
 {
     int ret;
     u64 temp = 0;
@@ -2028,7 +2092,7 @@ static int load_hex(s32 is_ntfs, s32 fd, u64 pos, void *buffer, u64 readed)
     return ret;
 }
 
-static int save_hex(s32 is_ntfs, s32 fd, u64 pos, void *buffer, u64 readed)
+static int save_hex(bool is_ntfs, s32 fd, u64 pos, void *buffer, u64 readed)
 {
     int ret;
     u64 temp = 0;
@@ -2113,7 +2177,7 @@ int memcmp_case(char * p1, char *p2, int len)
 
 static int find_mode = FIND_HEX_MODE;
 
-static int find_in_file(s32 is_ntfs, s32 fd, u64 pos, u64 size, u64 *found, void * str, int len, int s)
+static int find_in_file(bool is_ntfs, s32 fd, u64 pos, u64 size, u64 *found, void * str, int len, int s)
 {
 
     u64 temp;
@@ -2148,8 +2212,10 @@ static int find_in_file(s32 is_ntfs, s32 fd, u64 pos, u64 size, u64 *found, void
         }
         else
         {
-            if(is_ntfs) {temp = ps3ntfs_seek64(fd, pos, 0); if(temp < 0) ret = FAILED; else ret = SUCCESS;}
-            else ret = sysLv2FsLSeek64(fd, pos, 0, &temp);
+            if(is_ntfs)
+                {temp = ps3ntfs_seek64(fd, pos, 0); if(temp < 0) ret = FAILED; else ret = SUCCESS;}
+            else
+                ret = sysLv2FsLSeek64(fd, pos, 0, &temp);
         }
 
         if(ret < 0 || pos != temp)
@@ -2240,61 +2306,68 @@ skip:
     return ret;
 }
 
-static char help2[]= {
-    "CROSS - Enter to the selected option\n"
+static char help2[] = {
+    "HELP - [ Hex Editor]\n"
+    "\n"
+    "CROSS   - Select the option\n"
     "UP/DOWN - Select option\n"
     "\n"
-    "SELECT - Open/Close this menu\n"
-    "SELECT+START - Exit\n"
+    "START   - Open/Close this menu\n"
+    "CIRCLE  - Exit\n"
 };
 
-static char help3[]= {
-    "CROSS - Decrease the selected nibble\n"
-    "CIRCLE - Increase the selected nibble\n"
-    "L1/R1 - Decrease/increase the selected byte (pressing to auto-repeat)\n"
+static char help3[] = {
+    "SELECT   - Show help window\n"
+    "CROSS    - Increase the selected nibble\n"
+    "TRIANGLE - Decrease the selected nibble\n"
+    "L2/R2    - Decrease/increase the selected byte (pressing to auto-repeat)\n"
     "\n"
-    "SQUARE - Undo the changes in selected byte\n"
-    "START - Undo the current windows changes\n"
-    "START (pressing) - Open/close this help window\n"
+    "SQUARE   - Undo the changes in selected byte\n"
+    "SELECT + SQUARE - Undo the current windows changes\n"
     "\n"
-    "TRIANGLE - Hex Editor exit\n"
-    "SELECT - Opens menu selector (go to, find..)\n"
+    "START    - Opens menu selector (go to, find..)\n"
+    "CIRCLE   - Exit from Hex Editor\n"
     "\n"
     "UP/DOWN/LEFT/RIGHT - Move the cursor\n"
     "\n"
+    "L1/R1 - Move back/forward from the file\n"
     "L3/R3 - Find back/forward\n"
-    "L2/R2 - Move back/forward from the file\n"
     "\n"
     "Special Note: Changes in the window must be saved to use some actions with implicit changes"
-    "in the editor window. Pressing SELECT you can save or discard the window changes.\n"
+    "in the editor window. Pressing CIRCLE you can save or discard the window changes.\n"
 };
 
-static char help4[]= {
-    "CROSS - Set the hex number\n"
+static char help4[] = {
+    "SELECT   - Show this help window\n"
+    "\n"
+    "CROSS    - Set the hex number\n"
+    "SQUARE   - Delete the last digit\n"
+    "\n"
     "UP/DOWN/LEFT/RIGHT - Move the cursor to the keyboard\n"
-    "L2/R2 - Move back/forward from the number window\n"
-    "SQUARE - Delete the last digit\n"
+    "L2/R2    - Move back/forward from the number window\n"
     "\n"
-    "CIRCLE - Go to the Address\n"
+    "START    - Go to the Address\n"
     "\n"
-    "START (pressing) - Open/close this help window\n"
-    "TRIANGLE - Hex Editor exit\n"
-    "SELECT - Close the window\n"
+    "CIRCLE   - Close the window\n"
     "\n"
     "Special Note: jump to the absolute file address"
 };
 
-static char help5[]= {
-    "CROSS - Set the hex number\n"
-    "UP/DOWN/LEFT/RIGHT - Move the cursor to the keyboard\n"
-    "L2/R2 - Move back/forward from the number window\n"
+static char help5[] = {
+    "SELECT   - Show this help window\n"
     "\n"
-    "CIRCLE - Find Hex values in file (forward)\n"
-    "L1/R1 - Decrease/increase the number of bytes to find\n"
+    "CROSS    - Set the hex number\n"
+    "SQUARE   - Delete the last digit\n"
+    "\n"
+    "UP/DOWN/LEFT/RIGHT - Move the cursor to the keyboard\n"
+    "L2/R2    - Move back/forward from the number window\n"
+    "L1/R1    - Decrease/increase the number of bytes to find\n"
+    "\n"
+    "START    - Find Hex values in file (forward)\n"
     "\n"
     "START (pressing) - Open/close this help window\n"
-    "TRIANGLE - Hex Editor exit\n"
-    "SELECT - Close the window\n"
+    "\n"
+    "CIRCLE   - Close the window\n"
     "\n"
     "Special Note: Find Hex values in the file. You can use L3/R3 from    "
     "the Hex Editor window to find the previous/next result from the     current file position\n"
@@ -2312,35 +2385,188 @@ static u32 copy_len = 0;
 static u64 lv1_pos = 0ULL;
 static u64 lv2_pos = 0ULL;
 
+
+void draw_hex_editor()
+{
+    int n, m;
+
+    int px = 0, py = 0;
+    frame++;
+
+    tiny3d_Flip();
+    ps3pad_read();
+
+    tiny3d_Project2D();
+    cls2();
+    update_twat(0);
+
+    DrawBox(0, 0, 0, 848, 32, BLUE5);
+    DrawBox2(0, 32, 0, 848, 448);
+
+    DrawBox(0, 480, 0, 848, 32, BLUE5);
+
+
+    SetFontColor(WHITE, 0x0);
+
+    SetCurrentFont(FONT_BUTTON);
+
+    SetFontSize(8, 16);
+
+    py = 40;
+
+    #define START_X 80
+
+    px = START_X;  DrawString(px, py, "      Offset ");
+    px = START_X + 16 + 17 *8 + 4;
+
+    for(m = 0; m < 16; m++)
+    {
+        if(m == 8) px += 8;
+        DrawFormatString(px, py,  "%2X", m);
+        px+= 24;
+    }
+
+    py += 24;
+
+    // 384
+    for(n = 0; n < 24; n++)
+    {
+       px = START_X;
+       u32 color = WHITE;
+
+       SetFontSize(8, 16);
+       SetFontColor(color, 0x0);
+
+       // draw hex
+       px = DrawFormatString(px, py, " %08X", (u32) (((pos + (u64) (n<<4)))>>32));
+       px = DrawFormatString(px, py, "%08X", (u32) (pos + (u64) (n<<4))); px+= 16;
+
+       // draw hex
+       for(m = 0; m < 16; m++)
+       {
+           int sel = 0;
+           if(m == 8) px += 8;
+           px += 8;
+
+           sel = mark_flag == 2 && (pos + (u64) ((n<<4) + m)) >= mark_ini && (pos + (u64) ((n<<4) + m)) < (mark_ini + (u64) mark_len);
+
+           if(temp_buffer[0x800 + (n<<4) + m] == temp_buffer[0xA00 + (n<<4) + m])
+               color = WHITE;
+           else
+               color = GREEN;
+
+           // first nibble
+           if(((n<<4) + m) >= readed) color = GRAY;
+
+           if((e_x) == (m<<1) && e_y == n)
+           {
+               if(frame & 16)
+                   SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
+               else
+                   SetFontColor(BLACK2, color);
+           }
+           else    SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
+
+           px = DrawFormatString(px, py, "%X", (temp_buffer[0x800 + (n<<4) + m])>>4);
+
+           // second nibble
+           if(((n<<4) + m) >= readed) color = GRAY;
+
+           if((e_x) == (m<<1)+1 && e_y == n)
+           {
+              if(frame & 16)
+                  SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
+              else
+                  SetFontColor(BLACK2, color);
+           }
+           else   SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
+
+           px = DrawFormatString(px, py, "%X", temp_buffer[0x800 + (n<<4) + m] & 0xF);
+       }
+
+       px += 16;
+
+       SetFontColor(WHITE, BLACK);
+
+       // draw chars
+       for(m = 0; m < 16; m++)
+       {
+            u8 ch = temp_buffer[0x800 + (n<<4) + m];
+            int sel = 0;
+
+            sel = mark_flag == 2 && (pos + (u64) ((n<<4) + m)) >= mark_ini && (pos + (u64) ((n<<4) + m)) < (mark_ini + (u64) mark_len);
+
+            if(temp_buffer[0x800 + (n<<4) + m] == temp_buffer[0xA00 + (n<<4) + m]) color = WHITE;
+            else color = GREEN;
+
+            if(((n<<4) + m) >= readed) color = GRAY;
+
+            if((e_x>>1) == m && e_y == n)
+            {
+                if(frame & 16)
+                    SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
+                else
+                    SetFontColor(BLACK2, color);
+            }
+            else    SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
+
+
+            px = DrawFormatString(px, py, "%c", ch == 0 ? '.' : (ch < 32 ? '?' : (char) ch));
+       }
+
+       py += 16;
+    }
+
+    py += 2;
+    SetFontColor(WHITE, BLACK);
+    SetFontAutoCenter(1);
+
+    SetFontSize(8, 16);
+    DrawFormatString(px, py, "Size: %08X%08X", (u32) (stat1.st_size>>32), (u32) (stat1.st_size));
+    DrawFormatString(px, py + 14, "File at %1.4f%%", 100.0f * (double) (pos + (u64) (e_y * 16 + (e_x>>1))) / (double) stat1.st_size);
+    SetFontAutoCenter(0);
+
+
+    set_ttf_window(8, 0, 752, 32, WIN_AUTO_LF);
+    display_ttf_string(0, 0, (char *) hex_path, GREEN, 0, 12, 20);
+}
+
 void hex_editor(char *path)
 {
-    int frame = 0;
     int n, m;
+    int px, py;
 
     int help = 0;
 
     s32 fd = FAILED;
-    u64 pos =0;
-    u64 readed = 0;
     u64 temp;
 
-    int read_only = 0;
+    bool read_only = false;
 
-    int e_x = 0, e_y =0;
+    pos = 0;
+    readed = 0;
+    e_x = 0, e_y = 0;
 
     int ret;
 
     int locked = 0;
 
+    enum function_menu_options
+    {
+        HEX_EDIT_MODE    = 0,
+        HEX_GOTO_ADDRESS = 1,
+        HEX_FIND_VALUE   = 2,
+    };
+
+    int function_menu = HEX_EDIT_MODE;
     int enable_menu = 0;
-    int function_menu = 0;
     int start_status = 0;
 
     int auto_up = 0, auto_down = 0;
     int auto_left = 0, auto_right = 0;
     int auto_l2 = 0, auto_r2 = 0;
     int auto_l1 = 0, auto_r1 = 0;
-    int auto_l22 = 0, auto_r22 = 0;
+    int auto_l11 = 0, auto_r11 = 0;
 
     int f_key = 0;
     int f_pos = 0;
@@ -2348,7 +2574,7 @@ void hex_editor(char *path)
     static u8 find[512];
     int find_len = 4;
 
-    int is_ntfs = 0;
+    bool is_ntfs = false;
 
     mark_flag = 0;
     mark_ini = 0ULL;
@@ -2361,7 +2587,7 @@ void hex_editor(char *path)
 
     if(hex_mode == 0)
     {
-        if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = 1;
+        if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = true;
 
         if(!is_ntfs) {if(sysLv2FsStat(path, &stat1) < 0) return;}
         else if(ps3ntfs_stat(path, &st)<0) return;
@@ -2374,7 +2600,7 @@ void hex_editor(char *path)
             ret = sysLv2FsOpen(path, SYS_O_RDWR, &fd, S_IRWXU | S_IRWXG | S_IRWXO, NULL, 0);
             if(ret != SUCCESS)
             {
-                read_only = 1;
+                read_only = true;
                 ret = sysLv2FsOpen(path, 0, &fd, S_IRWXU | S_IRWXG | S_IRWXO, NULL, 0);
             }
         }
@@ -2383,7 +2609,7 @@ void hex_editor(char *path)
             fd = ps3ntfs_open(path, O_RDWR, 0);
             if(fd != SUCCESS)
             {
-                read_only = 1;
+                read_only = true;
                 fd = ps3ntfs_open(path, O_RDONLY, 0);
             }
             if(fd != SUCCESS) ret = FAILED; else ret = SUCCESS;
@@ -2464,150 +2690,14 @@ read_file:
 
     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
 
+    strncpy(hex_path, path, strlen(path));
 
-    while(1)
+    while(true)
     {
-        int px =0, py = 0;
-        frame++;
 
-        tiny3d_Flip();
-        ps3pad_read();
+        draw_hex_editor();
 
-        tiny3d_Project2D();
-        cls2();
-        update_twat(0);
-
-        DrawBox(0, 0, 0, 848, 32,BLUE5);
-        DrawBox2(0, 32, 0, 848, 448);
-
-        DrawBox(0, 480, 0, 848, 32,BLUE5);
-
-
-        SetFontColor(WHITE, 0x0);
-
-        SetCurrentFont(FONT_BUTTON);
-
-        SetFontSize(8, 16);
-
-        py = 40;
-
-        #define START_X 80
-
-        px = START_X;  DrawString(px, py, "      Offset ");
-        px = START_X + 16 + 17 *8 + 4;
-
-        for(m = 0; m < 16; m++)
-        {
-            if(m == 8) px += 8;
-            DrawFormatString(px, py,  "%2X", m);
-            px+= 24;
-        }
-
-        py += 24;
-
-        // 384
-        for(n = 0; n < 24; n++)
-        {
-           px = START_X;
-           u32 color = WHITE;
-
-           SetFontSize(8, 16);
-           SetFontColor(color, 0x0);
-
-           // draw hex
-           px = DrawFormatString(px, py, " %08X", (u32) (((pos + (u64) (n<<4)))>>32));
-           px = DrawFormatString(px, py, "%08X", (u32) (pos + (u64) (n<<4))); px+= 16;
-
-           // draw hex
-           for(m = 0; m < 16; m++)
-           {
-               int sel = 0;
-               if(m == 8) px += 8;
-               px += 8;
-
-               sel = mark_flag == 2 && (pos + (u64) ((n<<4) + m)) >= mark_ini && (pos + (u64) ((n<<4) + m)) < (mark_ini + (u64) mark_len);
-
-               if(temp_buffer[0x800 + (n<<4) + m] == temp_buffer[0xA00 + (n<<4) + m])
-                   color = WHITE;
-               else
-                   color = GREEN;
-
-               // first nibble
-               if(((n<<4) + m) >= readed) color = GRAY;
-
-               if((e_x) == (m<<1) && e_y == n)
-               {
-                   if(frame & 16)
-                       SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
-                   else
-                       SetFontColor(BLACK2, color);
-               }
-               else    SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
-
-               px = DrawFormatString(px, py, "%X", (temp_buffer[0x800 + (n<<4) + m])>>4);
-
-               // second nibble
-               if(((n<<4) + m) >= readed) color = GRAY;
-
-               if((e_x) == (m<<1)+1 && e_y == n) {
-                  if(frame & 16)
-                      SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
-                  else
-                      SetFontColor(BLACK2, color);
-               }
-               else   SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
-
-               px = DrawFormatString(px, py, "%X", temp_buffer[0x800 + (n<<4) + m] & 0xF);
-           }
-
-           px += 16;
-
-           SetFontColor(WHITE, BLACK);
-
-           // draw chars
-           for(m = 0; m < 16; m++)
-           {
-                u8 ch = temp_buffer[0x800 + (n<<4) + m];
-                int sel = 0;
-
-                sel = mark_flag == 2 && (pos + (u64) ((n<<4) + m)) >= mark_ini && (pos + (u64) ((n<<4) + m)) < (mark_ini + (u64) mark_len);
-
-                if(temp_buffer[0x800 + (n<<4) + m] == temp_buffer[0xA00 + (n<<4) + m]) color = WHITE;
-                else color = GREEN;
-
-                if(((n<<4) + m) >= readed) color = GRAY;
-
-                if((e_x>>1) == m && e_y == n)
-                {
-                    if(frame & 16)
-                        SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : MAGENTA));
-                    else
-                        SetFontColor(BLACK2, color);
-                }
-                else    SetFontColor(color, (sel) ? POPUPMENUCOLOR : ((color == GREEN) ? BLUE5 : BLACK));
-
-
-                px = DrawFormatString(px, py, "%c", ch == 0 ? '.' : (ch < 32 ? '?' : (char) ch));
-           }
-
-           py += 16;
-        }
-
-        py += 2;
-        SetFontColor(WHITE, BLACK);
-        SetFontAutoCenter(1);
-
-        SetFontSize(8, 16);
-        DrawFormatString(px, py, "Size: %08X%08X", (u32) (stat1.st_size>>32), (u32) (stat1.st_size));
-        DrawFormatString(px, py + 14, "File at %1.4f%%", 100.0f * (double) (pos + (u64) (e_y * 16 + (e_x>>1))) / (double) stat1.st_size);
-        SetFontAutoCenter(0);
-
-
-        set_ttf_window(8, 0, 752, 32, WIN_AUTO_LF);
-        display_ttf_string(0, 0, (char *) path, GREEN, 0, 12, 20);
-
-
-        if(function_menu == 1 || function_menu == 2)
+        if(function_menu == HEX_GOTO_ADDRESS || function_menu == HEX_FIND_VALUE)
         {
             px = 64;
             py = 64 + 16;
@@ -2616,7 +2706,7 @@ read_file:
             DrawBox(px, py, 0, 4 * 40 + 4, 4 * 40 + 8 + 32, GRAY);
 
             SetFontColor(BLACK2, BLACK);
-            if(function_menu == 1)
+            if(function_menu == HEX_GOTO_ADDRESS)
                 DrawFormatString(px + 4, py + 4, "Go to Address");
             else
                 DrawFormatString(px + 4, py + 4, "Find Hex Values");
@@ -2627,15 +2717,15 @@ read_file:
 
             DrawFormatString(px + 20, py + 4, "                ");
 
-            for(n = 0; n< f_len; n++)
+            for(n = 0; n < f_len; n++)
             {
                 if(f_pos == n  && (frame & 16))
                     SetFontColor(BLACK2, 0x00bfcfff);
                 else
                     SetFontColor(BLACK2, WHITE);
 
-                if(function_menu == 1)
-                    DrawFormatString(px + 20 + (15 - f_len) * 8 + n * 8, py + 4, "%X", (n & 1) ? (temp_buffer[4096 + (n>>1)] & 15) : (temp_buffer[4096 + (n>>1)] >> 4));
+                if(function_menu == HEX_GOTO_ADDRESS)
+                    DrawFormatString(px + 20 + (15 - f_len) * 8 + n * 8, py + 4, "%X", (n & 1) ? (temp_buffer[0x1000 + (n>>1)] & 15) : (temp_buffer[0x1000 + (n>>1)] >> 4));
                 else
                     DrawFormatString(px + 20 + n * 8, py + 4, "%X", (n & 1) ? (find[n>>1] & 15) : (find[n>>1] >> 4));
             }
@@ -2661,12 +2751,12 @@ read_file:
             SetFontSize(8, 16);
         }
 
-        if(enable_menu && function_menu == 0)
+        if(enable_menu && function_menu == HEX_EDIT_MODE)
         {
             int py = 0;
 
-            DrawBox((848 - 224)/2, (512 - 248 - 24)/2, 0, 224, 248 - 24, 0x602060ff);
-            DrawBox((848 - 216)/2, (512 - 240 - 24)/2, 0, 216, 240 - 24, 0x802080ff);
+            DrawBox((848 - 224)/2, (512 - 248 - 24)/2, 0, 224, 248 - 24, GRAY);
+            DrawBox((848 - 216)/2, (512 - 240 - 24)/2, 0, 216, 240 - 24, POPUPMENUCOLOR);
             set_ttf_window((848 - 200)/2, (512 - 240 - 24)/2, 200, 240 - 24, 0);
 
             display_ttf_string(0, py, "Go to Address", (enable_menu == 1  && (frame & 16)) ? 0 : WHITE, 0, 16, 24); py += 24;
@@ -2690,18 +2780,18 @@ read_file:
             //display_ttf_string(0, py, "Exit", (enable_menu == 10 && (frame & 16)) ? 0 : WHITE, 0, 16, 24); py += 24;
         }
 
-        if(read_only == 0 && memcmp(temp_buffer + 0xA00, temp_buffer + 0x800, 384)) locked = 1; else locked = 0;
+        if(!read_only && memcmp(temp_buffer + 0xA00, temp_buffer + 0x800, 384)) locked = 1; else locked = 0;
 
         if(help)
         {
-            DrawBox((848 - 624)/2, (512 - 424)/2, 0, 624, 424, 0x602060ff);
-            DrawBox((848 - 616)/2, (512 - 416)/2, 0, 616, 416, 0x802080ff);
+            DrawBox((848 - 624)/2, (512 - 424)/2, 0, 624, 424, GRAY);
+            DrawBox((848 - 616)/2, (512 - 416)/2, 0, 616, 416, POPUPMENUCOLOR);
             set_ttf_window((848 - 600)/2, (512 - 416)/2, 600, 416, WIN_AUTO_LF);
 
-            if(enable_menu && function_menu == 0) display_ttf_string(0, 0, help2, WHITE, 0, 16, 24);
-            else if(          function_menu == 1) display_ttf_string(0, 0, help4, WHITE, 0, 16, 24);
-            else if(          function_menu == 2) display_ttf_string(0, 0, help5, WHITE, 0, 16, 24);
-            else                                  display_ttf_string(0, 0, help3, WHITE, 0, 16, 24);
+            if(enable_menu && function_menu == HEX_EDIT_MODE)    display_ttf_string(0, 0, help2, WHITE, 0, 16, 24); else
+            if(               function_menu == HEX_GOTO_ADDRESS) display_ttf_string(0, 0, help4, WHITE, 0, 16, 24); else
+            if(               function_menu == HEX_FIND_VALUE)   display_ttf_string(0, 0, help5, WHITE, 0, 16, 24); else
+                                                                 display_ttf_string(0, 0, help3, WHITE, 0, 16, 24);
         }
 
 
@@ -2711,27 +2801,40 @@ read_file:
             start_status = 0;
         }
 
-        if(start_status <= 60 && (old_pad & BUTTON_START))
+        if(start_status <= 60 && (old_pad & BUTTON_SELECT))
         {
             start_status++;
-            if(start_status > 60) help=1;
-        }
+            if(start_status > 60) help = 1;
 
-        //if((new_pad & BUTTON_TRIANGLE) && help) {help^=1; start_status = 0; new_pad ^= BUTTON_TRIANGLE;}
+            if(new_pad & BUTTON_START)
+            {
+                //cancel without any change
+                if(hex_mode == 1)
+                    lv1_pos = pos;
+                else if(hex_mode == 2)
+                    lv2_pos = pos;
+
+                break;
+            }
+        }
+        if(enable_menu && (new_pad & BUTTON_SELECT)) help = 1;
+
+
+        if((new_pad & BUTTON_CIRCLE)   && help) {help ^= 1; start_status = 0; new_pad ^= BUTTON_CIRCLE;}
+        if((new_pad & BUTTON_TRIANGLE) && help) {help ^= 1; start_status = 0; new_pad ^= BUTTON_TRIANGLE;}
 
         if(help) continue;
 
 
-        if(new_pad & BUTTON_CIRCLE)
+        if(!enable_menu && (new_pad & BUTTON_CIRCLE))
         {
             if (old_pad & BUTTON_SELECT)
             {
                 //cancel without any change
-                if(hex_mode == 1) {
+                if(hex_mode == 1)
                     lv1_pos = pos;
-                } else if(hex_mode == 2) {
+                else if(hex_mode == 2)
                     lv2_pos = pos;
-                }
 
                 break;
             }
@@ -2864,12 +2967,12 @@ read_file:
                     }
                 }
             }
-
-            if(new_pad & BUTTON_DOWN)
+            else if(new_pad & BUTTON_DOWN)
             {
                 auto_down = 1;
                 e_y++;
-                if(e_y > 23) {
+                if(e_y > 23)
+                {
                     e_y = 23;
 
                     if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
@@ -2887,8 +2990,7 @@ read_file:
                     }
                 }
             }
-
-            if(new_pad & BUTTON_LEFT)
+            else if(new_pad & BUTTON_LEFT)
             {
                 auto_left = 1;
                 e_x--;
@@ -2921,8 +3023,7 @@ read_file:
                     }
                 }
             }
-
-            if(new_pad & BUTTON_RIGHT)
+            else if(new_pad & BUTTON_RIGHT)
             {
                 auto_right = 1;
                 e_x++;
@@ -2949,7 +3050,7 @@ read_file:
                 }
             }
 
-            if((new_pad & BUTTON_L2))
+            if((new_pad & BUTTON_L1)) // scroll up
             {
                 u64 incre = 0x80ULL;
 
@@ -2960,11 +3061,11 @@ read_file:
                     locked = 0;
                 }
 
-                auto_l22++;
-                incre<<= 4 * (auto_l22/10);
+                auto_l11++;
+                incre<<= 4 * (auto_l11 / 10);
                 if(incre > 0x6400000ULL) incre = 0x6400000ULL;
 
-                auto_l2 = 1;
+                auto_l1 = 1;
                 if(pos >= incre)  pos -= incre;
                 else
                 {
@@ -2975,9 +3076,9 @@ read_file:
                 goto read_file;
 
             }
-            else if(!(old_pad & BUTTON_L2)) auto_l22 = 0;
+            else if(!(old_pad & BUTTON_L1)) auto_l11 = 0;
 
-            if((new_pad & BUTTON_R2))
+            if((new_pad & BUTTON_R1)) // scroll down
             {
                 u64 incre = 128ULL;
 
@@ -2988,35 +3089,35 @@ read_file:
                     locked = 0;
                 }
 
-                auto_r22++;
-                incre <<= 4 * (auto_r22/10);
+                auto_r11++;
+                incre <<= 4 * (auto_r11 / 10);
 
                 if(incre > 0x6400000ULL) incre = 0x6400000ULL;
 
-                auto_r2 = 1;
+                auto_r1 = 1;
                 if(pos + incre < stat1.st_size)  pos += incre;
                 else pos = 0ULL;
 
                 goto read_file;
-            } else if(!(old_pad & BUTTON_R2)) auto_r22 = 0;
+            } else if(!(old_pad & BUTTON_R1)) auto_r11 = 0;
 
         /**********************************************************************************************************/
         /* MODIFICATION AREA                                                                                      */
         /**********************************************************************************************************/
 
              // byte ++
-            if((new_pad & BUTTON_R1) && read_only == 0)
+            if((new_pad & BUTTON_R2) && !read_only)
             {
                u8 * p = (u8 *) &temp_buffer[0x800 + (e_y<<4) + (e_x>>1)];
                 if(((e_y<<4) + (e_x>>1)) < readed)
                 {
                     p[0] = (p[0] + 1);
                 }
-                auto_r1 = 1;
+                auto_r2 = 1;
             }
 
             // byte --
-            if((new_pad & BUTTON_L1) && read_only == 0)
+            if((new_pad & BUTTON_L2) && !read_only)
             {
                 u8 * p = (u8 *) &temp_buffer[0x800 + (e_y<<4) + (e_x>>1)];
                 if(((e_y<<4) + (e_x>>1)) < readed)
@@ -3024,11 +3125,11 @@ read_file:
                     p[0] = (p[0] - 1);
                 }
 
-                auto_l1 = 1;
+                auto_l2 = 1;
             }
 
             // nibble ++
-            if((new_pad & BUTTON_CROSS) && read_only == 0)
+            if((new_pad & BUTTON_CROSS) && !read_only)
             {
                u8 * p = (u8 *) &temp_buffer[0x800 + (e_y<<4) + (e_x>>1)];
                 if(((e_y<<4) + (e_x>>1)) < readed)
@@ -3041,7 +3142,7 @@ read_file:
             }
 
             // nibble --
-            if((new_pad & BUTTON_TRIANGLE) && read_only == 0)
+            if((new_pad & BUTTON_TRIANGLE) && !read_only)
             {
                 u8 * p = (u8 *) &temp_buffer[0x800 + (e_y<<4) + (e_x>>1)];
                 if(((e_y<<4) + (e_x>>1)) < readed)
@@ -3053,8 +3154,13 @@ read_file:
                 }
             }
 
+            // undo all
+            if(((old_pad & BUTTON_SELECT) && (new_pad & BUTTON_SQUARE)) && !read_only)
+            {
+                memcpy(temp_buffer + 0x800, temp_buffer + 0xA00, 384);
+            }
             // undo one
-            if((new_pad & BUTTON_SQUARE) && read_only == 0)
+            else if((new_pad & BUTTON_SQUARE) && !read_only)
             {
                 if(((e_y<<4) + (e_x>>1)) < readed)
                 {
@@ -3062,16 +3168,11 @@ read_file:
                 }
             }
 
-            // undo all
-            if((new_pad & BUTTON_CIRCLE) && read_only == 0)
-            {
-                memcpy(temp_buffer + 0x800, temp_buffer + 0xA00, 384);
-            }
 
         } // enable menu off
         else
         {// enable menu on
-            if(function_menu == 2)
+            if(function_menu == HEX_FIND_VALUE)
             {
                 if(new_pad & BUTTON_R1)
                 {
@@ -3091,7 +3192,7 @@ read_file:
                 }
             }
 
-            if(function_menu == 1 || function_menu == 2)
+            if(function_menu == HEX_GOTO_ADDRESS || function_menu == HEX_FIND_VALUE)
             {
                 if(new_pad & BUTTON_R2)
                 {
@@ -3127,24 +3228,24 @@ read_file:
                 }
                 else if(new_pad & BUTTON_CROSS)
                 {
-                    u8 * p = (function_menu == 1) ? (u8 *) &temp_buffer[4096 + (f_pos >> 1)] : &find[f_pos >> 1];
+                    u8 * p = (function_menu == HEX_GOTO_ADDRESS) ? (u8 *) &temp_buffer[0x1000 + (f_pos >> 1)] : &find[f_pos >> 1];
                     if(f_pos & 1)
                         p[0] = (f_key) | (p[0] & 0xf0);
                     else
                         p[0] = ((f_key<<4) & 0xf0) | (p[0] & 0xf);
 
-                    if(function_menu == 1 && f_len < 16 && f_pos == (f_len - 1)) f_len++;
+                    if(function_menu == HEX_GOTO_ADDRESS && f_len < 16 && f_pos == (f_len - 1)) f_len++;
                     f_pos++;
                     if(f_pos >= f_len) f_pos = (f_len) - 1;
                 }
             }
 
-            if(function_menu == 1 && (new_pad & BUTTON_SQUARE))
+            if(function_menu == HEX_GOTO_ADDRESS && (new_pad & BUTTON_SQUARE))
             {
                 f_len--;
                 if(f_len < 1) f_len = 1;
                 else {
-                    u8 * p = (u8 *) &temp_buffer[4096 + (f_len >> 1)];
+                    u8 * p = (u8 *) &temp_buffer[0x1000 + (f_len >> 1)];
                     // clear the nibble
                     if(f_len & 1)
                         p[0] = (p[0] & 0xf0);
@@ -3153,14 +3254,14 @@ read_file:
                 }
                 if(f_pos >= f_len) f_pos = (f_len) - 1;
             }
-            else if((function_menu == 1 || function_menu == 2) && (new_pad & BUTTON_CIRCLE))
+            else if((function_menu == HEX_GOTO_ADDRESS || function_menu == HEX_FIND_VALUE) && (new_pad & BUTTON_START))
             {
                 switch(function_menu)
                 {
                     case 1:
                     {
                         pos = 0ULL;
-                        memcpy(((char *) &pos), &temp_buffer[4096], (f_len+1)/2);
+                        memcpy(((char *) &pos), &temp_buffer[0x1000], (f_len+1)/2);
 
                         //if(!(f_len & 1))
                         pos>>=(u64) ((16 - f_len) <<2);
@@ -3202,7 +3303,7 @@ read_file:
                 }
             }
 
-            if(function_menu == 0)
+            if(function_menu == HEX_EDIT_MODE)
             {
                 if(new_pad & BUTTON_UP)
                 {
@@ -3218,7 +3319,7 @@ read_file:
                     switch(function_menu)
                     {
                         case 1:
-                            memset(&temp_buffer[4096], 0, 8);
+                            memset(&temp_buffer[0x1000], 0, 8);
                             f_len = 1;
                             break;
 
@@ -3228,7 +3329,8 @@ read_file:
                             break;
                         case 3:
                             memset(find, 0, 512); find_len = 0;
-                            if(Get_OSK_String("Find String", (char *) find, 256) == 0) {
+                            if(Get_OSK_String("Find String", (char *) find, 250) == SUCCESS)
+                            {
                                 u64 found;
 
                                 find_len = strlen((char *) find);
@@ -3260,7 +3362,7 @@ read_file:
                             break;
                         case 4:
                             memset(find, 0, 512); find_len = 0;
-                            if(Get_OSK_String("Find String (no case sensitive)", (char *) find, 256) == 0)
+                            if(Get_OSK_String("Find String (no case sensitive)", (char *) find, 250) == SUCCESS)
                             {
                                 u64 found;
 
@@ -3327,7 +3429,7 @@ read_file:
 
                         case 6:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
                             if(pos + (u64) (e_y * 16 + (e_x>>1)) >= stat1.st_size)
                             {
                                 DrawDialogOKTimer("Mark is out of filesize / memory", 2000.0f);
@@ -3341,7 +3443,7 @@ read_file:
 
                         case 7:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
                             if(!mark_flag) mark_ini = 0;
 
                             if((pos + (u64) (e_y * 16 + (e_x>>1))) >= mark_ini &&
@@ -3362,7 +3464,7 @@ read_file:
 
                         case 8:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
 
                             if(mark_flag == 2) {
                                 if(copy_mem) free(copy_mem);
@@ -3383,7 +3485,7 @@ read_file:
 
                         case 9:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
 
                             if(copy_len == 0 || !copy_mem) {DrawDialogOKTimer("Paste buffer is empty", 2000.0f);}
                             //else if(fd != FD_LV1 && fd != FD_LV2) DrawDialogOKTimer("Paste is Only supported to memory for now", 2000.0f);
@@ -3419,7 +3521,7 @@ read_file:
 
                         case 10:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
 
                             f_key = 0;
                             f_pos = 0;
@@ -3428,7 +3530,7 @@ read_file:
                             break;
                         default:
                             enable_menu = 0;
-                            function_menu = 0;
+                            function_menu = HEX_EDIT_MODE;
                             break;
                     }
                 }
@@ -3436,10 +3538,11 @@ read_file:
 
         } // enable menu on
 
-        if((old_pad & BUTTON_SELECT) && (new_pad & BUTTON_START))
+        if((enable_menu == 0 && (new_pad & BUTTON_START)) ||
+           (enable_menu != 0 && (new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE))))
         {
-            enable_menu =!enable_menu;
-            function_menu = 0;
+            enable_menu = !enable_menu;
+            function_menu = HEX_EDIT_MODE;
 
             f_key = 0;
             f_pos = 0;
@@ -3464,8 +3567,9 @@ read_file:
     }
 
     fd = FAILED;
-
+    frame = 1000; //force immediate refresh
 }
+
 /***********************************************************************************************************/
 /* COBRA ISO                                                                                               */
 /***********************************************************************************************************/
@@ -3621,41 +3725,41 @@ void launch_retro(char *rom_path)
         sprintf(libretro_rom_path, "libretro_rom_path = \"%s\"\n", dst_path);
 
         // Select template
-        if(strstr(src_path, retro_snes_path) != NULL)
+        if(strcasestr(src_path, retro_snes_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/snes-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_gba_path) != NULL)
+        else if(strcasestr(src_path, retro_gba_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gba-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_gen_path) != NULL)
+        else if(strcasestr(src_path, retro_gen_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gen-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_nes_path) != NULL)
+        else if(strcasestr(src_path, retro_nes_path) != NULL)
         {
             if(!strcmpext(src_path, ".fds") || !strcmpext(src_path, ".FDS"))
                 sprintf(src_path, "%s/USRDIR/cores/fds-retroarch.cfg", self_path);
             else
                 sprintf(src_path, "%s/USRDIR/cores/nes-retroarch.cfg", self_path);
         }
-        else if(strstr(src_path, retro_mame_path) != NULL)
+        else if(strcasestr(src_path, retro_mame_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/mame-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_fba_path) != NULL)
+        else if(strcasestr(src_path, retro_fba_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/fba-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_doom_path) != NULL)
+        else if(strcasestr(src_path, retro_doom_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/doom-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_quake_path) != NULL)
+        else if(strcasestr(src_path, retro_quake_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/quake-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_pce_path) != NULL)
+        else if(strcasestr(src_path, retro_pce_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/pce-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_gb_path) != NULL)
+        else if(strcasestr(src_path, retro_gb_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_gbc_path) != NULL)
+        else if(strcasestr(src_path, retro_gbc_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_atari_path) != NULL)
+        else if(strcasestr(src_path, retro_atari_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/atari-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_vb_path) != NULL)
+        else if(strcasestr(src_path, retro_vb_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/vb-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_nxe_path) != NULL)
+        else if(strcasestr(src_path, retro_nxe_path) != NULL)
             sprintf(src_path, "%s/USRDIR/cores/nxe-retroarch.cfg", self_path);
-        else if(strstr(src_path, retro_wswam_path) != NULL)
-            sprintf(src_path, "%s/USRDIR/cores/wswam-retroarch.cfg", self_path);
+        else if(strcasestr(src_path, retro_wswan_path) != NULL)
+            sprintf(src_path, "%s/USRDIR/cores/wswan-retroarch.cfg", self_path);
         else
         {
             DrawDialogOKTimer("ERROR: Invalid path for Retro game.", 3000.0f);
@@ -3768,6 +3872,33 @@ void launch_showtime(int playmode)
     }
 }
 
+
+void launch_luaplayer(char *lua_path)
+{
+    sysFSStat stat;
+
+    char luaplayer[1024];
+    sprintf(luaplayer, "%s/USRDIR/LuaPlayer.self", self_path);
+
+    if(sysLv2FsStat(luaplayer, &stat) == SUCCESS)
+    {
+        char temp_lua[1024];
+        sprintf(temp_lua, "%s/USRDIR/app.lua", self_path);
+
+        if(strcmp(lua_path, temp_lua))
+        {
+            unlink_secure(temp_lua);
+            CopyFile(lua_path, temp_lua);
+        }
+
+        fun_exit();
+        SaveGameList();
+
+        sysProcessExitSpawn2((const char*)luaplayer, NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
+        exit(0);
+    }
+}
+
 int mount_psp_iso(char *path)
 {
     char icon_path[MAXPATHLEN];
@@ -3789,7 +3920,7 @@ int mount_psp_iso(char *path)
     {
         DrawDialogOKTimer("Use PSP Remaster Launcher to play the mounted game", 2500.0f);
         cobra_send_fake_disc_insert_event();
-        {use_cobra = 2; exit(0);}
+        exit(0);
     }
 }
 
@@ -3970,8 +4101,7 @@ int launch_iso_game(char *path, int mtype)
                     sprintf(temp_buffer + 2048, PLUGIN_ISO, self_path);
 
                     int r = cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000);
-                    if (r == 0)
-                        {use_cobra = 2; exit(0);}
+                    if (r == 0) exit(0);
 
                     sprintf(temp_buffer + 2048, "error %X loading sprx_iso plugin", r);
                     DrawDialogOK(temp_buffer + 2048);
@@ -4045,7 +4175,6 @@ int launch_iso_game(char *path, int mtype)
             if (ret == SUCCESS)
             {
                 cobra_send_fake_disc_insert_event();
-                use_cobra = 2;
                 exit(0);
             }
         }
@@ -4080,7 +4209,7 @@ mount_with_mamba:
                         sprintf(&sections[0x200 * o], "%s%i", temp_buffer + 3072, o);
 
                         if(stat(&sections[0x200 * o], &s) != SUCCESS) {memset(&sections[0x200 * o], 0, 0x200); break;}
-                        sections_size[o] = s.st_size/2048;
+                        sections_size[o] = s.st_size / 2048ULL;
 
                         parts++;
                     }
@@ -4093,7 +4222,7 @@ mount_with_mamba:
                     sections[0x1ff] = 0;
 
                     if(stat(&sections[0], &s) != SUCCESS) goto skip_load;
-                    sections_size[0] = s.st_size/2048;
+                    sections_size[0] = s.st_size / 2048ULL;
                 }
 
                 p_args = (rawseciso_args *)plugin_args;
@@ -4110,8 +4239,7 @@ mount_with_mamba:
                 sprintf(temp_buffer + 2048, PLUGIN_ISO, self_path);
 
                 int r = cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000);
-                if (r == 0)
-                    {use_cobra = 2; exit(0);}
+                if (r == 0) exit(0);
 
                 sprintf(temp_buffer + 2048, "error %X loading sprx_iso plugin", r);
                 DrawDialogOK(temp_buffer + 2048);
@@ -4241,11 +4369,7 @@ int launch_iso_game_mamba(char *path, int mtype)
 
                     sprintf(temp_buffer + 2048, PLUGIN_ISO, self_path);
 
-                    if (cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000) == 0)
-                    {
-                        use_cobra = 2;
-                        exit(0);
-                    }
+                    if (cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000) == 0) exit(0);
                 }
                 else if(parts >= MAX_SECTIONS) DrawDialogOKTimer(".ISO is very fragmented", 2000.0f);
 
@@ -4307,7 +4431,6 @@ int launch_iso_game_mamba(char *path, int mtype)
                     cobra_send_fake_disc_insert_event();
 
                     //DrawDialogOKTimer("PS3 Disc inserted", 2000.0f);
-                    use_cobra = 2;
                     exit(0);
                 }
             }
@@ -4341,7 +4464,7 @@ int launch_iso_game_mamba(char *path, int mtype)
                             sprintf(&sections[0x200 * o], "%s%i", temp_buffer + 3072, o);
 
                             if(stat(&sections[0x200 * o], &s) != SUCCESS) {memset(&sections[0x200 * o], 0, 0x200); break;}
-                            sections_size[o] = s.st_size/2048;
+                            sections_size[o] = s.st_size / 2048ULL;
 
                             parts++;
                         }
@@ -4354,7 +4477,7 @@ int launch_iso_game_mamba(char *path, int mtype)
                         sections[0x1ff] = 0;
 
                         if(stat(&sections[0], &s) != SUCCESS) goto skip_load;
-                        sections_size[0] = s.st_size/2048;
+                        sections_size[0] = s.st_size / 2048ULL;
                     }
 
                     p_args = (rawseciso_args *)plugin_args;
@@ -4372,10 +4495,9 @@ int launch_iso_game_mamba(char *path, int mtype)
                     sprintf(temp_buffer + 2048, PLUGIN_ISO, self_path);
 
                     int r = 0;
-                    if ((r = cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000)) == 0)
-                        {use_cobra = 2; exit(0);}
+                    if ((r = cobra_load_vsh_plugin(0, temp_buffer + 2048, plugin_args, 0x10000)) == 0) exit(0);
 
-                    sprintf(temp_buffer + 2048,"error %X", r);
+                    sprintf(temp_buffer + 2048, "error %X", r);
                     DrawDialogOK(temp_buffer + 2048);
                 }
 
@@ -4399,9 +4521,9 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
 {
     int type = EMU_DVD;
 
-    if (is_audiovideo(get_extension(src_path))) launch_video(src_path);
+    if(is_audiovideo(get_extension(src_path))) launch_video(src_path);
 
-    if (is_audiovideo(get_extension(src_path)))
+    if(is_audiovideo(get_extension(src_path)))
     {
         launch_video(src_path);
 
@@ -4409,11 +4531,12 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
         if(!strcmpext(src_path, ".mkv")   || !strcmpext(src_path, ".MKV") ||
            !strcmpext(src_path, ".iso")   || !strcmpext(src_path, ".ISO") ||
            !strcmpext(src_path, ".iso.0") || !strcmpext(src_path, ".ISO.0")) type = EMU_BD;
-        else return FAILED;
+        else
+            return FAILED;
     }
 
 
-    if (use_cobra)
+    if(use_cobra)
     {
         cobra_umount_disc_image();
         usleep(4000);
@@ -4486,8 +4609,6 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
 
                     if (r == 0)
                     {
-                        use_cobra = 2;
-
                         if(sel) launch_showtime(0);
                     }
 
@@ -4526,12 +4647,12 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
                 sections[0x1ff] = 0;
 
                 if(stat(&sections[0], &s) != SUCCESS) goto skip_load;
-                sections_size[0] = s.st_size/2048;
+                sections_size[0] = s.st_size / 2048ULL;
 
                 if(stat(src_path, &s) != SUCCESS) goto skip_load;
                 strncpy(&sections[0x200], src_path, 0x1ff);
                 sections[0x1ff] = 0;
-                sections_size[1] = (s.st_size + 2047)/2048;
+                sections_size[1] = (s.st_size + 2047ULL) / 2048ULL;
 
                 p_args = (rawseciso_args *)plugin_args;
                 p_args->device = USB_MASS_STORAGE(NTFS_Test_Device(&iso_path[1]));
@@ -4550,8 +4671,6 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
 
                 if (r == 0)
                 {
-                    use_cobra = 2;
-
                     if(sel) launch_showtime(0);
                 }
 
@@ -4571,81 +4690,430 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
 }
 
 static char help1[] = {
+    "HELP - [ File Manager ]\n"
+    "\n"
     "SELECT + START - Exit\n"
-    "CROSS - Action for files/folders\n"
+    "CROSS - Action for files/folders (Opens Hex Editor if selected)\n"
+    "\n"
     "TRIANGLE - Opens menu selector (from the device)\n"
     "SQUARE - Single item selection\n"
     "SELECT + SQUARE - Select/Deselect all files/folders\n"
-    "START - Open/close this help window\n"
+    "\n"
     "UP/DOWN - Move the cursor\n"
     "L1/R1 - Move the cursor by page\n"
-    "L2/R2 - Changes the window split (Vertical/Horizontal)\n"
-    "L3/R3 - Changes to different frequently used paths\n"
+    "LEFT/RIGHT - Switch window.\n"
+    "SELECT+LEFT/RIGHT - Open current directory in the other window\n"
     "\n"
-    "Special Combo: Press SELECT+CROSS to access the Hex Editor in .SELF or .PKG files\n"
+    "L2+R2 - Switch the window split mode (Vertical/Horizontal)\n"
+    "L3/R3 - Changes to different frequently used paths\n"
 };
 
-static char cur_path1[0x420];
-static char cur_path2[0x420];
+static char cur_path1[MAX_PATH_LEN];
+static char cur_path2[MAX_PATH_LEN];
 
 static int update_device_sizes = 3; // flags to update the free device space calling to the function (1-> win1  | 2 -> win2)
+
+
+void draw_file_manager()
+{
+        tiny3d_Flip();
+        ps3pad_read();
+
+        tiny3d_Project2D();
+        cls2();
+        update_twat(0);
+
+        //// Begin drawing File Manager screen ////
+
+        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win1 : &mat_unit);
+        DrawBox(0, 0, 0, 816, is_vsplit ? 48 : 32, BLUE5);
+        DrawBox(816, 0, 0, 32, is_vsplit ? 48 : 32, (!fm_pane && (frame & 32)) ? 0xc0c000ff : BLACK2);
+        set_ttf_window(8, 0, is_vsplit ? 590 : 592, is_vsplit ? 48 : 32, WIN_AUTO_LF);
+        display_ttf_string(0, 0, (char *) path1, WHITE, 0, is_vsplit ? 16 : 12, 24);
+
+        set_ttf_window(600, 0, 200, 32, WIN_AUTO_LF);
+        if(free_device1 < 0x40000000LL)
+            sprintf(temp_buffer, "%1.1f MB FREE", (double) (free_device1 / 0x100000LL));
+        else
+            sprintf(temp_buffer, "%1.2f GB FREE", ((double) free_device1) / GIGABYTES);
+
+        if(free_device1 < GIGABYTES && strncmp(path1, "/dev_hdd0", 9) == SUCCESS)
+            display_ttf_string(0, 0, (char *) temp_buffer, (frame & 32) ? RED1 : GRAY, 0, 24, 32);
+        else
+            display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, 24, 32);
+
+        if(is_vsplit)
+        {
+            set_ttf_window(600, 29, 200, 24, WIN_AUTO_LF);
+            if(selcount1 <= 0)
+                sprintf(temp_buffer, "%i Items", nentries1);
+            else if(selsize1 < 0x100000LL)
+                sprintf(temp_buffer, "%i of %i (%1.2f KB)", selcount1, nentries1, (double) (selsize1  / 1024LL));
+            else if(selsize1 < 0x40000000LL)
+                sprintf(temp_buffer, "%i of %i (%1.2f MB)", selcount1, nentries1, (double) (selsize1 / 0x100000LL));
+            else
+                sprintf(temp_buffer, "%i of %i (%1.2f GB)", selcount1, nentries1, ((double) selsize1) / GIGABYTES);
+
+            display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, 20, 24);
+        }
+
+        set_ttf_window(816, 0, 36, 32, WIN_AUTO_LF);
+        display_ttf_string(4, 0, (char *) "A", RED1, 0, 32, 32);
+
+        DrawBox2(0, is_vsplit ? 48 : 32, 0, 848, is_vsplit ? (512 - 48) * 3/2: 256 - 32 /*, 0x2080c0ff*/);
+
+        if(is_vsplit)
+        {
+            DrawLineBox(0, 0, 0, 848, 48, 0x2000ffff);
+
+            DrawLineBox(-1, 48, 0, 848, 24 * 24 + 16, 0x2000ffff);
+        }
+
+        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win2 : &mat_unit);
+        DrawBox(0, 256, 0, 816, is_vsplit ? 48 : 32, BLUE5);
+        DrawBox(816, 256, 0, 32, is_vsplit ? 48 : 32, (fm_pane && (frame & 32)) ? 0xc0c000ff : BLACK2);
+        set_ttf_window(8, 256, is_vsplit ? 590 : 592, is_vsplit ? 48 : 32, WIN_AUTO_LF);
+        display_ttf_string(0, 0, (char *) path2, WHITE, 0, is_vsplit ? 16 : 12, 24);
+
+        set_ttf_window(600, 256, 200, 32, WIN_AUTO_LF);
+
+        if(free_device2 < 0x40000000LL)
+            sprintf(temp_buffer, "%1.1f MB FREE", (double) (free_device2 / 0x100000LL));
+        else
+            sprintf(temp_buffer, "%1.2f GB FREE", ((double) free_device2) / GIGABYTES);
+
+        if(free_device2 < GIGABYTES && strncmp(path2, "/dev_hdd0", 9) == SUCCESS)
+            display_ttf_string(0, 0, (char *) temp_buffer, (frame & 32) ? RED1 : GRAY, 0, 24, 32);
+        else
+            display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, 24, 32);
+
+        if(is_vsplit)
+        {
+            set_ttf_window(600, 285, 200, 24, WIN_AUTO_LF);
+            if(selcount2 <= 0)
+                sprintf(temp_buffer, "%i Items", nentries2);
+            else if(selsize2 < 0x100000LL)
+                sprintf(temp_buffer, "%i of %i (%1.2f KB)", selcount2, nentries2, (double) (selsize2  / 1024LL));
+            else if(selsize2 < 0x40000000LL)
+                sprintf(temp_buffer, "%i of %i (%1.2f MB)", selcount2, nentries2, (double) (selsize2 / 0x100000LL));
+            else
+                sprintf(temp_buffer, "%i of %i (%1.2f GB)", selcount2, nentries2, ((double) selsize2) / GIGABYTES);
+
+            display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, 20, 24);
+        }
+
+        set_ttf_window(816, 256, 36, 32, WIN_AUTO_LF);
+        display_ttf_string(4, 0, (char *) "B", RED1, 0, 32, 32);
+
+        DrawBox2(0, (is_vsplit ? 48 : 32) + 256 , 0, 848, is_vsplit? (512 - 48) * 3/2 : 256 - 32/*, 0x2080c0ff*/);
+
+        if(is_vsplit)
+        {
+            DrawLineBox(0, 256, 0, 848, 48, 0x2000ffff);
+
+            DrawLineBox(-1, 48 + 256, 0, 848, 24 * 24 + 16, 0x2000ffff);
+        }
+
+        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win1 : &mat_unit);
+
+        set_ttf_window(24, is_vsplit ? 48 : 32, 848-24, is_vsplit ? 656 - 48 : 256 - 32, 0);
+
+        if(nentries1)
+        {
+            int py = 0;
+
+            if((sel1 >= pos1) && (frame & 16) && !fm_pane)
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, CURSORCOLOR);
+            else
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, BLACK);
+
+            for(int n = 0; n < (is_vsplit? 24 : 9); n++)
+            {
+                if(pos1 + n >= nentries1) break;
+
+                u32 color = WHITE;
+
+                stat1.st_size = entries1_size[pos1 + n];
+                stat1.st_mode = entries1[pos1 + n].d_type;
+
+                if(entries1[pos1 + n].d_type & IS_DIRECTORY)
+                {
+                    if(entries1[pos1 + n].d_type & IS_NOT_AVAILABLE) color = 0x8f8f00ff;
+                    else color = 0xffff00ff;
+                    display_icon(0, py + (is_vsplit ? 50 : 34), 0, FILE_TYPE_FOLDER);
+                }
+                else
+                {
+                    int type = entries1_type[pos1 + n];
+
+                    if(type < 1)
+                    {
+                        type = FILE_TYPE_NORMAL;
+                        char *ext = get_extension(entries1[pos1 + n].d_name);
+                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
+                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
+                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
+                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
+                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
+                        if(!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")) type = FILE_TYPE_LUA; else
+                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
+                           !strcmpext(entries1[pos1 + n].d_name, ".iso.0") ||
+                           !strcmpext(entries1[pos1 + n].d_name, ".ISO.0") ||
+                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
+                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
+                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
+                          ) type = FILE_TYPE_ISO;
+                        else
+                        if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
+
+                        if(type == FILE_TYPE_ISO && strcmp(entries1[pos1 + n].d_name, "EBOOT.BIN") == SUCCESS)
+                        {
+                            color = CYAN;
+                            entries1_type[pos1 + n] = FILE_TYPE_BIN;
+                        }
+                        else
+                            entries1_type[pos1 + n] = type;
+                    }
+                    else if(type == FILE_TYPE_BIN)
+                    {
+                        color = CYAN;
+                        type = FILE_TYPE_ISO;
+                    }
+                    if (type == FILE_TYPE_JPG) type = FILE_TYPE_PNG;
+
+                    display_icon(0, py + (is_vsplit ? 50 : 34), 0, type);
+                }
+
+                if(entries1[pos1 + n].d_type & IS_MARKED)
+                    DrawBox(0, py + (is_vsplit ? 52 : 36), 0, 848, 16, 0x800080a0);
+
+                int dx = 0;
+
+                if(/*sel1 == (pos1 + n) && */stat1.st_mode != 0xffffffff)
+                {
+                    if(stat1.st_mode == IS_DIRECTORY)
+                    { /* skip folders */}
+                    else if(stat1.st_size < 1024LL)
+                        sprintf(temp_buffer, "%i B", (int) stat1.st_size);
+                    else if(stat1.st_size < 0x100000LL)
+                        sprintf(temp_buffer, "%i KB", (int) (stat1.st_size  / 1024LL));
+                    else if(stat1.st_size < 0x40000000LL)
+                        sprintf(temp_buffer, "%i MB", (int) (stat1.st_size / 0x100000LL));
+                    else
+                        sprintf(temp_buffer, "%1.2f GB", ((double) stat1.st_size) / GIGABYTES);
+
+                    dx = display_ttf_string(0, py, (char *) temp_buffer, 0, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                //set_ttf_window(24, is_vsplit ? 48 : 32, 848 - (dx + 24), 256 - 32, 0);
+                set_ttf_window(24, is_vsplit ? 48 : 32, 848 - (dx + 24), is_vsplit ? 656 - 48 : 256 - 32, 0);
+
+                int dxx = display_ttf_string(0, py, (char *) entries1[pos1 + n].d_name, color, 0, is_vsplit ? 24 : 16, 24);
+
+                if(path1[1] == 0 && !strncmp( (char *) entries1[pos1 + n].d_name, "ntfs", 4))
+                {
+                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + [] to Unmount USB device",
+                        NTFS_Test_Device((char *) entries1[pos1 + n].d_name));
+                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
+                }
+                else
+                if(path1[1] == 0 && !strncmp( (char *) entries1[pos1 + n].d_name, "ext", 3))
+                {
+                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + [] to Unmount USB device",
+                        NTFS_Test_Device((char *) entries1[pos1 + n].d_name));
+                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                if(stat1.st_mode == IS_DIRECTORY)
+                {
+                    // don't show size for folders
+                }
+                else if(/*sel1 == (pos1 + n) && */stat1.st_mode != 0xffffffff)
+                {
+                    set_ttf_window(848 - dx, (is_vsplit ? 48 : 32), dx, is_vsplit ? 656 - 48 : 256 - 32, 0);
+                    display_ttf_string(0, py, (char *) temp_buffer, 0xffffffff, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                py += 24;
+
+            }
+        }
+
+        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win2 : &mat_unit);
+
+        set_ttf_window(24, (is_vsplit ? 48 : 32 ) + 256, 848 - 24, is_vsplit ? 656 - 48 : 256 - 32, 0);
+
+        if(nentries2)
+        {
+            int py = 0;
+
+            if((sel2 >= pos2) && (frame & 16) && fm_pane)
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, CURSORCOLOR);
+            else
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, BLACK);
+
+            for(int n = 0; n < (is_vsplit? 24 : 9); n++)
+            {
+                if(pos2 + n >= nentries2) break;
+
+                u32 color = WHITE;
+
+                stat2.st_size = entries2_size[pos2 + n];
+                stat2.st_mode = entries2[pos2 + n].d_type;
+
+                if(entries2[pos2 + n].d_type & IS_DIRECTORY)
+                {
+                    if(entries2[pos2 + n].d_type & IS_NOT_AVAILABLE) color = 0x8f8f00ff;
+                    else color = 0xffff00ff;
+                    display_icon(0, py + (is_vsplit ? 50 : 34) + 256 , 0, FILE_TYPE_FOLDER);
+                }
+                else
+                {
+                    int type = entries2_type[pos2 + n];
+
+                    if(type < 1)
+                    {
+                        type = FILE_TYPE_NORMAL;
+                        char *ext = get_extension(entries2[pos2 + n].d_name);
+                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
+                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
+                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
+                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
+                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
+                        if(!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")) type = FILE_TYPE_LUA; else
+                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
+                           !strcmpext(entries2[pos2 + n].d_name, ".iso.0") ||
+                           !strcmpext(entries2[pos2 + n].d_name, ".ISO.0") ||
+                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
+                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
+                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
+                          ) type = FILE_TYPE_ISO;
+                        else
+                        if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
+
+                        if(type == FILE_TYPE_ISO && strcmp(entries2[pos2 + n].d_name, "EBOOT.BIN") == SUCCESS)
+                        {
+                            color = CYAN;
+                            entries2_type[pos2 + n] = FILE_TYPE_BIN;
+                        }
+                        else
+                            entries2_type[pos2 + n] = type;
+                    }
+                    else if(type == FILE_TYPE_BIN)
+                    {
+                        color = CYAN;
+                        type = FILE_TYPE_ISO;
+                    }
+                    if (type == FILE_TYPE_JPG) type = FILE_TYPE_PNG;
+
+                    display_icon(0, py + (is_vsplit ? 50 : 34) + 256, 0, type);
+                }
+
+                if(entries2[pos2 + n].d_type & IS_MARKED)
+                    DrawBox(0, py + (is_vsplit ? 52 : 36) + 256, 0, 848, 16, 0x800080a0);
+
+                int dx = 0;
+
+                if(/*sel2 == (pos2 + n) && */stat2.st_mode != 0xffffffff)
+                {
+                    if(stat2.st_mode == IS_DIRECTORY)
+                    { /* skip folders */}
+                    else if(stat2.st_size < 1024LL)
+                        sprintf(temp_buffer, "%i B", (int) stat2.st_size);
+                    else if(stat2.st_size < 0x100000LL)
+                        sprintf(temp_buffer, "%i KB", (int) (stat2.st_size  / 1024LL));
+                    else if(stat2.st_size < 0x40000000LL)
+                        sprintf(temp_buffer, "%i MB", (int) (stat2.st_size / 0x100000LL));
+                    else
+                        sprintf(temp_buffer, "%1.2f GB", ((double) stat2.st_size) / GIGABYTES);
+
+                    dx = display_ttf_string(0, py, (char *) temp_buffer, 0, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                //set_ttf_window(24, 256 + 32, 848 - (dx + 24), 256 - 32, 0);
+                set_ttf_window(24, (is_vsplit ? 48 : 32) + 256, 848 - (dx + 24), is_vsplit ? 656 - 48 : 256 - 32, 0);
+
+                int dxx = display_ttf_string(0, py, (char *) entries2[pos2 + n].d_name, color, 0, is_vsplit ? 24 : 16, 24);
+
+                if(path2[1] == 0 && !strncmp( (char *) entries2[pos2 + n].d_name, "ntfs", 4))
+                {
+                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + [] to Unmount USB device",
+                        NTFS_Test_Device((char *) entries2[pos2 + n].d_name));
+                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
+                }
+                else
+                if(path2[1] == 0 && !strncmp( (char *) entries2[pos2 + n].d_name, "ext", 3))
+                {
+                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + [] to Unmount USB device",
+                        NTFS_Test_Device((char *) entries2[pos2 + n].d_name));
+                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                if(stat2.st_mode == IS_DIRECTORY)
+                {
+                    // don't show size for folders
+                }
+                else if(/*sel2 == (pos2 + n) && */stat2.st_mode != 0xffffffff)
+                {
+                    set_ttf_window(848 - dx, (is_vsplit ? 48 : 32) + 256, dx, is_vsplit ? 656 - 48 : 256 - 32, 0);
+                    display_ttf_string(0, py, (char *) temp_buffer, 0xffffffff, 0, is_vsplit ? 24 : 16, 24);
+                }
+
+                py += 24;
+
+            }
+        }
+
+        tiny3d_SetMatrixModelView(&mat_unit);
+
+        if(is_vsplit)
+        {
+            DrawBox(0, 512 - 32, 0, 848, 32, BLUE5);
+
+            DrawLineBox(0, 512 - 32, 0, 848, 32, 0x2000ffff);
+
+            set_ttf_window(848 - 312, 512 - 32, 480, 32, WIN_AUTO_LF);
+            display_ttf_string(0, 0, (char *) "- File Manager", 0x208098cf, 0, 32, 32);
+        }
+
+
+        //// End drawing File Manager screen ////
+}
 
 int file_manager(char *pathw1, char *pathw2)
 {
     static int auto_up = 0, auto_down = 0;
 
-    u32 frame = 1000;
+    frame = 1000;
 
     int help = 0;
     int exitcode = 0;
 
-    int pos1 = 0;
-    int pos2 = 0;
-
-    int sel1 = 0;
-    int sel2 = 0;
-
     nentries1 = 0;
     nentries2 = 0;
 
-    int file_manager = 0;
+    free_device1 = 0ULL;
+    free_device2 = 0ULL;
 
-    int set_menu2 = 0;
+    bool dev_blind = false;
 
-    int change_path1 = 0, change_path2 = 0;
-
-    static char path1[0x420];
-    static char path2[0x420];
-
-    u64 free_device1 = 0ULL;
-    u64 free_device2 = 0ULL;
-
-    sysFSStat stat1;
-    sysFSStat stat2;
-
-    int dev_blind = 0;
-
-    int is_ntfs = 0;
+    bool is_ntfs = false;
 
     if(sysLv2FsStat("/dev_blind", &stat1)   == SUCCESS ||
        sysLv2FsStat("/dev_habib", &stat1)   == SUCCESS ||
-       sysLv2FsStat("/dev_rewrite", &stat1) == SUCCESS) dev_blind = 1;
+       sysLv2FsStat("/dev_rewrite", &stat1) == SUCCESS) dev_blind = true;
 
-    int update_device1 = 0;
-    int update_device2 = 0;
-
-    MATRIX mat_unit, mat_win1, mat_win2;
+    bool update_device1 = false;
+    bool update_device2 = false;
 
     static int use_split = 1;
     static int counter_internal = 0;
 
-    int is_vsplit = Video_Resolution.width >= 1280 && use_split != 0;
+    is_vsplit = Video_Resolution.width >= 1280 && use_split != 0;
 
     mat_unit = MatrixIdentity();
     mat_win1 = MatrixMultiply(MatrixTranslation(0.0f, 0.0f, 0.0f), MatrixScale(0.5f, 0.75f, 1.0f));
     mat_win2 = MatrixMultiply(MatrixTranslation(848.0f, -256.0f, 0.0f), MatrixScale(0.5f, 0.75f, 1.0f));
-
-    int n;
 
     int img_width;
     int FullScreen = 0;
@@ -4653,23 +5121,26 @@ int file_manager(char *pathw1, char *pathw2)
     int tick1_move = 0;
     int tick2_move = 0;
 
-    if(path1[0] == 0) strncpy(path1, "/", 0x420);
-    if(path2[0] == 0) strncpy(path2, "/", 0x420);
+    if(path1[0] == 0) strncpy(path1, "/", MAX_PATH_LEN);
+    if(path2[0] == 0) strncpy(path2, "/", MAX_PATH_LEN);
 
-    if(pathw1) strncpy(path1, pathw1, 0x420);
-    if(pathw2) strncpy(path2, pathw2, 0x420);
+    if(pathw1) strncpy(path1, pathw1, MAX_PATH_LEN);
+    if(pathw2) strncpy(path2, pathw2, MAX_PATH_LEN);
 
     s32 fd;
     DIR_ITER *pdir = NULL;
     struct stat st;
-    int have_dot = 0;
+
+    bool have_dot;
 
     stat1.st_mode = 0; stat1.st_size = 0;
     stat2.st_mode = 0; stat2.st_size = 0;
 
     update_device_sizes = 3;
 
-    while(1)
+    int n;
+
+    while(true)
     {
         frame++;
 
@@ -4700,8 +5171,7 @@ int file_manager(char *pathw1, char *pathw2)
             if(r == 1)
             {   // mount device
                 if(mounts[i]) { // change to root if unmount the device
-                    int k;
-                    for (k = 0; k < mountCount[i]; k++)
+                    for (int k = 0; k < mountCount[i]; k++)
                     {
                         if((mounts[i]+k)->name[0])
                         {
@@ -4723,8 +5193,7 @@ int file_manager(char *pathw1, char *pathw2)
             {   // unmount device
                 if(mounts[i])
                 {   // change to root if unmount the device
-                    int k;
-                    for (k = 0; k < mountCount[i]; k++)
+                    for (int k = 0; k < mountCount[i]; k++)
                     {
                         if((mounts[i]+k)->name[0])
                         {
@@ -4776,198 +5245,252 @@ int file_manager(char *pathw1, char *pathw2)
             if(stat2.st_mode == 0xffffffff) free_device2 = 0ULL;
     */
 
-            is_ntfs = 0;if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = 1;
+            if(nentries1 == 0 || path1[1] == 0)
+            {
+                have_dot = false;
 
-            have_dot = 0;
+                is_ntfs = false; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = true;
 
-            if((!nentries1 || path1[1] == 0) && ((!is_ntfs && sysLv2FsOpenDir(path1, &fd) == 0)
-                           || (is_ntfs && (pdir = ps3ntfs_diropen(path1)) != NULL))) {
-
-                u64 read;
-
-                int old_entries = nentries1;
-                nentries1 = 0;
-
-                while((!is_ntfs && sysLv2FsReadDir(fd, &entries1[nentries1], &read) == 0 && read > 0)
-                    || (is_ntfs && ps3ntfs_dirnext(pdir, entries1[nentries1].d_name, &st) == 0))
+                if(nentries2 > 0 && strcmp(path1, path2) == SUCCESS)
                 {
-                    if(nentries1 >= 2048) break;
+                    memcpy(entries1, entries2, sizeof(entries2));
+                    memcpy(entries1_type, entries2_type, sizeof(entries2_type));
+                    memcpy(entries1_size, entries2_size, sizeof(entries2_size));
 
-                    if(is_ntfs)
-                    {
-                        entries1[nentries1].d_type = (S_ISDIR(st.st_mode)) ? IS_DIRECTORY : IS_FILE;
-                    }
+                    nentries1 = nentries2;
+                    selcount1 = 0; selsize1 = 0;
 
-                    if(entries1[nentries1].d_name[0] == '.' && entries1[nentries1].d_name[1] == 0) continue;
-
-                    if(!strcmp(entries1[nentries1].d_name, "..")) have_dot = 1;
-
-                    entries1_type[nentries1] = 0;
-                    entries1_size[nentries1] = 0;
-
-                    if(entries1[nentries1].d_type & IS_DIRECTORY)
-                    {
-                        entries1[nentries1].d_type = IS_DIRECTORY;
-                        if(path1[1] == 0)
-                        {
-                            sysFSStat stat;
-                            sprintf(temp_buffer, "%s/%s", path1, entries1[nentries1].d_name);
-                            if(sysLv2FsStat(temp_buffer, &stat) != SUCCESS) entries1[nentries1].d_type |= IS_NOT_AVAILABLE;
-                        }
-                    }
-                    else
-                        entries1[nentries1].d_type = IS_FILE;
-
-                    nentries1++;
+                    for(int i = 0; i < nentries1; i++)
+                        entries1[i].d_type = (entries1[i].d_type & ~IS_MARKED);
                 }
 
-                if(is_ntfs) ps3ntfs_dirclose(pdir); else sysLv2FsCloseDir(fd);
+                if((!is_ntfs && sysLv2FsOpenDir(path1, &fd) == SUCCESS) ||
+                   ( is_ntfs && (pdir = ps3ntfs_diropen(path1)) != NULL))
+                {
+                    u64 read;
 
-                if(path1[1] == 0)
-                {   // NTFS devices
-                    int k;
+                    int old_entries = nentries1;
+                    nentries1 = 0;
+                    selcount1 = 0; selsize1 = 0;
 
-                    for(k = 0; k < 8; k++)
+                    while((!is_ntfs && sysLv2FsReadDir(fd, &entries1[nentries1], &read) == 0 && read > 0)
+                        || (is_ntfs && ps3ntfs_dirnext(pdir, entries1[nentries1].d_name, &st) == 0))
                     {
-                        for (i = 0; i < mountCount[k]; i++)
+                        if(nentries1 >= MAX_ENTRIES) break;
+
+                        if(entries1[nentries1].d_name[0] == '.')
                         {
-                            if(nentries1 >= 2048) break;
-                            if((mounts[k]+i)->name[0])
+                            if(entries1[nentries1].d_name[1] == 0) continue;
+                            if(entries1[nentries1].d_name[1] == '.') have_dot = true;
+                        }
+
+                        if(is_ntfs)
+                        {
+                            entries1[nentries1].d_type = (S_ISDIR(st.st_mode)) ? IS_DIRECTORY : IS_FILE;
+                        }
+
+                        entries1_type[nentries1] = 0;
+                        entries1_size[nentries1] = 0;
+
+                        if(entries1[nentries1].d_type & IS_DIRECTORY)
+                        {
+                            entries1[nentries1].d_type = IS_DIRECTORY;
+                            if(path1[1] == 0)
                             {
-                                entries1[nentries1].d_type = IS_DIRECTORY;
-                                sprintf(entries1[nentries1].d_name, "%s:", (mounts[k]+i)->name);
-                                entries1_type[nentries1] = 0;
-                                entries1_size[nentries1] = 0;
-                                nentries1++;
+                                sysFSStat stat;
+                                sprintf(temp_buffer, "%s/%s", path1, entries1[nentries1].d_name);
+                                if(sysLv2FsStat(temp_buffer, &stat) != SUCCESS) entries1[nentries1].d_type |= IS_NOT_AVAILABLE;
+                            }
+                        }
+                        else
+                            entries1[nentries1].d_type = IS_FILE;
+
+                        nentries1++;
+
+                        tiny3d_Flip();
+                        ps3pad_read();
+
+                        if((old_pad & BUTTON_CIRCLE) || (new_pad & BUTTON_CIRCLE)) break;
+                    }
+
+                    if(is_ntfs) ps3ntfs_dirclose(pdir); else sysLv2FsCloseDir(fd);
+
+                    if(path1[1] == 0)
+                    {   // NTFS devices
+                        int k;
+
+                        for(k = 0; k < 8; k++)
+                        {
+                            for (i = 0; i < mountCount[k]; i++)
+                            {
+                                if(nentries1 >= MAX_ENTRIES) break;
+                                if((mounts[k]+i)->name[0])
+                                {
+                                    entries1[nentries1].d_type = IS_DIRECTORY;
+                                    sprintf(entries1[nentries1].d_name, "%s:", (mounts[k]+i)->name);
+                                    entries1_type[nentries1] = 0;
+                                    entries1_size[nentries1] = 0;
+                                    nentries1++;
+                                }
                             }
                         }
                     }
-                }
 
-                if(path1[1] != 0 && !have_dot)
-                {
-                    entries1[nentries1].d_type = IS_DIRECTORY;
-                    sprintf(entries1[nentries1].d_name, "..");
-                    nentries1++;
-                }
-
-                if(old_entries > nentries1) pos1 = sel1 = 0;
-
-                qsort(entries1, nentries1, sizeof(sysFSDirent), entry_compare);
-                for (i = 0; i < nentries1; i++)
-                {
-                    struct stat s;
-                    if(path1[0] != 0)
+                    if(path1[1] != 0 && !have_dot)
                     {
-                        sprintf(temp_buffer, "%s/%s", path1, entries1[i].d_name);
-                        if(stat(temp_buffer, &s) == SUCCESS) entries1_size[i] = s.st_size;
+                        entries1[nentries1].d_type = IS_DIRECTORY;
+                        sprintf(entries1[nentries1].d_name, "..");
+                        nentries1++;
                     }
-                    else
-                        entries1_size[i] = 0;
+
+                    if(old_entries > nentries1) pos1 = sel1 = 0;
+
+                    qsort(entries1, nentries1, sizeof(sysFSDirent), entry_compare);
+                    for (i = 0; i < nentries1; i++)
+                    {
+                        struct stat s;
+                        if(path1[0] != 0)
+                        {
+                            sprintf(temp_buffer, "%s/%s", path1, entries1[i].d_name);
+                            if(stat(temp_buffer, &s) == SUCCESS) entries1_size[i] = s.st_size;
+                        }
+                        else
+                            entries1_size[i] = 0;
+                    }
+                    update_device1 = true;
                 }
-                update_device1 = 1;
             }
 
 
+            if(nentries2 == 0 || path2[1] == 0)
+            {
 
-            is_ntfs = 0;if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = 1;
+                have_dot = false;
 
-            have_dot = 0;
+                is_ntfs = false; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = true;
 
-            if((!nentries2 || path2[1] == 0) && ((!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0)
-                           || (is_ntfs && (pdir = ps3ntfs_diropen(path2)) != NULL))) {
-
-                u64 read;
-
-                int old_entries = nentries2;
-                nentries2 = 0;
-
-                while((!is_ntfs && sysLv2FsReadDir(fd, &entries2[nentries2], &read) == 0 && read > 0)
-                    || (is_ntfs && ps3ntfs_dirnext(pdir, entries2[nentries2].d_name, &st) == 0))
+                if(nentries1 > 0 && strcmp(path1, path2) == SUCCESS)
                 {
-                    if(nentries2 >= 2048) break;
+                    memcpy(entries2, entries1, sizeof(entries1));
+                    memcpy(entries2_type, entries1_type, sizeof(entries1_type));
+                    memcpy(entries2_size, entries1_size, sizeof(entries1_size));
 
-                    if(is_ntfs)
-                    {
-                        entries2[nentries2].d_type = (S_ISDIR(st.st_mode)) ? IS_DIRECTORY : IS_FILE;
-                    }
+                    nentries2 = nentries1;
+                    selcount2 = 0; selsize2 = 0;
 
-                    if(entries2[nentries2].d_name[0] == '.' && entries2[nentries2].d_name[1] == 0) continue;
-
-                    if(!strcmp(entries2[nentries2].d_name, "..")) have_dot = 1;
-
-                    entries2_type[nentries2] = 0;
-                    entries2_size[nentries2] = 0;
-
-                    if(entries2[nentries2].d_type & IS_DIRECTORY)
-                    {
-                        entries2[nentries2].d_type = IS_DIRECTORY;
-                        if(path2[1] == 0)
-                        {
-                            sysFSStat stat;
-                            sprintf(temp_buffer, "%s/%s", path2, entries2[nentries2].d_name);
-                            if(sysLv2FsStat(temp_buffer, &stat) != SUCCESS) entries2[nentries2].d_type |= IS_NOT_AVAILABLE;
-                        }
-                    }
-                    else
-                        entries2[nentries2].d_type = IS_FILE;
-
-                    nentries2++;
+                    for(int i = 0; i < nentries2; i++)
+                        entries2[i].d_type = (entries2[i].d_type & ~IS_MARKED);
                 }
 
-                if(is_ntfs) ps3ntfs_dirclose(pdir); else sysLv2FsCloseDir(fd);
+                if((!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0) ||
+                  (  is_ntfs && (pdir = ps3ntfs_diropen(path2)) != NULL))
+                {
+                    u64 read;
 
-                if(path2[1] == 0)
-                {   // NTFS devices
-                    int k;
+                    int old_entries = nentries2;
+                    nentries2 = 0;
+                    selcount2 = 0; selsize2 = 0;
 
-                    for(k = 0; k < 8; k++)
+                    while((!is_ntfs && sysLv2FsReadDir(fd, &entries2[nentries2], &read) == 0 && read > 0)
+                        || (is_ntfs && ps3ntfs_dirnext(pdir, entries2[nentries2].d_name, &st) == 0))
                     {
-                        for (i = 0; i < mountCount[k]; i++)
+                        if(nentries2 >= MAX_ENTRIES) break;
+
+                        if(entries2[nentries2].d_name[0] == '.')
                         {
-                            if(nentries2 >= 2048) break;
-                            if((mounts[k]+i)->name[0]) {
-                                entries2[nentries2].d_type = IS_DIRECTORY;
-                                sprintf(entries2[nentries2].d_name, "%s:", (mounts[k]+i)->name);
-                                entries2_type[nentries2] = 0;
-                                entries2_size[nentries2] = 0;
-                                nentries2++;
+                            if(entries2[nentries2].d_name[1] == 0) continue;
+                            if(entries2[nentries2].d_name[1] == '.') have_dot = true;
+                        }
+
+                        if(is_ntfs)
+                        {
+                            entries2[nentries2].d_type = (S_ISDIR(st.st_mode)) ? IS_DIRECTORY : IS_FILE;
+                        }
+
+                        entries2_type[nentries2] = 0;
+                        entries2_size[nentries2] = 0;
+
+                        if(entries2[nentries2].d_type & IS_DIRECTORY)
+                        {
+                            entries2[nentries2].d_type = IS_DIRECTORY;
+                            if(path2[1] == 0)
+                            {
+                                sysFSStat stat;
+                                sprintf(temp_buffer, "%s/%s", path2, entries2[nentries2].d_name);
+                                if(sysLv2FsStat(temp_buffer, &stat) != SUCCESS) entries2[nentries2].d_type |= IS_NOT_AVAILABLE;
+                            }
+                        }
+                        else
+                            entries2[nentries2].d_type = IS_FILE;
+
+                        nentries2++;
+
+                        tiny3d_Flip();
+                        ps3pad_read();
+
+                        if((old_pad & BUTTON_CIRCLE) || (new_pad & BUTTON_CIRCLE)) break;
+                    }
+
+                    if(is_ntfs) ps3ntfs_dirclose(pdir); else sysLv2FsCloseDir(fd);
+
+                    if(path2[1] == 0)
+                    {   // NTFS devices
+                        int k;
+
+                        for(k = 0; k < 8; k++)
+                        {
+                            for (i = 0; i < mountCount[k]; i++)
+                            {
+                                if(nentries2 >= MAX_ENTRIES) break;
+                                if((mounts[k]+i)->name[0])
+                                {
+                                    entries2[nentries2].d_type = IS_DIRECTORY;
+                                    sprintf(entries2[nentries2].d_name, "%s:", (mounts[k]+i)->name);
+                                    entries2_type[nentries2] = 0;
+                                    entries2_size[nentries2] = 0;
+                                    nentries2++;
+                                }
                             }
                         }
                     }
-                }
 
-                if(path2[1] != 0 && !have_dot)
-                {
-                    entries2[nentries2].d_type = IS_DIRECTORY;
-                    sprintf(entries2[nentries2].d_name, "..");
-                    nentries2++;
-                }
-
-
-                if(old_entries > nentries2) pos2 = sel2 = 0;
-
-                qsort(entries2, nentries2, sizeof(sysFSDirent), entry_compare);
-                for (i = 0; i < nentries2; i++)
-                {
-                    struct stat s;
-                    if(path2[0] != 0)
+                    if(path2[1] != 0 && !have_dot)
                     {
-                        sprintf(temp_buffer, "%s/%s", path2, entries2[i].d_name);
-                        if(stat(temp_buffer, &s) == SUCCESS) entries2_size[i] = s.st_size;
+                        entries2[nentries2].d_type = IS_DIRECTORY;
+                        sprintf(entries2[nentries2].d_name, "..");
+                        nentries2++;
                     }
-                    else
-                        entries2_size[i] = 0;
+
+
+                    if(old_entries > nentries2) pos2 = sel2 = 0;
+
+                    qsort(entries2, nentries2, sizeof(sysFSDirent), entry_compare);
+                    for (i = 0; i < nentries2; i++)
+                    {
+                        struct stat s;
+                        if(path2[0] != 0)
+                        {
+                            sprintf(temp_buffer, "%s/%s", path2, entries2[i].d_name);
+                            if(stat(temp_buffer, &s) == SUCCESS) entries2_size[i] = s.st_size;
+                        }
+                        else
+                            entries2_size[i] = 0;
+                    }
+                    update_device2 = true;
                 }
-                update_device2 = 1;
             }
         }
 
     //-- hilight current path
-        if(cur_path1[0] != 0 && nentries1) {
+        if(cur_path1[0] != 0 && nentries1)
+        {
+            sel1 = 0;
+            selcount1 = 0; selsize1 = 0;
 
-            for(int i = 0; i < nentries1 ; i++) {
-                if(!strcmp(entries1[i].d_name, cur_path1)) {
+            for(int i = 0; i < nentries1 ; i++)
+            {
+                if(!strcmp(entries1[i].d_name, cur_path1))
+                {
                     sel1 = i; pos1 = sel1;
                     if(is_vsplit)
                     {
@@ -4986,6 +5509,9 @@ int file_manager(char *pathw1, char *pathw2)
 
         if(cur_path2[0] != 0 && nentries2)
         {
+            sel2 = 0;
+            selcount2 = 0; selsize2 = 0;
+
             for(int i = 0; i < nentries2 ; i++)
             {
                 if(!strcmp(entries2[i].d_name, cur_path2))
@@ -4999,7 +5525,6 @@ int file_manager(char *pathw1, char *pathw2)
                     {
                         if(sel2 >= 4) pos2 = sel2 - 4; else pos2 = 0;
                     }
-
                     break;
                 }
             }
@@ -5008,17 +5533,11 @@ int file_manager(char *pathw1, char *pathw2)
         }
     // ----
 
-        tiny3d_Flip();
-
-        ps3pad_read();
-
-        tiny3d_Project2D();
-        cls2();
-        update_twat(0);
 
         counter_internal++;
 
-        if(counter_internal >= 600) {
+        if(counter_internal >= 600)
+        {
             counter_internal = 0;
             int r= ftp_net_status();
 
@@ -5030,11 +5549,10 @@ int file_manager(char *pathw1, char *pathw2)
         }
 
 
-        if(nentries1 && path1[1] != 0)
+        if(nentries1 > 0 && path1[1] != 0)
         {
             u32 blockSize;
             static u64 freeSize = 0;
-            int n;
 
             if(!update_device1 || !(update_device_sizes & 1))
                 free_device1 = freeSize;
@@ -5048,7 +5566,7 @@ int file_manager(char *pathw1, char *pathw2)
                 temp_buffer[n] = '/';
                 temp_buffer[n + 1]=0;
 
-                is_ntfs = 0; if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4)) is_ntfs = 1;
+                is_ntfs = false; if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4)) is_ntfs = true;
 
                 if(!is_ntfs)
                 {
@@ -5066,14 +5584,13 @@ int file_manager(char *pathw1, char *pathw2)
                 freeSize = free_device1;
             }
 
-            update_device1 = 0;
+            update_device1 = true;
         }
 
-        if(nentries2 && path2[1] != 0)
+        if(nentries2 > 0 && path2[1] != 0)
         {
             u32 blockSize;
             static u64 freeSize = 0;
-            int n;
 
             if(!update_device2 || !(update_device_sizes & 2))
                 free_device2 = freeSize;
@@ -5081,7 +5598,7 @@ int file_manager(char *pathw1, char *pathw2)
             {
                 update_device_sizes&= ~2;
 
-                n=1;while(path2[n] != '/' && path2[n] != 0) n++;
+                n = 1;while(path2[n] != '/' && path2[n] != 0) n++;
 
                 memcpy(temp_buffer, path2, n);
                 temp_buffer[n] = '/';
@@ -5105,329 +5622,21 @@ int file_manager(char *pathw1, char *pathw2)
                 freeSize = free_device2;
             }
 
-            update_device2 = 0;
+            update_device2 = true;
         }
 
 
-        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win1 : &mat_unit);
-        DrawBox(0, 0, 0, 816, is_vsplit ? 48 : 32, BLUE5);
-        DrawBox(816, 0, 0, 32, is_vsplit ? 48 : 32, (!file_manager && (frame & 32)) ? 0xc0c000ff : BLACK2);
-        set_ttf_window(8, 0, is_vsplit ? 590 : 592, is_vsplit ? 48 : 32, WIN_AUTO_LF);
-        display_ttf_string(0, 0, (char *) path1, WHITE, 0, is_vsplit ? 16 : 12, 24);
+        draw_file_manager();
 
-        set_ttf_window(600, 0, 200, 32, WIN_AUTO_LF);
-        if(free_device1 < 0x40000000LL)
-            sprintf(temp_buffer, "%i MB FREE", (int) (free_device1 / 0x100000LL));
-        else
-            sprintf(temp_buffer, "%1.2f GB FREE", ((double) free_device1) / GIGABYTES);
-
-        display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, is_vsplit ? 20 : 20, 32);
-
-        set_ttf_window(816, 0, 36, 32, WIN_AUTO_LF);
-        display_ttf_string(4, 0, (char *) "A", RED1, 0, 32, 32);
-
-        DrawBox2(0, is_vsplit ? 48 : 32, 0, 848, is_vsplit ? (512 - 48) * 3/2: 256 - 32 /*, 0x2080c0ff*/);
-
-        if(is_vsplit)
-        {
-            DrawLineBox(0, 0, 0, 848, 48, 0x2000ffff);
-
-            DrawLineBox(-1, 48, 0, 848, 24 * 24 + 16, 0x2000ffff);
-        }
-
-        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win2 : &mat_unit);
-        DrawBox(0, 256, 0, 816, is_vsplit ? 48 : 32, BLUE5);
-        DrawBox(816, 256, 0, 32, is_vsplit ? 48 : 32, (file_manager && (frame & 32)) ? 0xc0c000ff : BLACK2);
-        set_ttf_window(8, 256, is_vsplit ? 590 : 592, is_vsplit ? 48 : 32, WIN_AUTO_LF);
-        display_ttf_string(0, 0, (char *) path2, WHITE, 0, is_vsplit ? 16 : 12, 24);
-
-        set_ttf_window(600, 256, 200, 32, WIN_AUTO_LF);
-
-        if(free_device2 < 0x40000000LL)
-            sprintf(temp_buffer, "%i MB FREE", (int) (free_device2 / 0x100000LL));
-        else
-            sprintf(temp_buffer, "%1.2f GB FREE", ((double) free_device2) / GIGABYTES);
-
-        display_ttf_string(0, 0, (char *) temp_buffer, GRAY, 0, is_vsplit ? 20 : 20, 32);
-
-        set_ttf_window(816, 256, 36, 32, WIN_AUTO_LF);
-        display_ttf_string(4, 0, (char *) "B", RED1, 0, 32, 32);
-
-        DrawBox2(0, (is_vsplit ? 48 : 32) + 256 , 0, 848, is_vsplit? (512 - 48) * 3/2 : 256 - 32/*, 0x2080c0ff*/);
-
-         if(is_vsplit)
-         {
-            DrawLineBox(0, 256, 0, 848, 48, 0x2000ffff);
-
-            DrawLineBox(-1, 48 + 256, 0, 848, 24 * 24 + 16, 0x2000ffff);
-         }
-
-        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win1 : &mat_unit);
-
-        set_ttf_window(24, is_vsplit ? 48 : 32, 848-24, is_vsplit ? 656 - 48 : 256 - 32, 0);
-
-        if(nentries1)
-        {
-            int py = 0;
-
-            if((sel1 >= pos1) && (frame & 16) && !file_manager)
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, CURSORCOLOR);
-            else
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, BLACK);
-
-            for(n = 0; n < (is_vsplit? 24 : 9); n++)
-            {
-                if(pos1 + n >= nentries1) break;
-
-                u32 color = WHITE;
-
-                stat1.st_size = entries1_size[pos1 + n];
-                stat1.st_mode = entries1[pos1 + n].d_type;
-
-                if(entries1[pos1 + n].d_type & IS_DIRECTORY)
-                {
-                    if(entries1[pos1 + n].d_type & IS_NOT_AVAILABLE) color = 0x8f8f00ff;
-                    else color = 0xffff00ff;
-                    display_icon(0, py + (is_vsplit ? 50 : 34), 0, 0);
-                }
-                else
-                {
-                    int type = entries1_type[pos1 + n];
-
-                    if(type < 1)
-                    {
-                        type = FILE_TYPE_NORMAL;
-                        char *ext = get_extension(entries1[pos1 + n].d_name);
-                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
-                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
-                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
-                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
-                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
-                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
-                           !strcmpext(entries1[pos1 + n].d_name, ".iso.0") ||
-                           !strcmpext(entries1[pos1 + n].d_name, ".ISO.0") ||
-                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
-                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
-                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                          ) type = FILE_TYPE_ISO; else
-                        if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
-
-                        if(type == FILE_TYPE_ISO && !strcmp(ext, ".BIN"))
-                        {
-                            color = CYAN;
-                            entries1_type[pos1 + n] = FILE_TYPE_BIN;
-                        }
-                        else
-                            entries1_type[pos1 + n] = type;
-                    }
-                    else if(type == FILE_TYPE_BIN)
-                    {
-                        type = FILE_TYPE_ISO;
-                        color = CYAN;
-                    }
-                    if (type == FILE_TYPE_JPG) type = FILE_TYPE_PNG;
-
-                    display_icon(0, py + (is_vsplit ? 50 : 34), 0, type);
-                }
-
-                if(entries1[pos1 + n].d_type & IS_MARKED)
-                    DrawBox(0, py + (is_vsplit ? 52 : 36), 0, 848, 16, 0x800080a0);
-
-                int dx = 0;
-
-                if(/*sel1 == (pos1 + n) && */stat1.st_mode != 0xffffffff)
-                {
-                    if(stat1.st_mode == IS_DIRECTORY)
-                    { /* skip folders */}
-                    else if(stat1.st_size < 1024LL)
-                        sprintf(temp_buffer, "%i B", (int) stat1.st_size);
-                    else if(stat1.st_size < 0x100000LL)
-                        sprintf(temp_buffer, "%i KB", (int) (stat1.st_size  / 1024LL));
-                    else if(stat1.st_size < 0x40000000LL)
-                        sprintf(temp_buffer, "%i MB", (int) (stat1.st_size / 0x100000LL));
-                    else
-                        sprintf(temp_buffer, "%1.2f GB", ((double) stat1.st_size) / GIGABYTES);
-
-                    dx = display_ttf_string(0, py, (char *) temp_buffer, 0, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                //set_ttf_window(24, is_vsplit ? 48 : 32, 848 - (dx + 24), 256 - 32, 0);
-                set_ttf_window(24, is_vsplit ? 48 : 32, 848 - (dx + 24), is_vsplit ? 656 - 48 : 256 - 32, 0);
-
-                int dxx = display_ttf_string(0, py, (char *) entries1[pos1 + n].d_name, color, 0, is_vsplit ? 24 : 16, 24);
-
-                if(path1[1] ==  0 && !strncmp( (char *) entries1[pos1 + n].d_name, "ntfs", 4))
-                {
-                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + SQUARE to Unmount USB device",
-                        NTFS_Test_Device((char *) entries1[pos1 + n].d_name));
-                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                if(path1[1] ==  0 && !strncmp( (char *) entries1[pos1 + n].d_name, "ext", 3))
-                {
-                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + SQUARE to Unmount USB device",
-                        NTFS_Test_Device((char *) entries1[pos1 + n].d_name));
-                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                if(stat1.st_mode == IS_DIRECTORY)
-                {
-                    // don't show size for folders
-                }
-                else if(/*sel1 == (pos1 + n) && */stat1.st_mode != 0xffffffff)
-                {
-                    set_ttf_window(848 - dx, (is_vsplit ? 48 : 32), dx, is_vsplit ? 656 - 48 : 256 - 32, 0);
-                    display_ttf_string(0, py, (char *) temp_buffer, 0xffffffff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                py += 24;
-
-            }
-        }
-
-        tiny3d_SetMatrixModelView(is_vsplit ? &mat_win2 : &mat_unit);
-
-        set_ttf_window(24, (is_vsplit ? 48 : 32 ) + 256, 848 - 24, is_vsplit ? 656 - 48 : 256 - 32, 0);
-
-        if(nentries2)
-        {
-            int py = 0;
-
-            if((sel2 >= pos2) && (frame & 16) && file_manager)
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, CURSORCOLOR);
-            else
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, BLACK);
-
-            for(n = 0; n < (is_vsplit? 24 : 9); n++)
-            {
-                if(pos2 + n >= nentries2) break;
-
-                u32 color = WHITE;
-
-                stat2.st_size = entries2_size[pos2 + n];
-                stat2.st_mode = entries2[pos2 + n].d_type;
-
-                if(entries2[pos2 + n].d_type & IS_DIRECTORY)
-                {
-                    if(entries2[pos2 + n].d_type & IS_NOT_AVAILABLE) color = 0x8f8f00ff;
-                    else color = 0xffff00ff;
-                    display_icon(0, py + (is_vsplit ? 50 : 34) + 256 , 0, 0);
-                }
-                else
-                {
-                    int type = entries2_type[pos2 + n];
-
-                    if(type < 1)
-                    {
-                        type = FILE_TYPE_NORMAL;
-                        char *ext = get_extension(entries2[pos2 + n].d_name);
-                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
-                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
-                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
-                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
-                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
-                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
-                           !strcmpext(entries2[pos2 + n].d_name, ".iso.0") ||
-                           !strcmpext(entries2[pos2 + n].d_name, ".ISO.0") ||
-                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
-                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
-                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                          ) type = FILE_TYPE_ISO; else
-                        if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
-
-                        if(type == FILE_TYPE_ISO && !strcmp(ext, ".BIN"))
-                        {
-                            color = CYAN;
-                            entries2_type[pos2 + n] = FILE_TYPE_BIN;
-                        }
-                        else
-                            entries2_type[pos2 + n] = type;
-                    }
-                    else if(type == FILE_TYPE_BIN)
-                    {
-                        type = FILE_TYPE_ISO;
-                        color = CYAN;
-                    }
-                    if (type == FILE_TYPE_JPG) type = FILE_TYPE_PNG;
-
-                    display_icon(0, py + (is_vsplit ? 50 : 34) + 256, 0, type);
-                }
-
-                if(entries2[pos2 + n].d_type & IS_MARKED)
-                    DrawBox(0, py + (is_vsplit ? 52 : 36) + 256, 0, 848, 16, 0x800080a0);
-
-                int dx = 0;
-
-                if(/*sel2 == (pos2 + n) && */stat2.st_mode != 0xffffffff)
-                {
-                    if(stat2.st_mode == IS_DIRECTORY)
-                    { /* skip folders */}
-                    else if(stat2.st_size < 1024LL)
-                        sprintf(temp_buffer, "%i B", (int) stat2.st_size);
-                    else if(stat2.st_size < 0x100000LL)
-                        sprintf(temp_buffer, "%i KB", (int) (stat2.st_size  / 1024LL));
-                    else if(stat2.st_size < 0x40000000LL)
-                        sprintf(temp_buffer, "%i MB", (int) (stat2.st_size / 0x100000LL));
-                    else
-                        sprintf(temp_buffer, "%1.2f GB", ((double) stat2.st_size) / GIGABYTES);
-
-                    dx = display_ttf_string(0, py, (char *) temp_buffer, 0, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                //set_ttf_window(24, 256 + 32, 848 - (dx + 24), 256 - 32, 0);
-                set_ttf_window(24, (is_vsplit ? 48 : 32) + 256, 848 - (dx + 24), is_vsplit ? 656 - 48 : 256 - 32, 0);
-
-                int dxx = display_ttf_string(0, py, (char *) entries2[pos2 + n].d_name, color, 0, is_vsplit ? 24 : 16, 24);
-
-                if(path2[1] ==  0 && !strncmp( (char *) entries2[pos2 + n].d_name, "ntfs", 4))
-                {
-                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + SQUARE to Unmount USB device",
-                        NTFS_Test_Device((char *) entries2[pos2 + n].d_name));
-                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                if(path2[1] ==  0 && !strncmp( (char *) entries2[pos2 + n].d_name, "ext", 3))
-                {
-                    sprintf(temp_buffer + 1024, " (USB_00%i) Press SELECT + SQUARE to Unmount USB device",
-                        NTFS_Test_Device((char *) entries2[pos2 + n].d_name));
-                    display_ttf_string(dxx, py, temp_buffer + 1024, 0x8f8f00ff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                if(stat2.st_mode == IS_DIRECTORY)
-                {
-                    // don't show size for folders
-                }
-                else if(/*sel2 == (pos2 + n) && */stat2.st_mode != 0xffffffff)
-                {
-                    set_ttf_window(848 - dx, (is_vsplit ? 48 : 32) + 256, dx, is_vsplit ? 656 - 48 : 256 - 32, 0);
-                    display_ttf_string(0, py, (char *) temp_buffer, 0xffffffff, 0, is_vsplit ? 24 : 16, 24);
-                }
-
-                py += 24;
-
-            }
-        }
-
-        tiny3d_SetMatrixModelView(&mat_unit);
-
-        if(is_vsplit)
-        {
-            DrawBox(0, 512 - 32, 0, 848, 32, BLUE5);
-
-            DrawLineBox(0, 512 - 32, 0, 848, 32, 0x2000ffff);
-
-            set_ttf_window(848 - 312, 512 - 32, 480, 32, WIN_AUTO_LF);
-            display_ttf_string(0, 0, (char *) "- File Manager", 0x208098cf, 0, 32, 32);
-        }
 
         // auto PNG
-        if(tick1_move && path1[1] != 0 && !file_manager && png_signal < 110 && auto_up == 0 && auto_down == 0)
+        if(tick1_move && path1[1] != 0 && !fm_pane && png_signal < 110 && auto_up == 0 && auto_down == 0)
         {
-            if((entries1[sel1].d_type & IS_DIRECTORY) && (path1[12] == 71 || path1[10] == 71 || path1[10] == 103 || path1[10] == 104))
-            {
-                struct stat st;
-                int signal = 0;
+            struct stat st;
+            int signal = 0;
 
+            if((entries1[sel1].d_type & IS_DIRECTORY) && (path1[12] == 'G' || path1[10] == 'G' || path1[10] == 'g' || path1[10] == 'h' || path1[5] == 'b'))
+            {
                 sprintf(temp_buffer, "%s/%s/PS3_GAME/ICON0.PNG", path1, entries1[sel1].d_name);
                 if(!stat(temp_buffer, &st)) signal = 1;
                 else
@@ -5450,8 +5659,6 @@ int file_manager(char *pathw1, char *pathw2)
             }
             else if(!(entries1[sel1].d_type & IS_DIRECTORY))
             {
-                struct stat st;
-                int signal = 0;
                 tick1_move = 0;
 
                 if(entries1_type[sel1] == FILE_TYPE_PNG)
@@ -5477,18 +5684,57 @@ int file_manager(char *pathw1, char *pathw2)
                 else if (entries1_type[sel1] == FILE_TYPE_BIN)
                 {
                     sprintf(temp_buffer, "%s/../ICON0.PNG", path1);
-                    if(!stat(temp_buffer, &st)) signal = 1;
+                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
                 }
+                else if(!strcmp(entries1[sel1].d_name, "PS3LOGO.DAT"))
+                {
+                    sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
+                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
+                }
+                else
+                {
+                    tick1_move = 0;
+                    sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
 
+                    temp_buffer[strlen(temp_buffer) - 4] = 0;
+                    strcat(temp_buffer, ".png");
+
+                    if(!stat(temp_buffer, &st))
+                    {
+                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        {
+                            png_signal = 120; FullScreen = 0;
+                        }
+                    }
+                    else
+                    {
+                        temp_buffer[strlen(temp_buffer) - 4] = 0;
+                        strcat(temp_buffer, ".jpg");
+
+                        if(!stat(temp_buffer, &st))
+                        {
+                            if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                            {
+                                png_signal = 120; FullScreen = 0;
+                            }
+                        }
+                    }
+                }
             }
         }
-        else if (tick2_move && path2[1] != 0 && file_manager && png_signal < 110 && auto_up == 0 && auto_down == 0)
+        else if (tick2_move && path2[1] != 0 && fm_pane && png_signal < 110 && auto_up == 0 && auto_down == 0)
         {
-            if((entries2[sel2].d_type & IS_DIRECTORY) && (path2[12] == 71 || path2[10] == 71 || path2[10] == 103 || path2[10] == 104))
-            {
-                struct stat st;
-                int signal = 0;
+            struct stat st;
+            int signal = 0;
 
+            if((entries2[sel2].d_type & IS_DIRECTORY) && (path2[12] == 'G' || path2[10] == 'G' || path2[10] == 'g' || path2[10] == 'h' || path1[5] == 'b'))
+            {
                 sprintf(temp_buffer, "%s/%s/PS3_GAME/ICON0.PNG", path2, entries2[sel2].d_name);
                 if(!stat(temp_buffer, &st)) signal = 1;
                 else
@@ -5512,8 +5758,6 @@ int file_manager(char *pathw1, char *pathw2)
             }
             else if(!(entries2[sel2].d_type & IS_DIRECTORY))
             {
-                struct stat st;
-                int signal = 0;
                 tick2_move = 0;
 
                 if(entries2_type[sel2] == FILE_TYPE_PNG)
@@ -5527,7 +5771,7 @@ int file_manager(char *pathw1, char *pathw2)
                     }
                 }
                 else if(entries2_type[sel2] == FILE_TYPE_JPG)
-               {
+                {
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
                     if(!stat(temp_buffer, &st)) signal = 1;
 
@@ -5539,7 +5783,47 @@ int file_manager(char *pathw1, char *pathw2)
                 else if (entries2_type[sel2] == FILE_TYPE_BIN)
                 {
                     sprintf(temp_buffer, "%s/../ICON0.PNG", path2);
-                    if(!stat(temp_buffer, &st)) signal = 1;
+                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
+                }
+                else if(!strcmp(entries2[sel2].d_name, "PS3LOGO.DAT"))
+                {
+                    sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
+                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
+                }
+                else
+                {
+                    tick2_move = 0;
+                    sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
+
+                    temp_buffer[strlen(temp_buffer) - 4] = 0;
+                    strcat(temp_buffer, ".png");
+
+                    if(!stat(temp_buffer, &st))
+                    {
+                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        {
+                            png_signal = 120; FullScreen = 0;
+                        }
+                    }
+                    else
+                    {
+                        temp_buffer[strlen(temp_buffer) - 4] = 0;
+                        strcat(temp_buffer, ".jpg");
+
+                        if(!stat(temp_buffer, &st))
+                        {
+                            if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                            {
+                                png_signal = 120; FullScreen = 0;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -5581,11 +5865,11 @@ int file_manager(char *pathw1, char *pathw2)
                         h = img_width * Png_datas[num_box].height / Png_datas[num_box].width  * 512/480;
                     }
 
-                    DrawBox((!file_manager || !use_split) ? 848 - img_width : 0, use_split ? 512 - h - 32 :
-                            (file_manager ? 256 - h : 512 - h), 0, img_width, h, 0xffffff40);
+                    DrawBox((!fm_pane || !use_split) ? 848 - img_width : 0, use_split ? 512 - h - 32 :
+                            (fm_pane ? 256 - h : 512 - h), 0, img_width, h, 0xffffff40);
 
-                    DrawTextBox((!file_manager || !use_split) ? 848 - img_width : 0, use_split ? 512 - h - 32 :
-                                (file_manager ? 256 - h : 512 - h), 0, img_width, h, WHITE);
+                    DrawTextBox((!fm_pane || !use_split) ? 848 - img_width : 0, use_split ? 512 - h - 32 :
+                                (fm_pane ? 256 - h : 512 - h), 0, img_width, h, WHITE);
                 }
             }
 
@@ -5599,25 +5883,25 @@ int file_manager(char *pathw1, char *pathw2)
         {
             int py = 0;
             int max_menu2 = 8;
-            if((!file_manager && path1[1] == 0) || (file_manager && path2[1] == 0)) max_menu2 = 6;
-            else if(!file_manager &&
-                    (strcmp(path1, "/dev_hdd0/game") == 0 ||
+            if((!fm_pane && path1[1] == 0) || (fm_pane && path2[1] == 0)) max_menu2 = 6;
+            else if(!fm_pane &&
+                    (strcmp(path1, "/dev_hdd0/game") == SUCCESS ||
                      strstr(path1, "/GAME") > 0 ||
-                     strcmp(entries1[sel1].d_name, "game") == 0 ||
-                     strcmp(entries1[sel1].d_name, "GAMES") == 0 ||
-                     strcmp(entries1[sel1].d_name, "GAMEZ") == 0 ||
+                     strcmp(entries1[sel1].d_name, "game") == SUCCESS ||
+                     strcmp(entries1[sel1].d_name, "GAMES") == SUCCESS ||
+                     strcmp(entries1[sel1].d_name, "GAMEZ") == SUCCESS ||
                      (strstr(path1, "/PS3ISO") > 0 &&
                      (!strcmpext(entries1[sel1].d_name, ".iso") ||
                       !strcmpext(entries1[sel1].d_name, ".ISO") ||
                       !strcmpext(entries1[sel1].d_name, ".iso.0") ||
                       !strcmpext(entries1[sel1].d_name, ".ISO.0"))))
                     ) max_menu2 = 9;
-            else if(file_manager &&
-                    (strcmp(path2, "/dev_hdd0/game") == 0 ||
+            else if(fm_pane &&
+                    (strcmp(path2, "/dev_hdd0/game") == SUCCESS ||
                      strstr(path2, "/GAME") > 0 ||
-                     strcmp(entries2[sel2].d_name, "game") == 0 ||
-                     strcmp(entries2[sel2].d_name, "GAMES") == 0 ||
-                     strcmp(entries2[sel2].d_name, "GAMEZ") == 0 ||
+                     strcmp(entries2[sel2].d_name, "game") == SUCCESS ||
+                     strcmp(entries2[sel2].d_name, "GAMES") == SUCCESS ||
+                     strcmp(entries2[sel2].d_name, "GAMEZ") == SUCCESS ||
                      (strstr(path2, "/PS3ISO") > 0 &&
                      (!strcmpext(entries2[sel2].d_name, ".iso") ||
                       !strcmpext(entries2[sel2].d_name, ".ISO") ||
@@ -5631,7 +5915,31 @@ int file_manager(char *pathw1, char *pathw2)
 
             if(max_menu2 == 6)
             {
-                display_ttf_string(0, py, !dev_blind ? "Mount /dev_blind" : "Unmount /dev_blind", (set_menu2 == 1  && (frame & 16)) ? 0 : WHITE, 0, 16, 24); py += 24;
+                if(use_cobra == false || bAllowNetGames == false) mount_option = 0;
+
+                bool blink = (set_menu2 == 1  && (frame & 16));
+
+                switch(mount_option)
+                {
+                    case 1:
+                        display_ttf_string(0, py, "Mount /net_host0", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                    case 2:
+                        display_ttf_string(0, py, "Mount /net_host0/PKG", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                    case 3:
+                        display_ttf_string(0, py, "Mount /net_host1", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                    case 4:
+                        display_ttf_string(0, py, "Mount /net_host1/PKG", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                    case 5:
+                        display_ttf_string(0, py, "Unmount /dev_bdvd", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                    default:
+                        display_ttf_string(0, py, !dev_blind ? "Mount /dev_blind" : "Unmount /dev_blind", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
+                        break;
+                }
 
                 display_ttf_string(0, py, "LV2 Dump", (set_menu2 == 2  && (frame & 16)) ? 0 : WHITE, 0, 16, 24); py += 24;
 
@@ -5678,8 +5986,8 @@ int file_manager(char *pathw1, char *pathw2)
 
         if(help)
         {
-            DrawBox((848 - 624)/2, (512 - 424)/2, 0, 624, 424, 0x602060ff);
-            DrawBox((848 - 616)/2, (512 - 416)/2, 0, 616, 416, 0x802080ff);
+            DrawBox((848 - 624)/2, (512 - 424)/2, 0, 624, 424, GRAY);
+            DrawBox((848 - 616)/2, (512 - 416)/2, 0, 616, 416, POPUPMENUCOLOR);
             set_ttf_window((848 - 600)/2, (512 - 416)/2, 600, 416, WIN_AUTO_LF);
 
             if(set_menu2) display_ttf_string(0, 0, help2, WHITE, 0, 16, 24);
@@ -5691,7 +5999,7 @@ int file_manager(char *pathw1, char *pathw2)
             help ^= 1;
         }
 
-        if((new_pad & BUTTON_CIRCLE) && help) {help^=1; new_pad ^= BUTTON_CIRCLE;}
+        if((new_pad & BUTTON_CIRCLE) && help) {help ^= 1; new_pad ^= BUTTON_CIRCLE;}
 
         if(help) continue;
 
@@ -5709,8 +6017,8 @@ int file_manager(char *pathw1, char *pathw2)
             set_menu2 = 0;
         } else if((new_pad & BUTTON_TRIANGLE) || (new_pad & BUTTON_CIRCLE)) {
             if(FullScreen == 1) {png_signal = 120; FullScreen = 0; continue;}
-            if(!file_manager && nentries1) set_menu2 = !set_menu2;
-            if(file_manager && nentries2) set_menu2 = !set_menu2;
+            if(!fm_pane && nentries1) set_menu2 = !set_menu2;
+            if(fm_pane && nentries2) set_menu2 = !set_menu2;
         }
 
         //if((new_pad & (BUTTON_TRIANGLE)) && set_menu2) {set_menu2 = 0; new_pad ^= BUTTON_TRIANGLE;}
@@ -5719,8 +6027,8 @@ int file_manager(char *pathw1, char *pathw2)
         if(set_menu2)
         {
             int max_menu2 = 8;
-            if((!file_manager && path1[1] == 0) || (file_manager && path2[1] == 0)) max_menu2 = 6;
-            else if(!file_manager &&
+            if((!fm_pane && path1[1] == 0) || (fm_pane && path2[1] == 0)) max_menu2 = 6;
+            else if(!fm_pane &&
                     (strcmp(path1, "/dev_hdd0/game") == 0 ||
                      strstr(path1, "/GAME") > 0 ||
                      strcmp(entries1[sel1].d_name, "game") == 0 ||
@@ -5732,7 +6040,7 @@ int file_manager(char *pathw1, char *pathw2)
                       !strcmpext(entries1[sel1].d_name, ".iso.0") ||
                       !strcmpext(entries1[sel1].d_name, ".ISO.0"))))
                     ) max_menu2 = 9;
-            else if(file_manager &&
+            else if(fm_pane &&
                     (strcmp(path2, "/dev_hdd0/game") == 0 ||
                      strstr(path2, "/GAME") > 0 ||
                      strcmp(entries2[sel2].d_name, "game") == 0 ||
@@ -5746,24 +6054,27 @@ int file_manager(char *pathw1, char *pathw2)
                    ) max_menu2 = 9;
 
             if(new_pad & BUTTON_UP)
+                ROT_DEC(set_menu2, 1, max_menu2)
+            else if(new_pad & BUTTON_DOWN)
+                ROT_INC(set_menu2, max_menu2, 1)
+            else if((set_menu2 == 1) && (max_menu2 == 6))
             {
-                if(set_menu2 > 1) set_menu2--;  else {set_menu2 = max_menu2;}
+                if(new_pad & BUTTON_LEFT)
+                    ROT_DEC(mount_option, 0, 5)
+                else if(new_pad & BUTTON_RIGHT)
+                    ROT_INC(mount_option, 5, 0)
+                else if(new_pad & BUTTON_SELECT)
+                    mount_option = 0;
             }
-
-            if(new_pad & BUTTON_DOWN)
+            else
+            if((set_menu2 == 3) && (max_menu2 != 6) && ((new_pad & BUTTON_LEFT) || (new_pad & BUTTON_RIGHT) || (new_pad & BUTTON_SELECT)))
             {
-                if(set_menu2 < max_menu2) set_menu2++;  else {set_menu2 = 1;}
+                allow_shadow_copy = !allow_shadow_copy;
             }
-
-
-        if((set_menu2 == 3) && (max_menu2 != 6) && ((new_pad & BUTTON_LEFT) || (new_pad & BUTTON_RIGHT) || (new_pad & BUTTON_SELECT)))
-        {
-            allow_shadow_copy = !allow_shadow_copy;
-        }
 
         if(new_pad & BUTTON_CROSS)
         {
-            char buffer1[0x420];
+            char buffer1[256];
             frame = 1000;
 
             if(options_locked)
@@ -5779,33 +6090,76 @@ int file_manager(char *pathw1, char *pathw2)
             {
                 if(set_menu2 == 1)
                 {
-                    // mount/umount /dev_blind
-                    if(dev_blind)
+                    if(mount_option)
                     {
-                        sys_fs_umount("/dev_blind");
-                        sys_fs_umount("/dev_habib");
-                        sys_fs_umount("/dev_rewrite");
+                        if(bAllowNetGames && get_net_status() == SUCCESS)
+                        {
+                            if(mount_option == 1)
+                            {
+                                download_file("http://localhost/mount_ps3/net0/.", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host0 as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 2)
+                            {
+                                download_file("http://localhost/mount_ps3/net0/PKG", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host0/PKG as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 3)
+                            {
+                                download_file("http://localhost/mount_ps3/net1/.", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host1 as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 4)
+                            {
+                                download_file("http://localhost/mount_ps3/net1/PKG", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host1/PKG as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 5)
+                            {
+                                download_file("http://localhost//mount.ps3/unmount", NULL, 0, NULL);
+                                DrawDialogTimer("Unmounted /dev_bdvd", 2000.0f);
+                            }
 
-                        dev_blind = 0;
-
-                        // return to root
-                        if(!strncmp(path1, "/dev_blind", 10) ||
-                           !strncmp(path1, "/dev_habib", 10) ||
-                           !strncmp(path1, "/dev_rewrite", 12)) path1[1] = 0;
-
-                        if(!strncmp(path2, "/dev_blind", 10) ||
-                           !strncmp(path2, "/dev_habib", 10) ||
-                           !strncmp(path2, "/dev_rewrite", 12)) path2[1] = 0;
+                            if(is_file_exist("/dev_bdvd"))
+                            {
+                                if(!fm_pane)
+                                {
+                                    sprintf(path1, "/dev_bdvd");
+                                    nentries1 = 0;
+                                }
+                                else
+                                {
+                                    sprintf(path2, "/dev_bdvd");
+                                    nentries2 = 0;
+                                }
+                            }
+                        }
                     }
                     else
                     {
-                        if(sys_fs_mount("CELL_FS_IOS:BUILTIN_FLSH1", "CELL_FS_FAT", "/dev_blind", 0) == 0)
-                            dev_blind = 1;
+                        // mount/umount /dev_blind
+                        if(dev_blind)
+                        {
+                            sys_fs_umount("/dev_blind");
+                            sys_fs_umount("/dev_habib");
+                            sys_fs_umount("/dev_rewrite");
+
+                            dev_blind = false;
+
+                            // return to root
+                            if(!strncmp(path1, "/dev_blind", 10) ||
+                               !strncmp(path1, "/dev_habib", 10) ||
+                               !strncmp(path1, "/dev_rewrite", 12)) path1[1] = 0;
+
+                            if(!strncmp(path2, "/dev_blind", 10) ||
+                               !strncmp(path2, "/dev_habib", 10) ||
+                               !strncmp(path2, "/dev_rewrite", 12)) path2[1] = 0;
+                        }
                         else
-                            dev_blind = 0;
+                            dev_blind = (sys_fs_mount("CELL_FS_IOS:BUILTIN_FLSH1", "CELL_FS_FAT", "/dev_blind", 0) == SUCCESS);
                     }
 
-                    nentries2=nentries1 = 0;
+                    nentries2 = nentries1 = 0;
                     pos1 = sel1 = 0;
                     pos2 = sel2 = 0;
 
@@ -5815,7 +6169,7 @@ int file_manager(char *pathw1, char *pathw2)
                 {   // lv2 dump
                     int ret = 0;
 
-                    if(!file_manager)
+                    if(!fm_pane)
                     {
                         update_device_sizes |= 1;
                         if(free_device1 < 0x800400) ret = (int) 0x80010020;
@@ -5831,7 +6185,7 @@ int file_manager(char *pathw1, char *pathw2)
                     }
 
                     if(ret == 0)
-                        ret = level_dump(!file_manager ? path1 : path2, 2);
+                        ret = level_dump(!fm_pane ? path1 : path2, 2);
 
                     if(ret < 0)
                     {
@@ -5845,7 +6199,7 @@ int file_manager(char *pathw1, char *pathw2)
                 {   // lv1 dump
                     int ret = 0;
 
-                    if(!file_manager)
+                    if(!fm_pane)
                     {
                         update_device_sizes |= 1;
                         nentries1 = 0;
@@ -5861,7 +6215,7 @@ int file_manager(char *pathw1, char *pathw2)
                     }
 
                     if(ret == 0)
-                        ret = level_dump(!file_manager ? path1 : path2, 1);
+                        ret = level_dump(!fm_pane ? path1 : path2, 1);
 
                     if(ret < 0) {
                         sprintf(temp_buffer, "Error in LV1 dump: 0x%08x\n\n%s", ret, getlv2error(ret));
@@ -5893,16 +6247,16 @@ int file_manager(char *pathw1, char *pathw2)
                 // new folder
                 sprintf(buffer1, "%s", "New");
 
-                if(Get_OSK_String("New Folder", buffer1, 256) == 0) {
+                if(Get_OSK_String("New Folder", buffer1, 256) == SUCCESS)
+                {
+                     if(buffer1[0] == 0) {set_menu2 = 0; goto skip_menu2;}
 
-                     if(buffer1[0] == 0) {set_menu2 = 0;goto skip_menu2;}
-
-                     sprintf(temp_buffer, "Do you want to create the new folder %s\non %s ?", buffer1, !file_manager ? path1 : path2);
+                     sprintf(temp_buffer, "Do you want to create the new folder %s\non %s ?", buffer1, !fm_pane ? path1 : path2);
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
-                        exitcode = 1;
+                         exitcode = 1;
 
-                         if(!file_manager)
+                         if(!fm_pane)
                             sprintf(temp_buffer, "%s/%s", path1, buffer1);
                          else
                             sprintf(temp_buffer, "%s/%s", path2, buffer1);
@@ -5931,23 +6285,24 @@ int file_manager(char *pathw1, char *pathw2)
             } // new folder
             else if(set_menu2 == 2)
             {
-                // rename
-                if(!file_manager)
-                    sprintf(buffer1, "%s", entries1[sel1].d_name);
+                if(!fm_pane)
+                   strcpy(buffer1, entries1[sel1].d_name);
                 else
-                    sprintf(buffer1, "%s", entries2[sel2].d_name);
+                   strcpy(buffer1, entries2[sel2].d_name);
 
-                if(!strcmp(buffer1, "..")) {set_menu2 = 0;goto skip_menu2;}
-
-                if(Get_OSK_String("Rename", buffer1, 256) == 0)
+                if(Get_OSK_String("Rename", buffer1, 256) == SUCCESS)
                 {
-                     sprintf(temp_buffer, "Do you want to rename %s\nto %s ?", !file_manager ? entries1[sel1].d_name : entries2[sel2].d_name,
-                         buffer1);
+                     if(buffer1[0] == 0 || (!fm_pane && !strcmp(buffer1, entries1[sel1].d_name))
+                                        || ( fm_pane && !strcmp(buffer1, entries2[sel2].d_name))) {set_menu2 = 0; goto skip_menu2;}
+
+                     sprintf(temp_buffer, "Do you want to rename %s\nto %s ?",
+                                          !fm_pane ? entries1[sel1].d_name : entries2[sel2].d_name, buffer1);
+
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
                         exitcode = 1;
 
-                         if(!file_manager)
+                         if(!fm_pane)
                          {
                             sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                             sprintf(temp_buffer + 2048, "%s/%s", path1, buffer1);
@@ -5984,7 +6339,7 @@ int file_manager(char *pathw1, char *pathw2)
                 int files;
                 int ret = 0;
 
-                if(!file_manager)
+                if(!fm_pane)
                 {
                     update_device_sizes |= 1;
                     if(test_mark_flags(entries1, nentries1, &files))
@@ -6043,7 +6398,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                 update_device_sizes |= 3;
 
-                if(!file_manager)
+                if(!fm_pane)
                 {
                     if(test_mark_flags(entries1, nentries1, &files))
                     {
@@ -6102,7 +6457,7 @@ int file_manager(char *pathw1, char *pathw2)
                 int ret = 0;
                 int cfiles = 0;
 
-                if(!file_manager)
+                if(!fm_pane)
                 {
                     entries = entries1;
                     nentries = nentries1;
@@ -6161,7 +6516,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                             if(ret < 0) break;
                         }
-                        sysUtilCheckCallback();tiny3d_Flip();
+                        sysUtilCheckCallback(); tiny3d_Flip();
                         msgDialogAbort();
                         usleep(250000);
 
@@ -6170,7 +6525,7 @@ int file_manager(char *pathw1, char *pathw2)
                             sprintf(temp_buffer, "Delete error: 0x%08x\n\n%s", ret, getlv2error(ret));
                             DrawDialogOK(temp_buffer);
                         }
-                        if(!file_manager) {nentries1 = 0;pos1 = sel1 = 0;} else {nentries2 = 0;pos2 = sel2 = 0;}
+                        if(!fm_pane) {nentries1 = 0;pos1 = sel1 = 0;} else {nentries2 = 0;pos2 = sel2 = 0;}
                     }
                 }
                 else
@@ -6205,8 +6560,19 @@ int file_manager(char *pathw1, char *pathw2)
                             DrawDialogOK(temp_buffer);
                         }
 
-                        if(!file_manager) {nentries1 = 0;pos1 = sel1 = 0;} else {nentries2 = 0;pos2 = sel2 = 0;}
+                        if(!fm_pane) {nentries1 = 0; pos1 = sel1 = 0;} else {nentries2 = 0; pos2 = sel2 = 0;}
                     }
+                }
+
+                if(nentries1 == 0 || nentries2 == 0)
+                {
+                    if(strcmp(path1, path2) == SUCCESS)
+                    {
+                        nentries1 = nentries2 = 0;
+                        pos1 = sel1 = pos2 = sel2 = 0;
+                    }
+
+                    frame = 1000; //force immediate refresh
                 }
 
                 set_menu2 = 0;
@@ -6218,16 +6584,16 @@ int file_manager(char *pathw1, char *pathw2)
 
                 sprintf(buffer1, "%s", "Newfile");
 
-                if(Get_OSK_String("Paste to New File", buffer1, 256) == 0)
+                if(Get_OSK_String("Paste to New File", buffer1, 256) == SUCCESS)
                 {
                      if(buffer1[0] == 0) {DrawDialogOKTimer("Invalid filename", 2000.0f);set_menu2 = 0;goto skip_menu2;}
 
-                     sprintf(temp_buffer, "Do you want to create the new file %s.bin\non %s ?", buffer1, !file_manager ? path1 : path2);
+                     sprintf(temp_buffer, "Do you want to create the new file %s.bin\non %s ?", buffer1, !fm_pane ? path1 : path2);
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
                          exitcode = 1;
 
-                         if(!file_manager)
+                         if(!fm_pane)
                          {
                             update_device_sizes |= 1;
                             sprintf(temp_buffer, "%s/%s.bin", path1, buffer1);
@@ -6242,7 +6608,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                          int ret;
 
-                         is_ntfs = 0; if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4)) is_ntfs = 1;
+                         is_ntfs = false; if(!strncmp(temp_buffer, "/ntfs", 5) || !strncmp(temp_buffer, "/ext", 4)) is_ntfs = true;
 
                          if(is_ntfs) {fd = ps3ntfs_open(temp_buffer, O_WRONLY | O_CREAT | O_TRUNC, 0);if(fd != SUCCESS) ret = FAILED; else ret = SUCCESS;}
                          else
@@ -6281,11 +6647,11 @@ int file_manager(char *pathw1, char *pathw2)
 
                 set_menu2 = 0;
 
-                if((!file_manager && (!strncmp(path1, "/ntfs", 5)/* || !strncmp(path1, "/ext", 4)*/)) ||
-                    (file_manager && (!strncmp(path2, "/ntfs", 5)/* || !strncmp(path2, "/ext", 4)*/)))
+                if((!fm_pane && (!strncmp(path1, "/ntfs", 5)/* || !strncmp(path1, "/ext", 4)*/)) ||
+                    (fm_pane && (!strncmp(path2, "/ntfs", 5)/* || !strncmp(path2, "/ext", 4)*/)))
                 {
 
-                    if(!file_manager)
+                    if(!fm_pane)
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                         sprintf(temp_buffer + 2048, "%s/iris_manager.biso", self_path);
@@ -6296,46 +6662,48 @@ int file_manager(char *pathw1, char *pathw2)
                         sprintf(temp_buffer + 2048, "%s/iris_manager.biso", self_path);
                     }
 
-                    if(((!file_manager && path1[1] != 0 && strcmp(entries1[sel1].d_name, "..") && !(entries1[sel1].d_type & IS_DIRECTORY)) ||
-                         (file_manager && path2[1] != 0 && strcmp(entries2[sel2].d_name, "..") && !(entries1[sel2].d_type & IS_DIRECTORY))))
+                    if(((!fm_pane && path1[1] != 0 && strcmp(entries1[sel1].d_name, "..") && !(entries1[sel1].d_type & IS_DIRECTORY)) ||
+                         (fm_pane && path2[1] != 0 && strcmp(entries2[sel2].d_name, "..") && !(entries1[sel2].d_type & IS_DIRECTORY))))
                         launch_iso_build(temp_buffer + 2048, temp_buffer, 0);
                 }
             } // Build ISO from file
             else if(set_menu2 == 8)
             {
                 // Get file / folder info
-                int nfiles = 0;
+                int nfiles = 0, nfolders = 0;
                 u64 size = 0ULL;
 
                 set_menu2 = 0;
 
-                if(!file_manager)
+                if(!fm_pane)
                     sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                 else
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
-                if((!file_manager && path1[1] != 0 && strcmp(entries1[sel1].d_name, "..")) ||
-                   ( file_manager && path2[1] != 0 && strcmp(entries2[sel2].d_name, ".."))
+                if((!fm_pane && path1[1] != 0 && strcmp(entries1[sel1].d_name, "..")) ||
+                   ( fm_pane && path2[1] != 0 && strcmp(entries2[sel2].d_name, ".."))
                   )
                 {
-                    CountFiles(temp_buffer, &nfiles, &size);
+                    CountFiles(temp_buffer, &nfiles, &nfolders, &size);
 
-                    if(!((!file_manager && (entries1[sel1].d_type & IS_DIRECTORY)) || (file_manager && (entries2[sel2].d_type & IS_DIRECTORY)))) nfiles = 1;
+                    if(!((!fm_pane && (entries1[sel1].d_type & IS_DIRECTORY)) || (fm_pane && (entries2[sel2].d_type & IS_DIRECTORY)))) nfiles = 1;
 
-                    if(!file_manager)
+                    if(!fm_pane)
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                     else
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
-                    if(size < 1024LL)
-                        sprintf(temp_buffer, "%s\n\nNumber of Files %i\nTotal Size: %i Bytes", temp_buffer, nfiles, (int) size);
+                    if(size == 1LL)
+                        sprintf(temp_buffer, "%s\n\n%i Files, %i Folders\n\nTotal Size: 1 Byte", temp_buffer, nfiles, nfolders);
+                    else if(size < 1024LL)
+                        sprintf(temp_buffer, "%s\n\n%i Files, %i Folders\n\nTotal Size: %i Bytes", temp_buffer, nfiles, nfolders, (int) size);
                     else
                         if(size < 0x100000LL)
-                            sprintf(temp_buffer, "%s\n\nNumber of Files %i\nTotal Size: %i KB", temp_buffer, nfiles, (int) (size  / 1024LL));
+                            sprintf(temp_buffer, "%s\n\n%i Files, %i Folders\n\nTotal Size: %1.2f KB (%1.0f Bytes)", temp_buffer, nfiles, nfolders, (double) (size  / 1024LL), (double) size);
                         else if(size < 0x40000000LL)
-                            sprintf(temp_buffer, "%s\n\nNumber of Files %i\nTotal Size: %i MB", temp_buffer, nfiles, (int) (size / 0x100000LL));
+                            sprintf(temp_buffer, "%s\n\n%i Files, %i Folders\n\nTotal Size: %1.2f MB (%1.0f Bytes)", temp_buffer, nfiles, nfolders, (double) (size / 0x100000LL), (double) size);
                         else
-                            sprintf(temp_buffer, "%s\n\nNumber of Files %i\nTotal Size: %1.2f GB", temp_buffer, nfiles, ((double) size) / GIGABYTES);
+                            sprintf(temp_buffer, "%s\n\n%i Files, %i Folders\n\nTotal Size: %1.2f GB (%1.0f Bytes)", temp_buffer, nfiles, nfolders, ((double) size) / GIGABYTES, (double) size);
 
                     DrawDialogOK(temp_buffer);
                 }
@@ -6343,15 +6711,15 @@ int file_manager(char *pathw1, char *pathw2)
             else if(set_menu2 == 9 && max_menu2 >= 9)
             {
                  // fix game
-                 if(!file_manager)
+                 if(!fm_pane)
                     sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                  else
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
-                 if(strcmp(temp_buffer + strlen(temp_buffer) - 4, ".iso")   == 0 ||
-                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".ISO")   == 0 ||
-                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".iso.0") == 0 ||
-                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".ISO.0") == 0)
+                 if(strcmp(temp_buffer + strlen(temp_buffer) - 4, ".iso")   == SUCCESS ||
+                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".ISO")   == SUCCESS ||
+                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".iso.0") == SUCCESS ||
+                    strcmp(temp_buffer + strlen(temp_buffer) - 4, ".ISO.0") == SUCCESS)
                      patchps3iso(temp_buffer, 0);
                  else
                      patch_error_09(temp_buffer);
@@ -6374,7 +6742,7 @@ int file_manager(char *pathw1, char *pathw2)
         if(new_pad & BUTTON_L1)
         {
             if(FullScreen == 1) new_pad = BUTTON_UP;
-            else if(!file_manager)
+            else if(!fm_pane)
             {
                 auto_up = 1; if(sel1 > (is_vsplit ? 12 : 8)) {sel1 = sel1 - (is_vsplit ? 12 : 8);} else {sel1 = 0;}
                 if(sel1 < pos1) {pos1 = pos1 - (is_vsplit ? 12 : 4);}
@@ -6392,7 +6760,7 @@ int file_manager(char *pathw1, char *pathw2)
         if(new_pad & BUTTON_R1)
         {
             if(FullScreen == 1) new_pad = BUTTON_DOWN;
-            else if(!file_manager)
+            else if(!fm_pane)
             {
                 auto_down = 1; if(sel1 < (nentries1-(is_vsplit ? 12 : 4))) {sel1 = sel1 + (is_vsplit ? 12 : 4);} else {sel1 = (nentries1 - 1);}
                 if(sel1 > (pos1 + (is_vsplit ? 12 : 4))) {pos1 = pos1 + (is_vsplit ? 12 : 4);}
@@ -6409,23 +6777,36 @@ int file_manager(char *pathw1, char *pathw2)
         if(new_pad & BUTTON_LEFT)
         {
             if(FullScreen == 1) new_pad = BUTTON_UP;
-            else if (file_manager == 1)
+            else if (fm_pane == 1)
             {
-                file_manager = 0; FullScreen = png_signal = 0;
+                if(old_pad & (BUTTON_SELECT | BUTTON_L2 | BUTTON_R2))
+                {
+                    nentries1 = 0;
+                    sprintf(path1, path2);
+                    frame = 1000; //force immediate refresh
+                }
+
+                fm_pane = 0; FullScreen = png_signal = 0;
             }
         }
         else if(new_pad & BUTTON_RIGHT)
         {
             if(FullScreen == 1) new_pad = BUTTON_DOWN;
-            else if (file_manager == 0)
+            else if (fm_pane == 0)
             {
-                file_manager = 1; FullScreen = png_signal = 0;
+                if(old_pad & (BUTTON_SELECT | BUTTON_L2 | BUTTON_R2))
+                {
+                    nentries2 = 0;
+                    sprintf(path2, path1);
+                    frame = 1000; //force immediate refresh
+                }
+                fm_pane = 1; FullScreen = png_signal = 0;
             }
         }
 
         if(new_pad & BUTTON_UP)
         {
-            if(!file_manager)
+            if(!fm_pane)
             {
                 auto_up = 1; if(sel1 > 0) sel1--; else {sel1 = (nentries1 - 1); pos1 = sel1 - (is_vsplit ? 23 : 8);}
                 if(sel1 < pos1 + (is_vsplit ? 12 : 4)) pos1--; if(pos1 < 0) pos1 = 0; tick1_move = 1;
@@ -6439,7 +6820,7 @@ int file_manager(char *pathw1, char *pathw2)
 
         if(new_pad & BUTTON_DOWN)
         {
-            if(!file_manager)
+            if(!fm_pane)
             {
                 auto_down = 1;if(sel1 < (nentries1 - 1)) sel1++; else {sel1 = 0; pos1 = 0;}
                 if(sel1 > (pos1 + (is_vsplit ? 12 : 4))) pos1++; if(pos1 > (nentries1 - 1)) {pos1 = 0;sel1 = 0;}
@@ -6453,18 +6834,18 @@ int file_manager(char *pathw1, char *pathw2)
             }
         }
 
-        //if(new_pad & (BUTTON_L1 | BUTTON_R1)) {file_manager^=1; png_signal = 0;}
+        //if(new_pad & (BUTTON_L1 | BUTTON_R1)) {fm_pane ^= 1; png_signal = 0;}
 
         if((FullScreen == 1) && ((new_pad & BUTTON_UP) || (new_pad & BUTTON_DOWN) || (new_pad & BUTTON_L1) || (new_pad & BUTTON_R1)))
         {
             FullScreen = png_signal = 0;
-            if(file_manager == 0)
+            if(fm_pane == 0)
             {
                 char *ext = get_extension(entries1[sel1].d_name);
                 if(!(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".jpg") || !strcmp(ext, ".JPG") || !strcmp(ext, ".png") || !strcmp(ext, ".PNG")))
                     new_pad = BUTTON_CROSS;
             }
-            else if (file_manager == 1)
+            else if (fm_pane == 1)
             {
                 char *ext = get_extension(entries2[sel2].d_name);
                 if(!(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".jpg") || !strcmp(ext, ".JPG") || !strcmp(ext, ".png") || !strcmp(ext, ".PNG")))
@@ -6472,19 +6853,28 @@ int file_manager(char *pathw1, char *pathw2)
             }
         }
 
-        if(new_pad & (BUTTON_L2 | BUTTON_R2)) {use_split^= 1; is_vsplit = Video_Resolution.width >= 1280 && use_split != 0; sel1 = pos1; sel2 = pos2; }
-
-        if(!file_manager)
+        if(((old_pad & BUTTON_L2) && (new_pad & BUTTON_R2)) ||
+           ((old_pad & BUTTON_R2) && (new_pad & BUTTON_L2)))
         {
+            use_split ^= 1;
+            is_vsplit = Video_Resolution.width >= 1280 && use_split != 0;
+            sel1 = pos1; sel2 = pos2;
+        }
+
+
+        if(!fm_pane)
+        {
+            // file_manager pane 0
+
             if((new_pad & BUTTON_TRIANGLE) && (old_pad & BUTTON_SELECT) && path1[0] != 0)
             {
                 frame = 1000;
                 n = strlen(path1);
-                while(n>0 && path1[n] != '/') n--;
+                while(n > 0 && path1[n] != '/') n--;
 
                 if(n == 0) {path1[n] = '/';path1[n+1] = 0;} else path1[n] = 0;
 
-                is_ntfs = 0; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = 1;
+                is_ntfs = false; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = true;
 
                 if(!is_ntfs && sysLv2FsOpenDir(path1, &fd) == 0)
                     sysLv2FsCloseDir(fd);
@@ -6510,7 +6900,7 @@ int file_manager(char *pathw1, char *pathw2)
                     for(n = 0; n < 2048; n++) {entries1_type[n] = entries2_type[n] = 0;}
                     frame = 1000; //force immediate refresh
 
-                    if(!strcmp(entries1[sel1].d_name,".."))
+                    if(!strcmp(entries1[sel1].d_name, ".."))
                     {
                         if(old_pad & BUTTON_SELECT) n = 0;
                         else
@@ -6522,7 +6912,7 @@ int file_manager(char *pathw1, char *pathw2)
                         //if(n == 0) {path1[n] = '/';path1[n+1] = 0;} else path1[n] = 0;
                         if(n == 0) {path1[n] = '/';strcpy(cur_path1, &path1[n+1]); path1[n+1] = 0;} else {strcpy(cur_path1, &path1[n + 1]); path1[n] = 0;}
 
-                        is_ntfs = 0; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = 1;
+                        is_ntfs = false; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = true;
 
                         if(!is_ntfs && sysLv2FsOpenDir(path1, &fd) == SUCCESS)
                             sysLv2FsCloseDir(fd);
@@ -6540,7 +6930,22 @@ int file_manager(char *pathw1, char *pathw2)
                             strcat(path1, "/");
                         strcat(path1, entries1[sel1].d_name);
 
-                        is_ntfs = 0; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = 1;
+                        is_ntfs = false; if(!strncmp(path1, "/ntfs", 5) || !strncmp(path1, "/ext", 4)) is_ntfs = true;
+
+                        if(!is_ntfs && use_cobra && (old_pad & BUTTON_SELECT))
+                        {
+                            if(bAllowNetGames && get_net_status() == SUCCESS)
+                            {
+                                sprintf(temp_buffer, "http://localhost/mount_ps3%s", path1);
+                                char *url = str_replace(temp_buffer, " ", "%20");
+
+                                download_file(url, NULL, 0, NULL);
+                                if(url) free(url); url = NULL;
+
+                                if(path2[1] == 0 || strcmp(path2, "/dev_bdvd") == SUCCESS) nentries2 = 0;
+                                frame = 300; //force refresh
+                            }
+                        }
 
                         if(!is_ntfs && sysLv2FsOpenDir(path1, &fd) == SUCCESS)
                         {
@@ -6554,11 +6959,9 @@ int file_manager(char *pathw1, char *pathw2)
                         }
                         else
                             path1[n] = 0;
-
                     }
                     pos1 = sel1 = 0;
                     update_device_sizes |= 1;
-
                 }
                 else
                 {
@@ -6597,6 +7000,12 @@ int file_manager(char *pathw1, char *pathw2)
                         char rom_path[MAXPATHLEN];
                         sprintf(rom_path, "%s/%s", path1, entries1[sel1].d_name);
                         launch_retro(rom_path);
+                    }
+                    else if(!(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")))
+                    {
+                        char lua_path[MAXPATHLEN];
+                        sprintf(lua_path, "%s/%s", path1, entries1[sel1].d_name);
+                        launch_luaplayer(lua_path);
                     }
                     else if(!(entries1[sel1].d_type & IS_MARKED) && is_browser_file(ext))
                     {
@@ -6678,7 +7087,7 @@ int file_manager(char *pathw1, char *pathw2)
                         }
 
                     }
-                    else if(!(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".PNG") || !strcmp(ext, ".png")))
+                    else if(!(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".PNG") || !strcmp(ext, ".png") || !strcmp(entries1[sel1].d_name, "PS3LOGO.DAT")))
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
 
@@ -6686,6 +7095,11 @@ int file_manager(char *pathw1, char *pathw2)
                         {
                             png_signal = 300; FullScreen = 1;
                         }
+                    }
+                    else if(!options_locked && !(entries1[sel1].d_type & IS_MARKED) && !strcmp(entries1[sel1].d_name, "PARAM.SFO"))
+                    {
+                        sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
+                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = 1;
                     }
                     else if(!options_locked && !(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")))
                     {
@@ -6738,7 +7152,18 @@ int file_manager(char *pathw1, char *pathw2)
 
             if(!(old_pad & BUTTON_SELECT) && (new_pad & BUTTON_SQUARE))
             {   // select one file/folder
-                if(path1[1] != 0 && strcmp(entries1[sel1].d_name,"..")) entries1[sel1].d_type ^= IS_MARKED;
+                if(path1[1] != 0 && strcmp(entries1[sel1].d_name,".."))
+                {
+                    entries1[sel1].d_type ^= IS_MARKED;
+                    if(entries1[sel1].d_type & IS_MARKED)
+                    {
+                        selcount1++; selsize1 += entries1_size[sel1];
+                    }
+                    else
+                    {
+                        selcount1--; selsize1 -= entries1_size[sel1];
+                    }
+                }
             }   // square
             else if((old_pad & BUTTON_SELECT) && (new_pad & BUTTON_SQUARE))
             {
@@ -6746,8 +7171,17 @@ int file_manager(char *pathw1, char *pathw2)
 
                 if(path1[1] != 0)
                 {   // select all files/folders
+                    selcount1 = 0; selsize1 = 0;
+
                     for(n = 0; n < nentries1; n++)
-                        if(strcmp(entries1[n].d_name,"..")) entries1[n].d_type = (entries1[n].d_type & ~IS_MARKED) | flag;
+                        if(strncmp(entries1[n].d_name, "..", 3))
+                        {
+                            entries1[n].d_type = (entries1[n].d_type & ~IS_MARKED) | flag;
+                            if(entries1[n].d_type & IS_MARKED)
+                            {
+                                selcount1++; selsize1 += entries1_size[n];
+                            }
+                        }
                 }
                 else
                 {
@@ -6779,7 +7213,8 @@ int file_manager(char *pathw1, char *pathw2)
 
             if(new_pad & BUTTON_L3)
             {
-                change_path1++; if(change_path1>6) change_path1 = 0;
+                ROT_INC(change_path1, 6, 0);
+
                 nentries1 = 0;
                 pos1 = sel1 = 0;
                 frame = 1000;
@@ -6848,7 +7283,8 @@ int file_manager(char *pathw1, char *pathw2)
 
             else if(new_pad & BUTTON_R3)
             {
-                change_path1++; if(change_path1>6) change_path1 = 0;
+                ROT_INC(change_path1, 6, 0);
+
                 nentries1 = 0;
                 pos1 = sel1 = 0;
                 frame = 1000;
@@ -6918,7 +7354,8 @@ int file_manager(char *pathw1, char *pathw2)
 
         else
         {
-            // file_manager 1
+            // file_manager pane 1
+
             if((new_pad & BUTTON_TRIANGLE) && (old_pad & BUTTON_SELECT) && path2[0] != 0)
             {
                 frame = 1000;
@@ -6927,7 +7364,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                 if(n == 0) {path2[n] = '/';path2[n+1] = 0;} else path2[n] = 0;
 
-                is_ntfs = 0; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = 1;
+                is_ntfs = false; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = true;
 
                 if(!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0)
                     sysLv2FsCloseDir(fd);
@@ -6965,9 +7402,9 @@ int file_manager(char *pathw1, char *pathw2)
                         //if(n == 0) {path2[n] = '/';path2[n+1] = 0;} else path2[n] = 0;
                         if(n == 0) {path2[n] = '/';strcpy(cur_path2, &path2[n+1]); path2[n+1] = 0;} else {strcpy(cur_path2, &path2[n + 1]); path2[n] = 0;}
 
-                        is_ntfs = 0; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = 1;
+                        is_ntfs = false; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = true;
 
-                        if(!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0)
+                        if(!is_ntfs && sysLv2FsOpenDir(path2, &fd) == SUCCESS)
                             sysLv2FsCloseDir(fd);
                         else if(is_ntfs && (pdir = ps3ntfs_diropen(path2)) != NULL)
                             ps3ntfs_dirclose(pdir);
@@ -6979,13 +7416,28 @@ int file_manager(char *pathw1, char *pathw2)
                     else
                     {
                         n = strlen(path2);
-                        if(path2[n-1] != '/')
+                        if(path2[n - 1] != '/')
                             strcat(path2, "/");
                         strcat(path2, entries2[sel2].d_name);
 
-                        is_ntfs = 0; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = 1;
+                        is_ntfs = false; if(!strncmp(path2, "/ntfs", 5) || !strncmp(path2, "/ext", 4)) is_ntfs = true;
 
-                        if(!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0)
+                        if(!is_ntfs && use_cobra && (old_pad & BUTTON_SELECT))
+                        {
+                            if(bAllowNetGames && get_net_status() == SUCCESS)
+                            {
+                                sprintf(temp_buffer, "http://localhost/mount_ps3%s", path2);
+                                char *url = str_replace(temp_buffer, " ", "%20");
+
+                                download_file(url, NULL, 0, NULL);
+                                if(url) free(url); url = NULL;
+
+                                if(path1[1] == 0 || strcmp(path1, "/dev_bdvd") == SUCCESS) nentries1 = 0;
+                                frame = 300; //force refresh
+                            }
+                        }
+
+                        if(!is_ntfs && sysLv2FsOpenDir(path2, &fd) == SUCCESS)
                         {
                             nentries2 = 0;
                             sysLv2FsCloseDir(fd);
@@ -7038,6 +7490,12 @@ int file_manager(char *pathw1, char *pathw2)
                         char rom_path[MAXPATHLEN];
                         sprintf(rom_path, "%s/%s", path2, entries2[sel2].d_name);
                         launch_retro(rom_path);
+                    }
+                    else if(!(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")))
+                    {
+                        char lua_path[MAXPATHLEN];
+                        sprintf(lua_path, "%s/%s", path2, entries2[sel2].d_name);
+                        launch_luaplayer(lua_path);
                     }
                     else if(!(entries2[sel2].d_type & IS_MARKED) && is_browser_file(ext))
                     {
@@ -7119,7 +7577,7 @@ int file_manager(char *pathw1, char *pathw2)
                         }
 
                     }
-                    else if(!(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".PNG") || !strcmp(ext, ".png")))
+                    else if(!(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".PNG") || !strcmp(ext, ".png") || !strcmp(entries2[sel2].d_name, "PS3LOGO.DAT")))
                     {
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
@@ -7128,7 +7586,12 @@ int file_manager(char *pathw1, char *pathw2)
                             png_signal = 300; FullScreen = 1;
                         }
                     }
-                    else if(!(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")))
+                    else if(!options_locked && !(entries2[sel2].d_type & IS_MARKED) && !strcmp(entries2[sel2].d_name, "PARAM.SFO"))
+                    {
+                        sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
+                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = 1;
+                    }
+                    else if(!options_locked && !(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")))
                     {
                         if (old_pad & BUTTON_SELECT)
                         {
@@ -7179,7 +7642,18 @@ int file_manager(char *pathw1, char *pathw2)
 
             if(!(old_pad & BUTTON_SELECT) && (new_pad & BUTTON_SQUARE))
             {   // select one file/folder
-                if(path2[1] != 0 && strcmp(entries2[sel2].d_name,"..")) entries2[sel2].d_type ^= IS_MARKED;
+                if(path2[1] != 0 && strcmp(entries2[sel2].d_name,".."))
+                {
+                    entries2[sel2].d_type ^= IS_MARKED;
+                    if(entries2[sel2].d_type & IS_MARKED)
+                    {
+                        selcount2++; selsize2 += entries2_size[sel2];
+                    }
+                    else
+                    {
+                        selcount2--; selsize2 -= entries2_size[sel2];
+                    }
+                }
             }   // square
             else if((old_pad & BUTTON_SELECT) && (new_pad & BUTTON_SQUARE))
             {
@@ -7187,8 +7661,17 @@ int file_manager(char *pathw1, char *pathw2)
 
                 if(path2[1] != 0)
                 {   // select all files/folders
-                    for(n = 0; n< nentries2; n++)
-                        if(strcmp(entries2[n].d_name,"..")) entries2[n].d_type = (entries2[n].d_type & ~IS_MARKED) | flag;
+                    selcount2 = 0; selsize2 = 0;
+
+                    for(n = 0; n < nentries2; n++)
+                        if(strncmp(entries2[n].d_name, "..", 3))
+                        {
+                            entries2[n].d_type = (entries2[n].d_type & ~IS_MARKED) | flag;
+                            if(entries2[n].d_type & IS_MARKED)
+                            {
+                                selcount2++; selsize2 += entries2_size[n];
+                            }
+                        }
                 }
                 else
                 {
@@ -7220,7 +7703,8 @@ int file_manager(char *pathw1, char *pathw2)
 
             if(new_pad & BUTTON_L3)
             {
-                change_path2++; if(change_path2>6) change_path2 = 0;
+                ROT_INC(change_path2, 6, 0);
+
                 nentries2 = 0;
                 pos2 = sel2 = 0;
                 frame = 1000;
@@ -7289,7 +7773,8 @@ int file_manager(char *pathw1, char *pathw2)
 
             else if(new_pad & BUTTON_R3)
             {
-                change_path2++; if(change_path2>6) change_path2 = 0;
+                ROT_INC(change_path2, 6, 0);
+
                 nentries2 = 0;
                 pos2 = sel2 = 0;
                 frame = 1000;

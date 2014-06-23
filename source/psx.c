@@ -90,7 +90,7 @@ typedef struct
 
 
 extern u16 * ttf_texture;
-extern int update_title_utf8;
+extern bool update_title_utf8;
 extern u8 string_title_utf8[128];
 extern int width_title_utf8;
 
@@ -99,8 +99,6 @@ bool test_ftp_working();
 #define FS_S_IFMT 0170000
 
 void DrawDialogOKTimer(char * str, float milliseconds);
-
-extern int stops_BDVD;
 
 //int syscall36(char * path);
 int sys_set_leds(u64 color, u64 state);
@@ -146,6 +144,8 @@ extern char * language[];
 extern char self_path[MAXPATHLEN];
 extern char path_name[MAXPATHLEN];
 
+extern u32 default_psxoptions;
+
 // no inline for psx.c
 int get_icon(char * path, const int num_dir);
 void copy_PSX_game_from_CD();
@@ -173,16 +173,16 @@ int get_psx_memcards(void)
     {
         strncpy(psx_vm1, "No Memory Card", 256); n_psx_vm1++;
 
-        dir = opendir ("/dev_hdd0/savedata/vmc");
+        dir = opendir("/dev_hdd0/savedata/vmc");
         if(dir)
         {
             struct dirent *entry;
 
-            while((entry = readdir (dir)) !=  NULL)
+            while((entry = readdir(dir)) != NULL)
             {
                 if(entry->d_type & DT_DIR) continue;
 
-                if(strlen(entry->d_name)<4 || strcmp(entry->d_name + strlen(entry->d_name) - 4, ".VM1")) continue;
+                if(strlen(entry->d_name) < 4 || strcmp(entry->d_name + strlen(entry->d_name) - 4, ".VM1")) continue;
 
                 strncpy(&psx_vm1[n_psx_vm1<<8], entry->d_name, 256);
 
@@ -197,7 +197,7 @@ int get_psx_memcards(void)
     return FAILED;
 }
 
-static int psx_modified = 0;
+static bool psx_modified = false;
 
 psx_opt psx_options;
 
@@ -217,7 +217,7 @@ void draw_psx_options(float x, float y, int index)
     if(!strncmp(directories[currentgamedir].path_name, "/ntfs", 5)  || !strncmp(directories[currentgamedir].path_name, "/ext", 4))
     {
         is_ntfs = 1;
-        if((psx_options.flags & 0x2) == 0x2) psx_options.flags^=2;
+        if((psx_options.flags & 0x2) == 0x2) psx_options.flags ^= 2;
     }
 
     SetCurrentFont(FONT_TTF);
@@ -239,7 +239,7 @@ void draw_psx_options(float x, float y, int index)
 
     temp_buffer[12] = 0;
 
-    if(!(directories[currentgamedir].flags & 2048) &&
+    if(!(directories[currentgamedir].flags & BDVD_FLAG) &&
         ((strcmp(psx_options.mc1, "No Memory Card") && strcmp(psx_options.mc1, "Internal_MC.VM1") && select_option == 0) ||
         (strcmp(psx_options.mc2, "No Memory Card") && strcmp(psx_options.mc2, "Internal_MC.VM1") && select_option == 1)))
     {
@@ -261,7 +261,7 @@ void draw_psx_options(float x, float y, int index)
             sprintf(temp_buffer, "%c%c%c%c-%c%c%c%c%c", temp_buffer[0], temp_buffer[1], temp_buffer[2], temp_buffer[3],
                                                         temp_buffer[5], temp_buffer[6], temp_buffer[7], temp_buffer[9], temp_buffer[10]);
 
-            DrawFormatString(848 - x - strlen(temp_buffer) * 8 - 20, y, temp_buffer);
+            DrawFormatString(848 - x - strlen(temp_buffer) * 8 - 60, y, temp_buffer);
         }
     }
 
@@ -285,8 +285,8 @@ void draw_psx_options(float x, float y, int index)
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, "MC Slot 1 ", (flash && select_option == 0)) + 8;
 
-    if(!(directories[currentgamedir].flags & 2048) && !strcmp(psx_options.mc1, "No Memory Card")) strncpy(psx_options.mc1, "Internal_MC.VM1", 256);
-    if((directories[currentgamedir].flags & 2048) && !strcmp(psx_options.mc1, "Internal_MC.VM1")) strncpy(psx_options.mc1, "No Memory Card", 256);
+    if(!(directories[currentgamedir].flags & BDVD_FLAG) && !strcmp(psx_options.mc1, "No Memory Card")) strncpy(psx_options.mc1, "Internal_MC.VM1", 256);
+    if((directories[currentgamedir].flags & BDVD_FLAG) && !strcmp(psx_options.mc1, "Internal_MC.VM1")) strncpy(psx_options.mc1, "No Memory Card", 256);
 
     utf8_truncate(psx_options.mc1, temp_buffer + 1024, 32);
     sprintf(temp_buffer, " %s ", temp_buffer + 1024);
@@ -303,17 +303,17 @@ void draw_psx_options(float x, float y, int index)
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_EMULATOR], (flash && select_option == 2)) + 8;
 
-    if(!is_ntfs && use_cobra && noBDVD == 2)
+    if(!is_ntfs && use_cobra && noBDVD == MODE_DISCLESS)
     {
-        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_emu ", ((psx_options.flags & 0x3) == 0)) + 8;
-        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_netemu ", ((psx_options.flags & 0x3) == 1)) + 8;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_emu "   , ((psx_options.flags & PSX_EMULATOR) == 0)) + 8;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_netemu ", ((psx_options.flags & PSX_EMULATOR) == 1)) + 8;
 
-        x2 = DrawButton2_UTF8(x2, y2, 0, " old_emu ", ((psx_options.flags & 0x3) == 2)) + 8;
-        x2 = DrawButton2_UTF8(x2, y2, 0, " old_netemu ", ((psx_options.flags & 0x3) == 3)) + 8;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " old_emu "   , ((psx_options.flags & PSX_EMULATOR) == 2)) + 8;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " old_netemu ", ((psx_options.flags & PSX_EMULATOR) == 3)) + 8;
     }
     else
     {
-        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_emu ", ((psx_options.flags & 0x1) == 0)) + 8;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_emu "   , ((psx_options.flags & 0x1) == 0)) + 8;
         x2 = DrawButton2_UTF8(x2, y2, 0, " ps1_netemu ", ((psx_options.flags & 0x1) == 1)) + 8;
     }
 
@@ -324,24 +324,26 @@ void draw_psx_options(float x, float y, int index)
 
     y2 += 48;
 
-    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_CPYGAME], /*(directories[currentgamedir].flags & 2048) ? -1 :*/ (flash && select_option == 4));
+    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_CPYGAME], (flash && select_option == 4));
 
     y2 += 48;
 
-    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_DELGAME], (directories[currentgamedir].flags & 2048) ? -1  : ((flash && select_option == 5) ? 1 : 0));
+    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_DELGAME],
+                    (directories[currentgamedir].flags & BDVD_FLAG) ? DISABLED  : ((flash && select_option == 5) ? 1 : 0));
 
     y2 += 48;
 
-    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_FIXGAME], (directories[currentgamedir].flags & 2048) ? -1 :(flash && select_option == 6));
+    DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_FIXGAME],
+                    (directories[currentgamedir].flags & BDVD_FLAG) ? DISABLED :(flash && select_option == 6));
 
     y2 += 48;
-
-   // DrawButton1_UTF8(x + 32, y2, 320, "Save PSX Options", (flash && select_option == 7));
 
     if(!TestFavouritesExits(directories[currentgamedir].title_id))
-        DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_CPYTOFAV], (directories[currentgamedir].flags & 2048) ? -1  : (flash && select_option == 7));
+        DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_CPYTOFAV],
+                        (directories[currentgamedir].flags & BDVD_FLAG) ? DISABLED : (flash && select_option == 7));
     else
-        DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_DELFMFAV], (directories[currentgamedir].flags & 2048) ? -1  : (flash && select_option == 7));
+        DrawButton1_UTF8(x + 32, y2, 320, language[DRAWGMOPT_DELFMFAV],
+                        (directories[currentgamedir].flags & BDVD_FLAG) ? DISABLED : (flash && select_option == 7));
 
     y2 += 48;
 
@@ -373,7 +375,7 @@ void draw_psx_options(float x, float y, int index)
         if(strncmp((char *) string_title_utf8, bluray_game, 64))
         {
             strncpy((char *) string_title_utf8, bluray_game, 128);
-            update_title_utf8 = 1;
+            update_title_utf8 = true;
         }
         str_color = 0x00ff00ff;
     }
@@ -382,14 +384,14 @@ void draw_psx_options(float x, float y, int index)
         if(strncmp((char *) string_title_utf8, directories[currentgamedir].title, 64))
         {
             strncpy((char *) string_title_utf8, directories[currentgamedir].title, 128);
-            update_title_utf8 = 1;
+            update_title_utf8 = true;
         }
     }
 
     if(update_title_utf8)
     {
         width_title_utf8 = Render_String_UTF8(ttf_texture, 768, 32, string_title_utf8, 16, 24);
-        update_title_utf8 = 0;
+        update_title_utf8 = false;
     }
 
 
@@ -415,14 +417,17 @@ void draw_psx_options(float x, float y, int index)
         {
             lenfile =  s.st_size;
 
-            if(strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".ISO") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".iso") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".BIN") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".bin") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".MDF") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".mdf") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".IMG") &&
-               strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".img"))
+            int flen = strlen(directories[currentgamedir].path_name) - 4;
+
+            if(flen < 0 ||
+               (strcmp(directories[currentgamedir].path_name + flen, ".ISO") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".iso") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".BIN") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".bin") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".MDF") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".mdf") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".IMG") &&
+                strcmp(directories[currentgamedir].path_name + flen, ".img")))
             {
                 sprintf(temp_buffer + 1024, "%s/%s", directories[currentgamedir].path_name, "Internal_MC.VM1");
             }
@@ -457,8 +462,8 @@ void draw_psx_options(float x, float y, int index)
     {
         switch(select_option)
         {
-            case 0:
-                psx_modified = 1;
+            case 0: // MC Slot 0
+                psx_modified = true;
                 sel_psx_vm1++; if(sel_psx_vm1 >= n_psx_vm1) sel_psx_vm1 = 0;
 
                 if(sel_psx_vm1!=0 && !strcmp(psx_options.mc1, &psx_vm1[sel_psx_vm1<<8])) sel_psx_vm1++;
@@ -471,8 +476,8 @@ void draw_psx_options(float x, float y, int index)
                 if(!strcmp(psx_options.mc1, "No Memory Card")) strncpy(psx_options.mc1, "Internal_MC.VM1", 256);
                 break;
 
-            case 1:
-                psx_modified = 1;
+            case 1: // MC Slot 1
+                psx_modified = true;
                 sel2_psx_vm1++; if(sel2_psx_vm1 >= n_psx_vm1) sel2_psx_vm1 = 0;
 
                 if(sel2_psx_vm1!=0 && !strcmp(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8])) sel2_psx_vm1++;
@@ -484,25 +489,25 @@ void draw_psx_options(float x, float y, int index)
                 memcpy(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8], 256);
                 break;
 
-            case 2:
+            case 2: // PSX Emulator
 
-                psx_modified = 1;
-                n = (psx_options.flags & 0x3) + 1;
+                psx_modified = true;
+                n = (psx_options.flags & PSX_EMULATOR) + 1;
 
-                if(!is_ntfs && use_cobra && noBDVD == 2) {
+                if(!is_ntfs && use_cobra && noBDVD == MODE_DISCLESS) {
                     if(n > 3) n = 0;
                 } else {
                     if(n > 1) n = 0;
                 }
-                psx_options.flags = (n & 0x3) | (psx_options.flags & 0xfffffffc);
+                psx_options.flags = (n & PSX_EMULATOR) | (psx_options.flags & 0xfffffffc);
                 break;
 
-            case 3:
-                menu_screen = 445;
+            case 3: // Video / Others
+                menu_screen = SCR_MENU_PSX_VIDEO_OPTIONS;
                 select_option = 0;
                 return;
 
-            case 4:
+            case 4: // Copy Game
                 if(mode_homebrew == 1) break;
                 if(test_ftp_working()) break;
                 if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1)
@@ -516,19 +521,15 @@ void draw_psx_options(float x, float y, int index)
                 if(psx_vm1) free(psx_vm1); psx_vm1 = NULL;
                 Png_offset[num_box] = 0;
 
-                if(directories[currentgamedir].flags & 2048)
+                if(directories[currentgamedir].flags & BDVD_FLAG)
                 {
                     pause_music(1);
                     copy_PSX_game_from_CD();
                     pause_music(0);
 
-                    currentgamedir = currentdir = 0;
-                    select_px = select_py = 0;
-                    select_option = 0;
-                    menu_screen = 0;
                     forcedevices = 1;
-                    stops_BDVD = 1;
 
+                    return_to_game_list(true);
                 }
                 else
                 {
@@ -542,24 +543,13 @@ void draw_psx_options(float x, float y, int index)
 
                         pause_music(0);
 
-                        currentgamedir = currentdir = 0;
-                        select_px = select_py = 0;
-                        select_option = 0;
-                        menu_screen = 0;
-                        stops_BDVD = 1;
+                        return_to_game_list(true);
                     }
                 }
                 return;
 
-            case 5:
+            case 5: // Delete Game
                 if(test_ftp_working()) break;
-                /*if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1) {
-                    if(SavePSXOptions(PSX_LAST_PATH) == 0)
-                    {
-                        //sprintf(temp_buffer, language[DRAWPSX_SAVED]);
-                        //DrawDialogOK(temp_buffer);
-                    }
-                }*/
 
                 if(psx_vm1) free(psx_vm1); psx_vm1 = NULL;
                 Png_offset[num_box] = 0;
@@ -574,13 +564,10 @@ void draw_psx_options(float x, float y, int index)
 
                     pause_music(0);
 
-                    currentgamedir = currentdir = 0;
-                    select_px = select_py = 0;
-                    select_option = 0;
-                    menu_screen = 0;
+                    return_to_game_list(true);;
                  }
                  return;
-            case 6:
+            case 6: // Fix File Permissions
                  i = selected;
 
                  if(Png_offset[i])
@@ -600,7 +587,7 @@ void draw_psx_options(float x, float y, int index)
                  }
                  break;
 
-            case 7:
+            case 7: // Delete from Favourites / Copy to Favourites
 
                 if(TestFavouritesExits(directories[currentgamedir].title_id))
                 {
@@ -611,8 +598,12 @@ void draw_psx_options(float x, float y, int index)
 
                     if(mode_favourites && !havefavourites)
                     {
-                        mode_favourites = 0; get_games(); select_option = 0;
-                        menu_screen = 0;
+                        mode_favourites = 0;
+
+                        get_games();
+
+                        return_to_game_list(false);;
+
                         return;
                     }
 
@@ -627,40 +618,37 @@ void draw_psx_options(float x, float y, int index)
                         LoadTextureJPG(path_name, num_box);
                     else
                         if(LoadTexturePNG(path_name, num_box) < 0) ;
+
                     get_games();
-                    select_option = 0;
-                    menu_screen = 0;
+
+                    return_to_game_list(false);
+
                     return;
                 }
                 break;
 
-            case 8:
+            case 8: // Return
                 if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1)
                 {
-                    if(SavePSXOptions(PSX_LAST_PATH) == 0)
-                    {
-                        //sprintf(temp_buffer, language[DRAWPSX_SAVED]);
-                        //DrawDialogOKTimer(temp_buffer, 1500.0f);
-                    }
+                    SavePSXOptions(PSX_LAST_PATH);
                 }
+
                 if(psx_vm1) free(psx_vm1); psx_vm1 = NULL;
                 Png_offset[num_box] = 0;
-                select_option = 0;
-                menu_screen = 0;
+
+                return_to_game_list(false);
                 return;
 
             default:
                break;
         }
-       // menu_screen = 0; return;
     }
-
-    if(new_pad & BUTTON_LEFT)
+    else if(new_pad & BUTTON_LEFT)
     {
          switch(select_option)
          {
-            case 0:
-                psx_modified = 1;
+            case 0: // MC Slot 0
+                psx_modified = true;
                 sel_psx_vm1--; if(sel_psx_vm1 < 0) sel_psx_vm1 = n_psx_vm1 - 1;
 
                 if(sel_psx_vm1!=0 && !strcmp(psx_options.mc1, &psx_vm1[sel_psx_vm1<<8])) sel_psx_vm1--;
@@ -673,8 +661,8 @@ void draw_psx_options(float x, float y, int index)
                 if(!strcmp(psx_options.mc1, "No Memory Card")) strncpy(psx_options.mc1, "Internal_MC.VM1", 256);
                 break;
 
-            case 1:
-                psx_modified = 1;
+            case 1: // MC Slot 1
+                psx_modified = true;
                 sel2_psx_vm1--; if(sel2_psx_vm1 < 0) sel2_psx_vm1 = n_psx_vm1 - 1;
 
                 if(sel2_psx_vm1!=0 && !strcmp(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8])) sel2_psx_vm1--;
@@ -686,17 +674,18 @@ void draw_psx_options(float x, float y, int index)
                 memcpy(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8], 256);
                 break;
 
-            case 2:
-                psx_modified = 1;
-                n= (psx_options.flags & 0x3) - 1;
+            case 2: // PSX Emulator
+                psx_modified = true;
+                n= (psx_options.flags & PSX_EMULATOR) - 1;
 
-                if(!is_ntfs && use_cobra && noBDVD == 2) {
+                if(!is_ntfs && use_cobra && noBDVD == MODE_DISCLESS)
+                {
                     if(n < 0) n = 3;
                 } else {
                     if(n < 0) n = 1;
                 }
 
-                psx_options.flags = (n & 0x3) | (psx_options.flags & 0xfffffffc);
+                psx_options.flags = (n & PSX_EMULATOR) | (psx_options.flags & 0xfffffffc);
                 break;
         }
     }
@@ -704,8 +693,8 @@ void draw_psx_options(float x, float y, int index)
     {
          switch(select_option)
          {
-            case 0:
-                psx_modified = 1;
+            case 0: // MC Slot 0
+                psx_modified = true;
                 sel_psx_vm1++; if(sel_psx_vm1 >= n_psx_vm1) sel_psx_vm1 = 0;
 
                 if(sel_psx_vm1 != 0 && !strcmp(psx_options.mc1, &psx_vm1[sel_psx_vm1<<8])) sel_psx_vm1++;
@@ -718,8 +707,8 @@ void draw_psx_options(float x, float y, int index)
                 if(!strcmp(psx_options.mc1, "No Memory Card")) strncpy(psx_options.mc1, "Internal_MC.VM1", 256);
                 break;
 
-            case 1:
-                psx_modified = 1;
+            case 1: // MC Slot 1
+                psx_modified = true;
                 sel2_psx_vm1++; if(sel2_psx_vm1 >= n_psx_vm1) sel2_psx_vm1 = 0;
 
                 if(sel2_psx_vm1 != 0 && !strcmp(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8])) sel2_psx_vm1++;
@@ -731,16 +720,17 @@ void draw_psx_options(float x, float y, int index)
                 memcpy(psx_options.mc2, &psx_vm1[sel2_psx_vm1<<8], 256);
                 break;
 
-            case 2:
-                psx_modified = 1;
-                n= (psx_options.flags & 0x3) + 1;
+            case 2: // PSX Emulator
+                psx_modified = true;
+                n= (psx_options.flags & PSX_EMULATOR) + 1;
 
-                if(!is_ntfs && use_cobra && noBDVD == 2) {
+                if(!is_ntfs && use_cobra && noBDVD == MODE_DISCLESS)
+                {
                     if(n > 3) n = 0;
                 } else {
                     if(n > 1) n = 0;
                 }
-                psx_options.flags = (n & 0x3) | (psx_options.flags & 0xfffffffc);
+                psx_options.flags = (n & PSX_EMULATOR) | (psx_options.flags & 0xfffffffc);
                 break;
          }
     }
@@ -758,12 +748,15 @@ void draw_psx_options(float x, float y, int index)
          }
 
         if(psx_vm1) free(psx_vm1); psx_vm1 = NULL;
-        Png_offset[num_box] = 0; menu_screen = 0; select_option = 0; return;
+        Png_offset[num_box] = 0;
+
+        return_to_game_list(false);
+        return;
     }
     else if(new_pad & BUTTON_UP)
     {
         select_option--;
-        while((directories[currentgamedir].flags & 2048) && select_option >= 5 &&  select_option <= 7) select_option--;
+        while((directories[currentgamedir].flags & BDVD_FLAG) && select_option >= 5 &&  select_option <= 7) select_option--;
 
         frame_count = 32;
         if(select_option < 0) select_option = 8;
@@ -771,7 +764,7 @@ void draw_psx_options(float x, float y, int index)
     else if(new_pad & BUTTON_DOWN)
     {
         select_option++;
-        while((directories[currentgamedir].flags & 2048) && select_option >= 5 &&  select_option <= 7) select_option++;
+        while((directories[currentgamedir].flags & BDVD_FLAG) && select_option >= 5 &&  select_option <= 7) select_option++;
 
         frame_count = 32;
         if(select_option > 8) select_option = 0;
@@ -817,39 +810,39 @@ void draw_psx_options2(float x, float y, int index)
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_VIDEOMODE], (flash && select_option == 0)) + 8;
 
-    x2 = DrawButton2_UTF8(x2, y2, 0, " Default ", ((psx_options.video & 0xf) == 0)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, " Region Disc", ((psx_options.video & 0xf) == 1)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, " 480 ", ((psx_options.video & 0xf) == 2)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, " 576 ", ((psx_options.video & 0xf) == 3)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " Default "   , ((psx_options.video & PSX_VIDEO_MODE) == 0)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " Region Disc", ((psx_options.video & PSX_VIDEO_MODE) == 1)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " 480 "       , ((psx_options.video & PSX_VIDEO_MODE) == 2)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " 576 "       , ((psx_options.video & PSX_VIDEO_MODE) == 3)) + 8;
 
     y2 += 48;
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_VIDEOASP], (flash && select_option == 1)) + 8;
 
-    x2 = DrawButton2_UTF8(x2, y2, 0, " Auto ", ((psx_options.video & 0xf0) == 0)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, " 4:3 ", ((psx_options.video & 0xf0) == 0x10)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, " 16:9 ", ((psx_options.video & 0xf0) == 0x20)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " Auto ", ((psx_options.video & PSX_VIDEO_ASPECT_RATIO) == 0x0))  + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " 4:3 " , ((psx_options.video & PSX_VIDEO_ASPECT_RATIO) == 0x10)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, " 16:9 ", ((psx_options.video & PSX_VIDEO_ASPECT_RATIO) == 0x20)) + 8;
 
     y2 += 48;
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_FULLSCR], (flash && select_option == 2)) + 8;
 
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & 0x8) == 0)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO], ((psx_options.flags & 0x8) == 0x8)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & PSX_VIDEO_FULLSCREEN) == 0x0)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO] , ((psx_options.flags & PSX_VIDEO_FULLSCREEN) == PSX_VIDEO_FULLSCREEN)) + 8;
 
     y2 += 48;
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_SMOOTH], (flash && select_option == 3)) + 8;
 
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & 0x4) == 0)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO], ((psx_options.flags & 0x4) == 0x4)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & PSX_VIDEO_SMOOTHING) == 0x0)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO] , ((psx_options.flags & PSX_VIDEO_SMOOTHING) == PSX_VIDEO_SMOOTHING)) + 8;
 
     y2 += 48;
 
     x2 = DrawButton1_UTF8(x + 32, y2, 320, language[DRAWPSX_EXTROM], (flash && select_option == 4)) + 8;
 
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & 0x10) == 0x10)) + 8;
-    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO], ((psx_options.flags & 0x10) == 0x0)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_YES], ((psx_options.flags & PSX_EXTERNAL_ROM) == PSX_EXTERNAL_ROM)) + 8;
+    x2 = DrawButton2_UTF8(x2, y2, 0, language[DRAWGMCFG_NO], ((psx_options.flags  & PSX_EXTERNAL_ROM) == 0x0)) + 8;
 
     y2 += 48;
 
@@ -858,17 +851,7 @@ void draw_psx_options2(float x, float y, int index)
     y2 += 48;
 
     DrawButton1_UTF8(x + 32, y2, 320, language[GLOBAL_RETURN], (flash && select_option == 6));
-/*
-    y2 += 48;
 
-    DrawButton1_UTF8(x + 32, y2, 320, " ", -1);
-
-    y2 += 48;
-
-    DrawButton1_UTF8(x + 32, y2, 320, " ", -1);
-
-    y2 += 48;
-*/
 
 //
     SetFontSize(8, 10);
@@ -892,7 +875,7 @@ void draw_psx_options2(float x, float y, int index)
         if(strncmp((char *) string_title_utf8, bluray_game, 64))
         {
             strncpy((char *) string_title_utf8, bluray_game, 128);
-            update_title_utf8 = 1;
+            update_title_utf8 = true;
         }
         str_color = 0x00ff00ff;
     }
@@ -901,14 +884,14 @@ void draw_psx_options2(float x, float y, int index)
         if(strncmp((char *) string_title_utf8, directories[currentgamedir].title, 64))
         {
             strncpy((char *) string_title_utf8, directories[currentgamedir].title, 128);
-            update_title_utf8 = 1;
+            update_title_utf8 = true;
         }
     }
 
     if(update_title_utf8)
     {
         width_title_utf8 = Render_String_UTF8(ttf_texture, 768, 32, string_title_utf8, 16, 24);
-        update_title_utf8 = 0;
+        update_title_utf8 = false;
     }
 
 
@@ -927,37 +910,37 @@ void draw_psx_options2(float x, float y, int index)
     {
         switch(select_option)
         {
-            case 0:
-                psx_modified = 1;
+            case 0: // Video Mode
+                psx_modified = true;
                 n= (psx_options.video & 0xf) + 1;
                 if(n > 3) n = 0;
-                psx_options.video = (n & 0xf) | (psx_options.video & 0xfffffff0);
+                psx_options.video = (n & PSX_VIDEO_MODE) | (psx_options.video & 0xfffffff0);
                 break;
 
-            case 1:
-                psx_modified = 1;
+            case 1: // Video Aspect
+                psx_modified = true;
                 n= ((psx_options.video>>4) & 0xf) +1;
                 if(n > 2) n = 0;
                 n<<=4;
-                psx_options.video = (n & 0xf0) | (psx_options.video & 0xfffffff0f);
+                psx_options.video = (n & PSX_VIDEO_ASPECT_RATIO) | (psx_options.video & 0xfffffff0f);
                 break;
 
-            case 2:
-                psx_modified = 1;
-                psx_options.flags ^= 0x8;
+            case 2: // Full Screen
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_FULLSCREEN;
                 break;
 
-            case 3:
-                psx_modified = 1;
-                psx_options.flags ^= 0x4;
+            case 3: // Smoothing
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_SMOOTHING;
                 break;
 
-            case 4:
-                psx_modified = 1;
-                psx_options.flags ^= 0x10;
+            case 4: // External ROM
+                psx_modified = true;
+                psx_options.flags ^= PSX_EXTERNAL_ROM;
                 break;
 
-            case 5:
+            case 5: // Format Internal_MC
                 if(!((directories[currentgamedir].flags  & GAMELIST_FILTER) ==  BDVD_FLAG) &&
                     DrawDialogYesNo(language[DRAWPSX_ASKFORMAT]) == 1) {
 
@@ -986,107 +969,106 @@ void draw_psx_options2(float x, float y, int index)
                 }
                 return;
 
-            case 6:
-                menu_screen = 444;
+            case 6: // Return
+                menu_screen = SCR_MENU_PSX_OPTIONS;
                 select_option = 3;
                 return;
 
             default:
                break;
         }
-       // menu_screen = 0; return;
+
+       // return_to_game_list(false); return;
     }
 
     if(new_pad & BUTTON_LEFT)
     {
          switch(select_option)
          {
-            case 0:
-                psx_modified = 1;
-                n= (psx_options.video & 0xf) - 1;
+            case 0: // Video Mode
+                psx_modified = true;
+                n = (psx_options.video & 0xf) - 1;
                 if(n < 0) n = 3;
-                psx_options.video = (n & 0xf) | (psx_options.video & 0xfffffff0);
+                psx_options.video = (n & PSX_VIDEO_MODE) | (psx_options.video & 0xfffffff0);
                 break;
 
-            case 1:
-                psx_modified = 1;
-                n= ((psx_options.video>>4) & 0xf) - 1;
+            case 1: // Video Aspect
+                psx_modified = true;
+                n = ((psx_options.video>>4) & 0xf) - 1;
                 if(n < 0) n = 2;
                 n<<=4;
-                psx_options.video = (n & 0xf0) | (psx_options.video & 0xfffffff0f);
+                psx_options.video = (n & PSX_VIDEO_ASPECT_RATIO) | (psx_options.video & 0xfffffff0f);
                 break;
 
-            case 2:
-                psx_modified = 1;
-                psx_options.flags ^= 0x8;
+            case 2: // Full Screen
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_FULLSCREEN;
                 break;
 
-            case 3:
-                psx_modified = 1;
-                psx_options.flags ^= 0x4;
+            case 3: // Smoothing
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_SMOOTHING;
                 break;
 
-            case 4:
-                psx_modified = 1;
-                psx_options.flags ^= 0x10;
+            case 4: // External ROM
+                psx_modified = true;
+                psx_options.flags ^= PSX_EXTERNAL_ROM;
                 break;
-        }
+         }
     }
 
     if(new_pad & BUTTON_RIGHT)
     {
          switch(select_option)
          {
-            case 0:
-                psx_modified = 1;
-                n= (psx_options.video & 0xf) + 1;
+            case 0: // Video Mode
+                psx_modified = true;
+                n = (psx_options.video & 0xf) + 1;
                 if(n > 3) n = 0;
-                psx_options.video = (n & 0xf) | (psx_options.video & 0xfffffff0);
+                psx_options.video = (n & PSX_VIDEO_MODE) | (psx_options.video & 0xfffffff0);
                 break;
 
-            case 1:
-                psx_modified = 1;
-                n= ((psx_options.video>>4) & 0xf) + 1;
+            case 1: // Video Aspect
+                psx_modified = true;
+                n = ((psx_options.video>>4) & 0xf) + 1;
                 if(n > 2) n = 0;
                 n<<=4;
-                psx_options.video = (n & 0xf0) | (psx_options.video & 0xfffffff0f);
+                psx_options.video = (n & PSX_VIDEO_ASPECT_RATIO) | (psx_options.video & 0xfffffff0f);
                 break;
 
-            case 2:
-                psx_modified = 1;
-                psx_options.flags ^= 0x8;
+            case 2: // Full Screen
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_FULLSCREEN;
                 break;
 
-            case 3:
-                psx_modified = 1;
-                psx_options.flags ^= 0x4;
+            case 3: // Smoothing
+                psx_modified = true;
+                psx_options.flags ^= PSX_VIDEO_SMOOTHING;
                 break;
 
-            case 4:
-                psx_modified = 1;
-                psx_options.flags ^= 0x10;
+            case 4: // External ROM
+                psx_modified = true;
+                psx_options.flags ^= PSX_EXTERNAL_ROM;
                 break;
          }
     }
 
     if(new_pad & (BUTTON_TRIANGLE | BUTTON_CIRCLE))
     {
-        menu_screen = 444;
+        menu_screen = SCR_MENU_PSX_OPTIONS;
         select_option = 3;
         return;
     }
-
-    if(new_pad & BUTTON_UP)
+    else if(new_pad & BUTTON_UP)
     {
         select_option--;
-        if((directories[currentgamedir].flags & 2048) && select_option == 7) select_option--;
+        if((directories[currentgamedir].flags & BDVD_FLAG) && select_option == 7) select_option--;
 
         frame_count = 32;
 
         if(select_option < 0) select_option = 6;
     }
-
-    if(new_pad & BUTTON_DOWN)
+    else if(new_pad & BUTTON_DOWN)
     {
         select_option++;
 
@@ -1547,7 +1529,7 @@ int psx_cd_with_cheats(void)
     if(dir) {
         struct dirent *entry;
 
-        while((entry = readdir (dir)) !=  NULL)
+        while((entry = readdir(dir)) !=  NULL)
         {
             if(entry->d_type & DT_DIR) continue;
 
@@ -1639,12 +1621,12 @@ int psx_cd_with_cheats(void)
             add_sys8_path_table("/dev_flash/ps1emu/ps1_netemu.self", temp_buffer);
 
         sprintf(temp_buffer, "%s/ps1_rom.bin", self_path);
-        if((psx_options.flags & 0x10) && !stat(temp_buffer, &s))
+        if((psx_options.flags & PSX_EXTERNAL_ROM) && !stat(temp_buffer, &s))
             add_sys8_path_table("/dev_flash/ps1emu/ps1_rom.bin", temp_buffer);
 
         //build_sys8_path_table();
 
-        if(!noBDVD || (use_cobra && noBDVD == 2))
+        if(!noBDVD || (use_cobra && noBDVD == MODE_DISCLESS))
             sys8_pokeinstr(0x8000000000001830ULL, (u64) 3); // enable emulation mode 3
         else
             sys8_pokeinstr(0x8000000000001830ULL, (u64)((1ULL<<32) | 3ULL));
@@ -1686,14 +1668,14 @@ int psx_iso_prepare(char *path, char *name, char *isopath)
         ps3pad_read();
 
         sprintf(temp_buffer, "%s/ps1_rom.bin", self_path);
-        if((old_pad & BUTTON_L2) && (psx_options.flags & 0x10) && !stat(temp_buffer, &s) && use_cobra && noBDVD == 2)
+        if((old_pad & BUTTON_L2) && (psx_options.flags & PSX_EXTERNAL_ROM) && !stat(temp_buffer, &s) && use_cobra && noBDVD == MODE_DISCLESS)
         {
             psx_options.flags |= 2;
             if(!strncmp(path, "/ntfs", 5)  || !strncmp(path, "/ext", 4)) forced_no_cd = 2; else forced_no_cd = 1;// force old_psxemu without CD
         }
     }
 
-    if((psx_options.flags & 0x2) || !(use_cobra && noBDVD == 2))
+    if((psx_options.flags & 0x2) || !(use_cobra && noBDVD == MODE_DISCLESS))
     {
         load_psx_payload();
     }
@@ -1718,13 +1700,13 @@ int psx_iso_prepare(char *path, char *name, char *isopath)
     }
 
     // scan folder isos
-    dir = opendir (path);
+    dir = opendir(path);
     if(dir)
     {
         struct dirent *entry;
         struct stat s;
 
-        while((entry = readdir (dir)) !=  NULL)
+        while((entry = readdir(dir)) !=  NULL)
         {
             if(entry->d_type & DT_DIR) continue;
 
@@ -1779,14 +1761,14 @@ skip_scan_folder_isos:
            reset_sys8_path_table();
 
            sprintf(temp_buffer, "%s/ps1_rom.bin", self_path);
-           if((psx_options.flags & 0x10) && !stat(temp_buffer, &s))
+           if((psx_options.flags & PSX_EXTERNAL_ROM) && !stat(temp_buffer, &s))
            {
                 add_sys8_path_table("/dev_flash/ps1emu/ps1_rom.bin", temp_buffer);
 
                 u64 value = lv2peek(0x8000000000001820ULL);
                 if((value == 0x45505331454D5531ULL) && forced_no_cd)
                 {
-                    if(!noBDVD || (use_cobra && noBDVD == 2))
+                    if(!noBDVD || (use_cobra && noBDVD == MODE_DISCLESS))
                         sys8_pokeinstr(0x8000000000001830ULL, (u64) 2); // disable CD
                     else
                         sys8_pokeinstr(0x8000000000001830ULL, (u64)((1ULL<<32) | 2ULL)); // disable CD
@@ -1814,7 +1796,7 @@ skip_scan_folder_isos:
         if(nfiles > 1)
         {
             int select_option = 0;
-            while(1)
+            while(true)
             {
                 float x= 28, y = 0;
                 float y2;
@@ -1841,13 +1823,13 @@ skip_scan_folder_isos:
                 if(strncmp((char *) string_title_utf8, name, 64))
                 {
                     strncpy((char *) string_title_utf8, name, 128);
-                    update_title_utf8 = 1;
+                    update_title_utf8 = true;
                 }
 
                 if(update_title_utf8)
                 {
                     width_title_utf8 = Render_String_UTF8(ttf_texture, 768, 32, string_title_utf8, 16, 24);
-                    update_title_utf8 = 0;
+                    update_title_utf8 = false;
                 }
 
                 tiny3d_SetTextureWrap(0, tiny3d_TextureOffset(ttf_texture), 768,
@@ -1868,7 +1850,7 @@ skip_scan_folder_isos:
                     y2 += 48;
                 }
 
-                for(; n < 8; n++) {DrawButton1_UTF8((848 - 720) / 2, y2, 720, "", -1); y2 += 48;}
+                for(; n < 8; n++) {DrawButton1_UTF8((848 - 720) / 2, y2, 720, "", DISABLED); y2 += 48;}
 
                 SetCurrentFont(FONT_TTF);
                 SetFontColor(0xffffffff, 0x00000000);
@@ -1887,7 +1869,7 @@ skip_scan_folder_isos:
 
                 if(new_pad & BUTTON_CROSS) {break;}
 
-                if(new_pad & BUTTON_CIRCLE)
+                if(new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE | BUTTON_DOWN))
                 {
                    memcpy(files[8], files[0], 1024);
                    for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], 1024);
@@ -1915,11 +1897,11 @@ skip_scan_folder_isos:
                 {
                     struct dirent *entry;
                     struct stat s;
-                    while((entry = readdir (dir)) !=  NULL)
+                    while((entry = readdir(dir)) !=  NULL)
                     {
                         if(entry->d_type & DT_DIR) continue;
 
-                        if(strlen(entry->d_name)<4) continue;
+                        if(strlen(entry->d_name) < 4) continue;
 
                         if(strcmp(entry->d_name + strlen(entry->d_name) - 4, ".ISO") &&
                            strcmp(entry->d_name + strlen(entry->d_name) - 4, ".iso") &&
@@ -2038,7 +2020,7 @@ skip_scan_folder_isos:
                 }
             }
 
-            if(!forced_no_cd && use_cobra && noBDVD == 2 && (psx_options.flags & 0x2) != 0x2)
+            if(!forced_no_cd && use_cobra && noBDVD == MODE_DISCLESS && (psx_options.flags & 0x2) != 0x2)
             {
                 // use plugin
                 plugin_args = malloc(0x20000);
@@ -2061,8 +2043,8 @@ skip_scan_folder_isos:
                 for(n = 0; n < nfiles; n++)
                 {
                     if(stat(files[n], &s)) s.st_size = 0x40000000;
-                    if(!strncmp(files[n], "/ntfs", 5) || !strncmp(files[n], "/ext", 4)) {
-
+                    if(!strncmp(files[n], "/ntfs", 5) || !strncmp(files[n], "/ext", 4))
+                    {
                         if(p_args->device == 0) p_args->device = USB_MASS_STORAGE(NTFS_Test_Device(((char *) files[n])+1));
 
                         memset(sections, 0, max_parts * sizeof(uint32_t));
@@ -2140,7 +2122,7 @@ skip_scan_folder_isos:
                 psxseciso_args *p_args;
                 p_args = (psxseciso_args *)plugin_args;
 
-                if(p_args && p_args->device == 0 && use_cobra && noBDVD == 2)
+                if(p_args && p_args->device == 0 && use_cobra && noBDVD == MODE_DISCLESS)
                 {
                     // use NTFS/EXTx if it is connected
                     for(n = 0; n < 8; n++)
@@ -2344,7 +2326,7 @@ void load_psx_payload()
 
     usleep(10000);
 
-   if(!noBDVD || (use_cobra && noBDVD == 2))
+   if(!noBDVD || (use_cobra && noBDVD == MODE_DISCLESS))
        sys8_pokeinstr(0x8000000000001830ULL, (u64) 0); // enable emulation
    else
        sys8_pokeinstr(0x8000000000001830ULL, (u64)((1ULL<<32))); // enable emulation
@@ -2358,7 +2340,7 @@ void psx_launch(void)
     int k;
 
     struct stat s;
-    if(!stat("/psx_d0", &s) || (plugin_args && use_cobra && noBDVD == 2))
+    if(!stat("/psx_d0", &s) || (plugin_args && use_cobra && noBDVD == MODE_DISCLESS))
     {
         //psx_options.flags   |= 3;
         directories[currentgamedir].flags|= (region_psx & 0xff)<<16; // get region data from second disc
@@ -2371,7 +2353,7 @@ void psx_launch(void)
         reset_sys8_path_table();
 
         sprintf(temp_buffer, "%s/ps1_rom.bin", self_path);
-        if((psx_options.flags & 0x10) && !stat(temp_buffer, &s))
+        if((psx_options.flags & PSX_EXTERNAL_ROM) && !stat(temp_buffer, &s))
             add_sys8_path_table("/dev_flash/ps1emu/ps1_rom.bin", temp_buffer);
     }
 
@@ -2389,7 +2371,7 @@ void psx_launch(void)
     else
         set_fan_mode(-1);
 
-    if(!(psx_options.flags & 0x2) && plugin_args && use_cobra && noBDVD == 2)
+    if(!(psx_options.flags & 0x2) && plugin_args && use_cobra && noBDVD == MODE_DISCLESS)
     {
 
         cobra_send_fake_disc_eject_event();
@@ -2430,16 +2412,20 @@ void psx_launch(void)
 
     k++;
 
-    if((psx_options.flags & 0x3) != 0)
+    if((psx_options.flags & PSX_EMULATOR) != 0)
     {
-        arg[k] = malloc(16); p[k] = (u32)(u64) arg[k]; strncpy(arg[k], "", 16);k++;
+        arg[k] = malloc(16); p[k] = (u32)(u64) arg[k]; strncpy(arg[k], "", 16); k++;
         arg[k] = malloc( 2); p[k] = (u32)(u64) arg[k]; strncpy(arg[k], "1", 2); k++;
     }
 
     // full screen  on/off  = 2/1
-    arg[k] = malloc( 2); p[k] = (u32)(u64) arg[k]; if((psx_options.flags & 0x8) == 0) strncpy(arg[k], "2", 2); else strncpy(arg[k], "1", 2); k++;
+    arg[k] = malloc( 2); p[k] = (u32)(u64) arg[k];
+    if((psx_options.flags & PSX_VIDEO_FULLSCREEN) == 0) strncpy(arg[k], "2", 2); else strncpy(arg[k], "1", 2); k++;
+
     // smoothing    on/off  = 1/0
-    arg[k] = malloc( 2); p[k] = (u32)(u64) arg[k]; if((psx_options.flags & 0x4) == 0) strncpy(arg[k], "1", 2); else strncpy(arg[k], "0", 2); k++;
+    arg[k] = malloc( 2); p[k] = (u32)(u64) arg[k];
+    if((psx_options.flags & PSX_VIDEO_SMOOTHING) == 0) strncpy(arg[k], "1", 2); else strncpy(arg[k], "0", 2); k++;
+
     p[k] = 0;arg[k] =NULL;
 
     cls2();
@@ -2449,28 +2435,32 @@ void psx_launch(void)
 
     if(lv2_patch_storage) sys_storage_reset_bd();
 
-    if((psx_options.video & 0xf) != 0)
+    if((psx_options.video & PSX_VIDEO_MODE) != 0)
     {
         videoConfiguration vconfig;
         memset(&vconfig, 0, sizeof(videoConfiguration));
 
-        if((psx_options.video & 0xf) == 1)
+        if((psx_options.video & PSX_VIDEO_MODE) == 1)
         {
-            if(((directories[currentgamedir].flags>>16) & 0x1f) != 0x11) vconfig.resolution = VIDEO_RESOLUTION_480;
-            else vconfig.resolution = VIDEO_RESOLUTION_576;
+            if(((directories[currentgamedir].flags>>16) & 0x1f) != 0x11)
+                vconfig.resolution = VIDEO_RESOLUTION_480;
+            else
+                vconfig.resolution = VIDEO_RESOLUTION_576;
         }
-        else if((psx_options.video & 0xf) == 2) vconfig.resolution = VIDEO_RESOLUTION_480;
-             else vconfig.resolution = VIDEO_RESOLUTION_576;
+        else if((psx_options.video & PSX_VIDEO_MODE) == 2)
+            vconfig.resolution = VIDEO_RESOLUTION_480;
+        else
+            vconfig.resolution = VIDEO_RESOLUTION_576;
 
         vconfig.format = VIDEO_BUFFER_FORMAT_XRGB;
         vconfig.pitch = 2880;
 
-        switch(psx_options.video & 0xf0)
+        switch(psx_options.video & PSX_VIDEO_ASPECT_RATIO)
         {
-            case 10:
+            case 0x10:
                 Video_aspect = VIDEO_ASPECT_4_3;
                 break;
-            case 20:
+            case 0x20:
                 Video_aspect = VIDEO_ASPECT_16_9;
                 break;
             default:
@@ -2767,7 +2757,7 @@ int read_raw_sector_bdvd(u32 sector, void *buffer, u32 sector_size, int n_sector
     atapi_cmd.in_out = 1;
 
 
-    while(1)
+    while(true)
     {
         ret = sys_storage_send_device_cmd(bdvd_id, 1, &atapi_cmd, sizeof(struct lv2_atapi_cmnd_block), buffer, sector_size * (u32) n_sectors);
         if(((u32) ret) != 0x8001000A) break;
@@ -2798,7 +2788,7 @@ int get_toc_bdvd(void *buffer, u32 size)
     atapi_cmd.proto = 3;
     atapi_cmd.in_out = 1;
 
-    while(1)
+    while(true)
     {
         ret = sys_storage_send_device_cmd(bdvd_id, 1, &atapi_cmd, sizeof(struct lv2_atapi_cmnd_block), buffer, size);
         if(((u32) ret) != 0x8001000A) break;
@@ -2827,7 +2817,7 @@ int load_unload_bdvd(int mode)
     atapi_cmd.proto = 0;
     atapi_cmd.in_out = 1;
 
-    while(1)
+    while(true)
     {
         ret = sys_storage_send_device_cmd(bdvd_id, 1, &atapi_cmd, sizeof(struct lv2_atapi_cmnd_block), NULL, 0);
         if(((u32) ret) != 0x8001000A) break;
@@ -2852,12 +2842,14 @@ void LoadPSXOptions(char *path)
 {   int size;
     char *mem = NULL;
 
-    psx_modified = 0;
+    psx_modified = false;
     memset(&psx_options, 0, sizeof(psx_opt));
 
     psx_options.version = 1;
     strncpy(psx_options.mc1, "No Memory Card", 256);
     strncpy(psx_options.mc2, "No Memory Card", 256);
+
+    psx_options.flags = default_psxoptions;
 
     PSX_LAST_PATH = path;
 
@@ -2884,9 +2876,10 @@ void LoadPSXOptions(char *path)
         mem = LoadFile(temp_buffer, &size);
     }
 
-    if(!mem || size != sizeof(psx_opt)) { // get psx options by default
+    if(!mem || size != sizeof(psx_opt))
+    {   // get psx options by default
         if(mem) free(mem);
-        if(path) psx_modified = 1;
+        if(path) psx_modified = true;
         sprintf(temp_buffer, "%s/config/psx_config.bin", self_path);
         mem = LoadFile(temp_buffer, &size);
     }
@@ -2897,7 +2890,7 @@ void LoadPSXOptions(char *path)
 
 int SavePSXOptions(char *path)
 {
-    psx_modified = 0;
+    psx_modified = false;
 
     if(path)
         if(strcmp(path + strlen(path) - 4, ".ISO") &&
@@ -2939,11 +2932,11 @@ void copy_PSX_game_from_CD()
 
     FILE *fp = NULL;
 
-    while(1)
+    while(true)
     {
         memset(temp_buffer, 0, 512);
         memset(output, 0, 64);
-        if(Get_OSK_String(language[DRAWPSX_PUTFNAME], temp_buffer, 63) == 0)
+        if(Get_OSK_String_no_lang(language[DRAWPSX_PUTFNAME], temp_buffer, 63) == SUCCESS)
         {
             utf8_truncate(temp_buffer, output, 63);
             if(strlen(output)<3) DrawDialogOKTimer(language[DRAWPSX_FMUSTB], 2000.0f);
@@ -3035,7 +3028,7 @@ void copy_PSX_game_from_CD()
         if(!fp) goto end;
 
         sector = 0;
-        while(1)
+        while(true)
         {
 
             s64 to_read;
@@ -3093,7 +3086,7 @@ void copy_PSX_game_from_CD()
 
                 if(fwrite((void *) buffer, 0x930 + 0x10 * mode_dump, (u32) to_read, fp) != (u32) to_read)
                 {
-                    DPrintf("Error writing sectors %u to %u\n", sector, sector + (u32) to_read-1);
+                    DPrintf("Error writing sectors %u to %u\n", sector, sector + (u32) to_read - 1);
                     goto end;
                 }
 
@@ -3106,7 +3099,7 @@ void copy_PSX_game_from_CD()
 
         if(fp) fclose(fp); fp = NULL;
 
-        while(1)
+        while(true)
         {
             sprintf(temp_buffer + 1024, "Disc #%i. Copied %u sectors", disc, sector);
             DbgHeader(temp_buffer + 1024);

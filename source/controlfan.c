@@ -61,6 +61,12 @@ int SaveFile(char *path, char *mem, int file_size);
 #define ROT_INC(x ,y , z) {x++; if(x > y) x = z;}
 #define ROT_DEC(x ,y , z) {x--; if(x < y) x = z;}
 
+
+#define WHITE  0xffffffff
+#define RED    0xff0000ff
+#define BLUE   0x0020c020
+#define YELLOW 0xfff000ff
+
 extern char temp_buffer[8192];
 extern int flash;
 extern u64 frame_count;
@@ -122,7 +128,7 @@ extern u64 syscall_base;
 extern int firmware;
 static u64 PAYLOAD_BASE = 0x8000000000000f70ULL;
 
-static int is_ctrl_fan_loaded = 0;
+static bool is_ctrl_fan_loaded = false;
 
 int test_controlfan_compatibility()
 {
@@ -373,7 +379,7 @@ int load_ps3_controlfan_payload()
     }
 
 skip_the_load:
-    is_ctrl_fan_loaded = 1;
+    is_ctrl_fan_loaded = true;
     free(addr);
     return ret;
 }
@@ -416,15 +422,23 @@ static u32 temp_control_default[5] = {
     75
 };
 
+enum fan_modes {
+    FANCTRL_PAYLOAD     = 0,
+    FANCTRL_SYSCON      = 1,
+    FANCTRL_USER_VALUES = 2,
+    FANCTRL_DISABLED    = 3,
+};
+
 static u32 speed_table_backup[8];
 
 static u32 temp_control_backup[5];
 static u32 wakeup_time_backup;
 static int fan_mode_backup;
 
-static int fan_mode = 3; //disabled by default
-static int cur_fan_mode = 3; //disabled by default
 static u32 wakeup_time = 60;
+
+static int fan_mode = FANCTRL_DISABLED;     //fanctrl disabled by default
+static int cur_fan_mode = FANCTRL_DISABLED; //fanctrl disabled by default
 
 void set_fan_mode(int mode)
 {
@@ -435,9 +449,9 @@ void set_fan_mode(int mode)
     if(!test_controlfan_compatibility()) return;
 
     cur_fan_mode = mode;
-    if(fan_mode == 3) return;
+    if(fan_mode == FANCTRL_DISABLED) return;
 
-    if(is_ctrl_fan_loaded == 0)
+    if(is_ctrl_fan_loaded == false)
     {
       load_ps3_controlfan_payload();
     }
@@ -461,9 +475,9 @@ void set_fan_mode(int mode)
     sys_set_leds(0, 0);
     sys_set_leds(1, 1);
 
-    if(mode == 1)
+    if(mode == FANCTRL_SYSCON)
         sys_sm_set_fan_policy(0, 1, 0x0);
-    else if(mode == 2)
+    else if(mode == FANCTRL_USER_VALUES)
         sys_sm_set_fan_policy(0, 2, speed_table[0]);
     else
     {
@@ -591,7 +605,8 @@ void draw_controlfan_options()
     int select_option = 0;
 
     int auto_l1 = 0, auto_r1 = 0;
-    int set_adjust = 0;
+
+    bool set_adjust = false;
 
     int sm_present = 0;
 
@@ -615,7 +630,8 @@ void draw_controlfan_options()
 
         frame_count++;
 
-        x= 28; y= 0;
+        x = 28; y = 0;
+
         cls();
 
         update_twat(1);
@@ -626,7 +642,7 @@ void draw_controlfan_options()
 
         DrawBox(x, y, 0, 200 * 4 - 8, 20, 0x00000028);
 
-        SetFontColor(0xffffffff, 0x00000000);
+        SetFontColor(WHITE, 0x00000000);
 
         SetFontSize(18, 20);
 
@@ -634,18 +650,18 @@ void draw_controlfan_options()
 
         x2 = DrawFormatString(x, y - 0, " %s", "Control Fan & USB Wakeup") + 8;
 
-        if(cur_fan_mode == 0)
+        if(cur_fan_mode == FANCTRL_PAYLOAD)
         {
             if(sm_present)
                 DrawFormatString(x2, y - 0, "Current: #S. Manager");
             else
                 DrawFormatString(x2, y - 0, "Current: #Payload");
         }
-        else if(cur_fan_mode == 1)
+        else if(cur_fan_mode == FANCTRL_SYSCON)
             DrawFormatString(x2, y - 0, "Current: #SYSCON");
-        else if(cur_fan_mode == 2)
+        else if(cur_fan_mode == FANCTRL_USER_VALUES)
             DrawFormatString(x2, y - 0, "Current: #By User");
-        else if(cur_fan_mode == 3)
+        else if(cur_fan_mode == FANCTRL_DISABLED)
             DrawFormatString(x2, y - 0, "Current: #Disabled");
 
         SetFontSize(16, 20);
@@ -657,13 +673,16 @@ void draw_controlfan_options()
         x2 = x;
         y2 = y + 8;
 
-        x2 = DrawButton1_UTF8(x + 32, y2, 320, "Fan Mode", (flash && select_option == 0)) + 8;
+        x2 = DrawButton1_UTF8(x + 32, y2, 320, "Fan Control Mode >", (flash && select_option == 0)) + 8;
 
-        if(sm_present) x2 = DrawButton2_UTF8(x2, y2, 0, " S. Manager ", (fan_mode == 0)) + 6;
-        else x2 = DrawButton2_UTF8(x2, y2, 0, " Payload ", (fan_mode == 0)) + 6;
-        x2 = DrawButton2_UTF8(x2, y2, 0, " SYSCON ", (fan_mode  == 1)) + 6;
-        x2 = DrawButton2_UTF8(x2, y2, 0, " By User ", (fan_mode == 2)) + 6;
-        x2 = DrawButton2_UTF8(x2, y2, 0, " Disabled ", (fan_mode == 3)) + 6;
+        if(sm_present)
+            x2 = DrawButton2_UTF8(x2, y2, 0, " S. Manager ", (fan_mode == FANCTRL_PAYLOAD)) + 6;
+        else
+            x2 = DrawButton2_UTF8(x2, y2, 0, " Payload ", (fan_mode == FANCTRL_PAYLOAD)) + 6;
+
+        x2 = DrawButton2_UTF8(x2, y2, 0, " SYSCON ", (fan_mode  == FANCTRL_SYSCON)) + 6;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " By User ", (fan_mode == FANCTRL_USER_VALUES)) + 6;
+        x2 = DrawButton2_UTF8(x2, y2, 0, " Disabled ", (fan_mode == FANCTRL_DISABLED)) + 6;
 
         y2 += 48;
         x2 = DrawButton1_UTF8(x + 32, y2, 212, "User/Shutdown Speed", (flash && select_option == 1)) + 8;
@@ -733,7 +752,7 @@ void draw_controlfan_options()
 
         x2 = DrawButton1_UTF8(x + 360, y2, 212, "Restore Default", (flash && select_option == 15)) + 8;
 
-        SetFontColor(0xffffffff, 0x00000000);
+        SetFontColor(WHITE, 0x00000000);
         SetFontSize(16, 20);
         DrawFormatString(x2, y2 + 8, "Use L1/R1 or X/O");
         DrawFormatString(x2, y2 + 32, "to change values");
@@ -763,22 +782,26 @@ void draw_controlfan_options()
         SetCurrentFont(FONT_TTF);
         SetFontSize(20, 20);
 
-        x2= DrawFormatString(1024, 0, " Temp CPU: 99ºC RSX: 99ºC ");
+        x2 = DrawFormatString(1024, 0, " Temp CPU: 99ºC RSX: 99ºC ");
 
-        y2= y + 3 * 150 - 4 + 12;
-        SetFontColor(0xffffffff, 0x0020c020);
-        x2= DrawFormatString(x + 4 * 200 - (x2 - 1024) - 12 , y2, " Temp CPU: ");
-        if(temp_cpu < 80) SetFontColor(0xfff000ff, 0x0020c020); else SetFontColor(0xff0000ff, 0x0020c020);
-        x2= DrawFormatString(x2, y2, "%uºC",  temp_cpu);
-        SetFontColor(0xffffffff, 0x0020c020);
-        x2= DrawFormatString(x2, y2, " RSX: ");
-        if(temp_rsx < 75) SetFontColor(0xfff000ff, 0x0020c020); else SetFontColor(0xff0000ff, 0x0020c020);
-        x2= DrawFormatString(x2, y2, "%uºC ", temp_rsx);
+        y2 = y + 3 * 150 - 4 + 12;
 
-        SetFontColor(0xfff000ff, 0x0020c020);
+        SetFontColor(WHITE, BLUE);
+        x2 = DrawFormatString(x + 4 * 200 - (x2 - 1024) - 12 , y2, " Temp CPU: ");
+
+        if(temp_cpu < 80) SetFontColor(YELLOW, BLUE); else SetFontColor(RED, BLUE);
+        x2 = DrawFormatString(x2, y2, "%uºC",  temp_cpu);
+
+        SetFontColor(WHITE, BLUE);
+        x2 = DrawFormatString(x2, y2, " RSX: ");
+
+        if(temp_rsx < 75) SetFontColor(YELLOW, BLUE); else SetFontColor(RED, BLUE);
+        x2 = DrawFormatString(x2, y2, "%uºC ", temp_rsx);
+
+        SetFontColor(YELLOW, BLUE);
         DrawFormatString(x, y2, "sys_sm_get_fan_policy: (mode: %X speed: 0x%X)", mode, speed);
 
-        SetFontColor(0xffffffff, 0x00000000);
+        SetFontColor(WHITE, 0x00000000);
 
 
 
@@ -797,98 +820,98 @@ void draw_controlfan_options()
                     n = speed_table[0];
                     n--; if(n < 0x44) n = 0x44;
                     speed_table[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 2:
                     n = speed_table[1];
                     n--; if(n < 0x33) n = 0x33;
                     speed_table[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 3:
                     n = speed_table[2];
                     n--; if(n < speed_table[1]) n = speed_table[1]; //0x40
                     speed_table[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 4:
                     n = speed_table[3];
                     n--; if(n < speed_table[2]) n = speed_table[2]; //0x44
                     speed_table[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 5:
                     n = speed_table[4];
                     n--; if(n < speed_table[3]) n = speed_table[3]; //0x48
                     speed_table[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 6:
                     n = speed_table[5];
                     n--; if(n < speed_table[4]) n = speed_table[4]; //0x5f
                     speed_table[5] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 7:
                     n = speed_table[6];
                     n--; if(n < speed_table[5]) n = speed_table[5]; //0x70
                     speed_table[6] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 8:
                     n = speed_table[7];
                     n--; if(n < speed_table[6]) n = speed_table[6]; //0x80
                     speed_table[7] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 9:
                     n = temp_control[0];
                     n--; if(n < 40) n = 40;
                     temp_control[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 10:
                     n = temp_control[1];
                     n--; if(n < temp_control[0]) n = temp_control[0]; //40
                     temp_control[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 11:
                     n = temp_control[2];
                     n--; if(n < temp_control[1]) n = temp_control[1]; //40
                     temp_control[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 12:
                     n = temp_control[3];
                     n--; if(n < temp_control[2]) n = temp_control[2]; //40;
                     temp_control[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 13:
                     n = temp_control[4];
                     n--; if(n < temp_control[3]) n = temp_control[3]; //40;
                     temp_control[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 14:
                     n = wakeup_time;
                     n--; if(n < 0) n = 0;
                     wakeup_time = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
             }
@@ -903,98 +926,98 @@ void draw_controlfan_options()
                     n = speed_table[0];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 2:
                     n = speed_table[1];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 3:
                     n = speed_table[2];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 4:
                     n = speed_table[3];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 5:
                     n = speed_table[4];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 6:
                     n = speed_table[5];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[5] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 7:
                     n = speed_table[6];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[6] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 8:
                     n = speed_table[7];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[7] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 9:
                     n = temp_control[0];
                     n++; if(n > 74) n = 74;
                     temp_control[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 10:
                     n = temp_control[1];
                     n++; if(n > 75) n = 75;
                     temp_control[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 11:
                     n = temp_control[2];
                     n++; if(n > 76) n = 76;
                     temp_control[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 12:
                     n = temp_control[3];
                     n++; if(n > 77) n = 77;
                     temp_control[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 13:
                     n = temp_control[4];
                     n++; if(n > 80) n = 80;
                     temp_control[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 14:
                     n = wakeup_time;
                     n++; if(n > 0xff) n = 0xff;
                     wakeup_time = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
             }
@@ -1004,7 +1027,7 @@ void draw_controlfan_options()
         if(new_pad & (BUTTON_START))
         {
             select_option = 16;
-            set_adjust = 1;
+            set_adjust = true;
             new_pad = BUTTON_CROSS;
         }
 
@@ -1013,114 +1036,114 @@ void draw_controlfan_options()
             switch(select_option)
             {
                 case 0:
-                    fan_mode++;if(fan_mode > 3) fan_mode = 0;
-                    set_adjust = 1;
+                    fan_mode++;if(fan_mode > 3) fan_mode = FANCTRL_PAYLOAD;
+                    set_adjust = true;
                     break;
 
                 case 1:
                     n = speed_table[0];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 2:
                     n = speed_table[1];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 3:
                     n = speed_table[2];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 4:
                     n = speed_table[3];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 5:
                     n = speed_table[4];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 6:
                     n = speed_table[5];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[5] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 7:
                     n = speed_table[6];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[6] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 8:
                     n = speed_table[7];
                     n++; if(n > 0xff) n = 0xff;
                     speed_table[7] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 9:
                     n = temp_control[0];
                     n++; if(n > 74) n = 74;
                     temp_control[0] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 10:
                     n = temp_control[1];
                     n++; if(n > 75) n = 75;
                     temp_control[1] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 11:
                     n = temp_control[2];
                     n++; if(n > 76) n = 76;
                     temp_control[2] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 12:
                     n = temp_control[3];
                     n++; if(n > 77) n = 77;
                     temp_control[3] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 13:
                     n = temp_control[4];
                     n++; if(n > 80) n = 80;
                     temp_control[4] = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 14:
                     n = wakeup_time;
                     n++; if(n > 0xff) n = 0xff;
                     wakeup_time = n;
-                    set_adjust = 1;
+                    set_adjust = true;
                     break;
 
                 case 15:
                     memcpy((void *) temp_control, (void *) temp_control_default, sizeof(temp_control));
                     memcpy((void *) speed_table, (void *) speed_table_default, sizeof(speed_table));
                     wakeup_time = 6;
-                    fan_mode = 0;
-                    set_adjust = 1;
+                    fan_mode = FANCTRL_PAYLOAD;
+                    set_adjust = true;
                     break;
 
                 case 16:
@@ -1172,7 +1195,7 @@ void draw_controlfan_options()
         {
             if(speed_table[n] > 0xff) speed_table[n] = 0xff;
             if(speed_table[n] > speed_table[n + 1]) speed_table[n + 1] = speed_table[n] + 1;
-            set_adjust = 1;
+            set_adjust = true;
         }
 
         if(speed_table[n] > 0xff) speed_table[n] = 0xff;
@@ -1195,10 +1218,15 @@ void draw_controlfan_options()
         {
             frame_count = 32;
 
-            if(select_option == 0) {
-                fan_mode--;if(fan_mode < 0) fan_mode = 3;
-                set_adjust = 1;
-            } else if(select_option >= 9) select_option -= 8; else select_option += 8;
+            if(select_option == 0)
+            {
+                fan_mode--; if(fan_mode < 0) fan_mode = FANCTRL_DISABLED;
+                set_adjust = true;
+            }
+            else if(select_option >= 9)
+                select_option -= 8;
+            else
+                select_option += 8;
 
             if(select_option > 16) select_option = 16;
         }
@@ -1206,9 +1234,14 @@ void draw_controlfan_options()
         {
             frame_count = 32;
 
-            if(select_option == 0) {
-                fan_mode++;if(fan_mode > 3) fan_mode = 0;
-            } else if(select_option >= 9) select_option -= 8; else select_option += 8;
+            if(select_option == 0)
+            {
+                fan_mode++; if(fan_mode > 3) fan_mode = FANCTRL_PAYLOAD;
+            }
+            else if(select_option >= 9)
+                select_option -= 8;
+            else
+                select_option += 8;
 
             if(select_option > 16) select_option = 16;
         }
@@ -1216,6 +1249,7 @@ void draw_controlfan_options()
         {
             memcpy((void *) temp_control, (void *) temp_control_backup, sizeof(temp_control));
             memcpy((void *) speed_table, (void *) speed_table_backup, sizeof(speed_table));
+
             wakeup_time = wakeup_time_backup;
             fan_mode = fan_mode_backup;
             return;
