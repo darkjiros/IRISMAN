@@ -101,6 +101,8 @@ char rom_extension[10];
 
 extern int num_box;
 
+#define TEMP_PICT num_box + 1
+
 #define FS_S_IFMT 0170000
 #define FS_S_IFDIR 0040000
 
@@ -5263,7 +5265,7 @@ int file_manager(char *pathw1, char *pathw2)
                     for(int i = 0; i < nentries1; i++)
                         entries1[i].d_type = (entries1[i].d_type & ~IS_MARKED);
                 }
-
+                else
                 if((!is_ntfs && sysLv2FsOpenDir(path1, &fd) == SUCCESS) ||
                    ( is_ntfs && (pdir = ps3ntfs_diropen(path1)) != NULL))
                 {
@@ -5381,7 +5383,7 @@ int file_manager(char *pathw1, char *pathw2)
                     for(int i = 0; i < nentries2; i++)
                         entries2[i].d_type = (entries2[i].d_type & ~IS_MARKED);
                 }
-
+                else
                 if((!is_ntfs && sysLv2FsOpenDir(path2, &fd) == 0) ||
                   (  is_ntfs && (pdir = ps3ntfs_diropen(path2)) != NULL))
                 {
@@ -5652,7 +5654,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                 tick1_move = 0;
 
-                if((signal != 0) && LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                if((signal != 0) && LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                 {
                     png_signal = 120; FullScreen = 0;
                 }
@@ -5666,7 +5668,7 @@ int file_manager(char *pathw1, char *pathw2)
                     sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                     if(!stat(temp_buffer, &st)) signal = 1;
 
-                    if(signal && LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(signal && LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5676,7 +5678,7 @@ int file_manager(char *pathw1, char *pathw2)
                     sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                     if(!stat(temp_buffer, &st)) signal = 1;
 
-                    if(signal && LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                    if(signal && LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5684,7 +5686,7 @@ int file_manager(char *pathw1, char *pathw2)
                 else if (entries1_type[sel1] == FILE_TYPE_BIN)
                 {
                     sprintf(temp_buffer, "%s/../ICON0.PNG", path1);
-                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5692,9 +5694,31 @@ int file_manager(char *pathw1, char *pathw2)
                 else if(!strcmp(entries1[sel1].d_name, "PS3LOGO.DAT"))
                 {
                     sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
-                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
+                    }
+                }
+                else if(strlen(entries1[sel1].d_name) >= 40 && strstr(entries1[sel1].d_name, "_00-") != NULL)
+                {
+                    sprintf(temp_buffer, "/dev_hdd0/game/BLES80608/USRDIR/covers/%c%c%c%c%c%c%c%c%c.JPG",
+                            entries1[sel1].d_name[ 7], entries1[sel1].d_name[ 8], entries1[sel1].d_name[ 9], entries1[sel1].d_name[10],
+                            entries1[sel1].d_name[11], entries1[sel1].d_name[12], entries1[sel1].d_name[13], entries1[sel1].d_name[14], entries1[sel1].d_name[15]);
+
+                    if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
+                    else
+                    {
+                        sprintf(temp_buffer, "/dev_hdd0/GAMES/covers/%c%c%c%c%c%c%c%c%c.JPG",
+                                entries1[sel1].d_name[ 7], entries1[sel1].d_name[ 8], entries1[sel1].d_name[ 9], entries1[sel1].d_name[10],
+                                entries1[sel1].d_name[11], entries1[sel1].d_name[12], entries1[sel1].d_name[13], entries1[sel1].d_name[14], entries1[sel1].d_name[15]);
+
+                        if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
+                        {
+                            png_signal = 120; FullScreen = 0;
+                        }
                     }
                 }
                 else
@@ -5707,7 +5731,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                     if(!stat(temp_buffer, &st))
                     {
-                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 120; FullScreen = 0;
                         }
@@ -5719,7 +5743,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                         if(!stat(temp_buffer, &st))
                         {
-                            if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                            if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                             {
                                 png_signal = 120; FullScreen = 0;
                             }
@@ -5750,7 +5774,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                 tick2_move = 0;
 
-                if((signal != 0) && LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                if((signal != 0) && LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                 {
                     png_signal = 120; FullScreen = 0;
                 }
@@ -5765,7 +5789,7 @@ int file_manager(char *pathw1, char *pathw2)
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
                     if(!stat(temp_buffer, &st)) signal = 1;
 
-                    if(signal && LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(signal && LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5775,7 +5799,7 @@ int file_manager(char *pathw1, char *pathw2)
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
                     if(!stat(temp_buffer, &st)) signal = 1;
 
-                    if(signal && LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                    if(signal && LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5783,7 +5807,7 @@ int file_manager(char *pathw1, char *pathw2)
                 else if (entries2_type[sel2] == FILE_TYPE_BIN)
                 {
                     sprintf(temp_buffer, "%s/../ICON0.PNG", path2);
-                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
                     }
@@ -5791,9 +5815,31 @@ int file_manager(char *pathw1, char *pathw2)
                 else if(!strcmp(entries2[sel2].d_name, "PS3LOGO.DAT"))
                 {
                     sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
-                    if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                    if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                     {
                         png_signal = 120; FullScreen = 0;
+                    }
+                }
+                else if(strlen(entries2[sel2].d_name) >= 40 && strstr(entries2[sel2].d_name, "_00-") != NULL)
+                {
+                    sprintf(temp_buffer, "/dev_hdd0/game/BLES80608/USRDIR/covers/%c%c%c%c%c%c%c%c%c.JPG",
+                            entries2[sel2].d_name[ 7], entries2[sel2].d_name[ 8], entries2[sel2].d_name[ 9], entries2[sel2].d_name[10],
+                            entries2[sel2].d_name[11], entries2[sel2].d_name[12], entries2[sel2].d_name[13], entries2[sel2].d_name[14], entries2[sel2].d_name[15]);
+
+                    if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
+                    {
+                        png_signal = 120; FullScreen = 0;
+                    }
+                    else
+                    {
+                        sprintf(temp_buffer, "/dev_hdd0/GAMES/covers/%c%c%c%c%c%c%c%c%c.JPG",
+                                entries2[sel2].d_name[ 7], entries2[sel2].d_name[ 8], entries2[sel2].d_name[ 9], entries2[sel2].d_name[10],
+                                entries2[sel2].d_name[11], entries2[sel2].d_name[12], entries2[sel2].d_name[13], entries2[sel2].d_name[14], entries2[sel2].d_name[15]);
+
+                        if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
+                        {
+                            png_signal = 120; FullScreen = 0;
+                        }
                     }
                 }
                 else
@@ -5806,7 +5852,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                     if(!stat(temp_buffer, &st))
                     {
-                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 120; FullScreen = 0;
                         }
@@ -5818,7 +5864,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                         if(!stat(temp_buffer, &st))
                         {
-                            if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                            if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                             {
                                 png_signal = 120; FullScreen = 0;
                             }
@@ -5832,23 +5878,23 @@ int file_manager(char *pathw1, char *pathw2)
         {
             int h;
 
-            if(Png_offset[num_box])
+            if(Png_offset[TEMP_PICT])
             {
-                tiny3d_SetTextureWrap(0, Png_offset[num_box], Png_datas[num_box].width,
-                 Png_datas[num_box].height, Png_datas[num_box].wpitch,
+                tiny3d_SetTextureWrap(0, Png_offset[TEMP_PICT], Png_datas[TEMP_PICT].width,
+                 Png_datas[TEMP_PICT].height, Png_datas[TEMP_PICT].wpitch,
                  TINY3D_TEX_FORMAT_A8R8G8B8,  TEXTWRAP_CLAMP, TEXTWRAP_CLAMP,1);
 
                 if (FullScreen == 1)
                 {
-                    if (Png_datas[num_box].width>=Png_datas[num_box].height)
+                    if (Png_datas[TEMP_PICT].width>=Png_datas[TEMP_PICT].height)
                     {
-                        h = Png_datas[num_box].height > 480 ? 480 : Png_datas[num_box].height;
-                        img_width = h * Png_datas[num_box].width / Png_datas[num_box].height * 512/480;
+                        h = Png_datas[TEMP_PICT].height > 480 ? 480 : Png_datas[TEMP_PICT].height;
+                        img_width = h * Png_datas[TEMP_PICT].width / Png_datas[TEMP_PICT].height * 512/480;
                     }
                     else
                     {
-                        img_width = Png_datas[num_box].width > 848 ? 848 : Png_datas[num_box].width;
-                        h = img_width * Png_datas[num_box].height / Png_datas[num_box].width  * 512/480;
+                        img_width = Png_datas[TEMP_PICT].width > 848 ? 848 : Png_datas[TEMP_PICT].width;
+                        h = img_width * Png_datas[TEMP_PICT].height / Png_datas[TEMP_PICT].width  * 512/480;
                     }
 
                     DrawBox((Video_Resolution.width-img_width) / 2, (Video_Resolution.height - h) / 2, 0, img_width, h, 0xffffff40);
@@ -5858,11 +5904,11 @@ int file_manager(char *pathw1, char *pathw2)
                 else
                 {
                     img_width = (use_split && is_vsplit) ? 300 : 160;
-                    h = img_width * Png_datas[num_box].height / Png_datas[num_box].width  * 512/480;
+                    h = img_width * Png_datas[TEMP_PICT].height / Png_datas[TEMP_PICT].width  * 512/480;
                     if ((img_width == 160) && (h < 160))
                     {
                         img_width = 300;
-                        h = img_width * Png_datas[num_box].height / Png_datas[num_box].width  * 512/480;
+                        h = img_width * Png_datas[TEMP_PICT].height / Png_datas[TEMP_PICT].width  * 512/480;
                     }
 
                     DrawBox((!fm_pane || !use_split) ? 848 - img_width : 0, use_split ? 512 - h - 32 :
@@ -7081,7 +7127,7 @@ int file_manager(char *pathw1, char *pathw2)
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
 
-                        if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 300; FullScreen = 1;
                         }
@@ -7091,7 +7137,7 @@ int file_manager(char *pathw1, char *pathw2)
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
 
-                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 300; FullScreen = 1;
                         }
@@ -7571,7 +7617,7 @@ int file_manager(char *pathw1, char *pathw2)
                     {
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
-                        if(LoadTextureJPG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTextureJPG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 300; FullScreen = 1;
                         }
@@ -7581,7 +7627,7 @@ int file_manager(char *pathw1, char *pathw2)
                     {
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
 
-                        if(LoadTexturePNG(temp_buffer, num_box) == SUCCESS)
+                        if(LoadTexturePNG(temp_buffer, TEMP_PICT) == SUCCESS)
                         {
                             png_signal = 300; FullScreen = 1;
                         }

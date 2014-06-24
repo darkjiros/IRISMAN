@@ -215,7 +215,7 @@ MKV file : D_FLAG_HOMEB_DPL | D_FLAG_HOMEB_MKV | x (from /MKV    , x = D_FLAG_HD
 #define PS2_CLASSIC_ISO_PATH     "/dev_hdd0/game/PS2U10000/USRDIR/ISO.BIN.ENC"
 #define PS2_CLASSIC_ISO_ICON     "/dev_hdd0/game/PS2U10000/ICON0.PNG"
 
-#define BIG_PICT 48
+#define BIG_PICT  48
 #define BACKGROUND_PICT  (BIG_PICT + 1)
 #define MAX_PICTURES     (BIG_PICT + 2)
 #define MAX_RESOURCES    24

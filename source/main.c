@@ -136,6 +136,8 @@ u64 restore_syscall8[2] = {0,0};
 #define LIST_ALL_DEVICES   -1
 #define RESET_GAME_INFO    -1
 
+#define SYSTEM_LANGUAGE    99
+
 #define GUI_MODES  15
 
 enum GuiModes {
@@ -1757,7 +1759,7 @@ void LoadManagerCfg()
             break;
     }
 
-    if(manager_cfg.language == 99)
+    if(manager_cfg.language == SYSTEM_LANGUAGE)
         manager_cfg.language = (u8) get_system_language();
 
     if(manager_cfg.language < 0 || manager_cfg.language > LANGCOUNT)  manager_cfg.language = 0;
@@ -3565,10 +3567,10 @@ s32 main(s32 argc, const char* argv[])
         cobra_config->spoof_version  = 0;
         cobra_config->spoof_revision = 0;
 
-        if(bSpoofVersion && (firmware == 0x446C || firmware == 0x453C))
+        if(bSpoofVersion && (firmware == 0x446C || firmware == 0x453C || firmware == 0x455C))
         {
-            cobra_config->spoof_version  = 0x0455;
-            cobra_config->spoof_revision = 62848;
+            cobra_config->spoof_version  = 0x0460;
+            cobra_config->spoof_revision = 63910;
         }
 
         if(cobra_config->ps2softemu == 0 && cobra_get_ps2_emu_type() == PS2_EMU_SW)
@@ -3618,7 +3620,7 @@ s32 main(s32 argc, const char* argv[])
 
     manager_cfg.background_sel = 0;
     manager_cfg.noBDVD = MODE_DISCLESS;
-    manager_cfg.language = 99;
+    manager_cfg.language = SYSTEM_LANGUAGE;
 
     // get default console id
     get_console_id_eid5();
@@ -5026,12 +5028,12 @@ void get_pict(int *index)
         sprintf(dir2, "%s%s", directories[ind].path_name,
               &folder_mode[!((directories[ind].flags>>D_FLAG_HOMEB_DPL) & 1)][0]);
 
-
+        bool is_retro = false;
         bool is_psp = (directories[ind].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG);
 
         if(is_psp)
         {
-            bool is_retro = (strstr(directories[ind].path_name, retro_root_path) != NULL);
+            is_retro = (strstr(directories[ind].path_name, retro_root_path) != NULL);
             bool is_ps2_classic = !is_retro &&
                                   (strstr(directories[ind].path_name, ps2classic_path) != NULL);
 
@@ -5128,7 +5130,7 @@ default_pict:
         {
             bSkipPIC1 = true;
 
-            if(Png_offset[BIG_PICT] == 0)
+            if(Png_offset[BIG_PICT] == 0 || is_retro)
                 load_background_picture();
             else
             {
@@ -5322,6 +5324,17 @@ void draw_grid(float x, float y)
                 DrawFormatString(x2, y2, " %02u/%02u %02u:%02u AM ", month, day, hh, mm);
             else
                 DrawFormatString(x2, y2, " %02u/%02u %02u:%02u AM ", day, month, hh, mm);
+        }
+
+
+        if(Png_offset[selected] == 0)
+        {
+            // draw quick preview of title name
+            SetFontSize(20, 32);
+            if(!mode_favourites && directories[(currentdir + selected)].title[0] != 0)
+                DrawFormatString(x + 250, y + 214, directories[(currentdir + selected)].title);
+            else if(mode_favourites && favourites.list[selected].title[0] != 0)
+                DrawFormatString(x + 250, y + 214, favourites.list[selected].title);
         }
     }
 
@@ -5702,9 +5715,9 @@ void draw_grid(float x, float y)
     // draw game name
     i = selected;
 
-
     DrawBox(x, y + 3 * 150, 0, 200 * 4 - 8, 40, 0x00000028);
     SetFontColor(0xffffffee, 0x00000000);
+
 
     if((Png_offset[i] && !mode_favourites) || (mode_favourites && favourites.list[i].title_id[0] != 0))
     {
@@ -8301,10 +8314,14 @@ void draw_background_pic1()
             if((directories[indx].flags & (RETRO_FLAG | PS2_CLASSIC_FLAG)) == (RETRO_FLAG | PS2_CLASSIC_FLAG))
             {
                 bool is_retro = (strstr(directories[indx].path_name, retro_root_path) != NULL);
-                bool is_ps2_classic = !is_retro &&
-                                      (strstr(directories[indx].path_name, ps2classic_path) != NULL);
 
-                if(is_retro || is_ps2_classic) return;
+                if(gui_mode != MODE_XMB_LIKE)
+                {
+                    bool is_ps2_classic = !is_retro &&
+                                          (strstr(directories[indx].path_name, ps2classic_path) != NULL);
+
+                    if(is_retro || is_ps2_classic) return;
+                }
             }
             else if((directories[indx].flags & (PS1_FLAG)) == (PS1_FLAG)) return;
         }
