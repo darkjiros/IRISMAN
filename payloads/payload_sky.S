@@ -102,6 +102,10 @@
 #include "firmware_symbols_455.h"
 #endif
 
+#ifdef CFW_455dex
+#include "firmware_symbols_455dex.h"
+#endif
+
 #define SYS8_VERSION 0x308
 #define PERM_MODE 0  // 0 -> restricted 1-> original 2-> new for some games
 

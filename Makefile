@@ -47,10 +47,10 @@ SCETOOL_FLAGS	+=	--self-cap-flags 0000000000000000000000000000000000000000000000
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source source/ftp
-SOURCES		+=  source/payload341 source/payload355 source/payload355dex source/payload421 source/payload421dex
-SOURCES		+=  source/payload430 source/payload430dex source/payload431 source/payload440 source/payload441
-SOURCES		+=  source/payload441dex source/payload446 source/payload446dex source/payload450 source/payload450dex
-SOURCES		+=  source/payload453 source/payload455
+SOURCES		+=  source/payload341    source/payload355    source/payload355dex source/payload421 source/payload421dex
+SOURCES		+=  source/payload430    source/payload430dex source/payload431    source/payload440 source/payload441
+SOURCES		+=  source/payload441dex source/payload446    source/payload446dex source/payload450 source/payload450dex
+SOURCES		+=  source/payload453    source/payload455    source/payload455dex
 
 DATA		:=	datas
 SHADERS		:=	shaders
@@ -58,7 +58,7 @@ INCLUDES	:=	include include/ftp
 INCLUDES	+=  include/payload341 include/payload355 include/payload355dex include/payload421 include/payload421dex
 INCLUDES	+=  include/payload430 include/payload430dex include/payload431 include/payload440 include/payload441
 INCLUDES	+=  include/payload441dex include/payload446 include/payload446dex include/payload450 include/payload450dex
-INCLUDES	+=  include/payload453 include/payload455
+INCLUDES	+=  include/payload453 include/payload455 include/payload455dex
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
