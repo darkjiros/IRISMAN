@@ -220,10 +220,10 @@ void load_payload_460(int mode)
 {
 //Remove Lv2 memory protection
 
-//	lv1poke(0x370AA8, 0x0000000000000001ULL);
-//	lv1poke(0x370AA8 + 8, 0xE0D251B556C59F05ULL);
-//	lv1poke(0x370AA8 + 16, 0xC232FCAD552C80D7ULL);
-//	lv1poke(0x370AA8 + 24, 0x65140CD200000000ULL); //NO NEED SINCE WE DISABLE THIS IN APPLDR
+/*	lv1poke(0x370F28, 0x0000000000000001ULL);
+	lv1poke(0x370F28 + 8, 0xE0D251B556C59F05ULL);
+	lv1poke(0x370F28 + 16, 0xC232FCAD552C80D7ULL);
+	lv1poke(0x370F28 + 24, 0x65140CD200000000ULL); */
 
     install_lv2_memcpy();
     /* WARNING!! It supports only payload with a size multiple of 8 */
@@ -267,8 +267,8 @@ void load_payload_460(int mode)
 
     PATCH_JUMP(0x56654, 0x56560);          // Not present in rebug, anyway..
 
-    _poke(0x26FDD0, 0x386000007C6307B4); //done
-    _poke32(0x26FDD0 + 8, 0x4E800020); //done
+    _poke(0x26FDD8, 0x386000007C6307B4); //done
+    _poke32(0x26FDD8 + 8, 0x4E800020); //done
 
     /*
         -002c3cf0  f8 01 00 b0 7c 9c 23 78  7c 7d 1b 78 4b d8 aa 1d  |....|.#x|}.xK...|
@@ -416,16 +416,16 @@ static int lv2_unpatch_bdvdemu_460(void)
         {
            if(!memcmp(mem + n + 0x69, "dev_bdvd", 9)
               && !memcmp(mem + n + 0x79, "esp_bdvd", 9) && peekq(0x80000000007EF000ULL)!=0)
-           {
+            {
                 mem[0x1200+ 0x10 -1] = mem[n-1];
                 sys8_memcpy(LV2MOUNTADDR_460 + (u64) (n - 0x10), (u64) (mem + 0x1200) , (u64) LV2MOUNTADDR_460_CSIZE);
-                flag+=10;
-           }
+
+            flag+=10;
+            }
         }
     }
 
-    for(n= 0; n < 100; n++)
-    {
+    for(n= 0; n < 100; n++) {
         _poke32(UMOUNT_SYSCALL_OFFSET, 0xFBA100E8); // UMOUNT RESTORE
         usleep(1000);
     }
@@ -442,9 +442,9 @@ static int lv2_unpatch_bdvdemu_460(void)
 static int lv2_patch_bdvdemu_460(uint32_t flags)
 {
     int n;
-    int flag =  0;
-    int usb  = -1;
-    int pos  = -1;
+    int flag = 0;
+    int usb = -1;
+    int pos=-1;
     int pos2 = -1;
 
     char * mem = temp_buffer;
@@ -461,13 +461,12 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
         }
     }
 
-    if(usb >= 0)
-    {
+    if(usb >= 0) {
         sprintf(path_name, "CELL_FS_IOS:USB_MASS_STORAGE00%c", 48 + usb);
         sprintf(&path_name[128], "dev_usb00%c", 48 + usb);
     }
 
-    for(n = 0; n < 0x116c; n += LV2MOUNTADDR_460_ESIZE)
+    for(n = 0; n< 0x116c; n+= LV2MOUNTADDR_460_ESIZE)
     {
         if(noBDVD && !memcmp(mem + n, "CELL_FS_UTILITY:HDD1", 21)
             && !memcmp(mem + n + 0x69, "dev_bdvd", 9) && mem[n-9]== 1 && mem[n-13]== 1)
@@ -510,8 +509,7 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
         }
     }
 
-    if(pos > 0 && pos2 > 0)
-    {
+    if(pos>0 && pos2>0) {
       u64 dat;
 
       memcpy(mem + 0x1220, mem + pos2 - 0x10, LV2MOUNTADDR_460_CSIZE);
@@ -533,8 +531,7 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
       sys8_memcpy(LV2MOUNTADDR_460 + (u64) pos2, ((u64) (mem + pos2)), (u64) (LV2MOUNTADDR_460_CSIZE - 0x10));
 
       int k;
-      for(k = 0; k < 100; k++)
-      {
+      for(k= 0; k < 100; k++) {
         PATCH_CALL(UMOUNT_SYSCALL_OFFSET, PAYLOAD_UMOUNT_OFFSET); // UMOUNT ROUTINE PATCH
         usleep(1000);
       }
