@@ -123,7 +123,7 @@ t_lngstr lang_strings[] =
     { DRAWPSX_SMOOTH,    "DRAWPSX_SMOOTH"     , "Smoothing" },
     { DRAWPSX_EXTROM,    "DRAWPSX_EXTROM"     , "External ROM" },
     { DRAWPSX_FORMAT,    "DRAWPSX_FORMAT"     , "Format Internal_MC" },
-    { DRAWPSX_ASKFORMAT, "DRAWPSX_ASKFORMAT"  , "Do you want you format Internal_MC?\n\nYou LOSE the saves in this operation" },
+    { DRAWPSX_ASKFORMAT, "DRAWPSX_ASKFORMAT"  , "Do you want you format Internal_MC?\n\nYou will LOSE the saves in this operation" },
     { DRAWPSX_ERRWRITING,"DRAWPSX_ERRWRITING" , "Error writing the file (Device full?)" },
 
     { DRAWPSX_BUILDISO,  "DRAWPSX_BUILDISO"   , "Building custom ISO..." },
@@ -134,7 +134,7 @@ t_lngstr lang_strings[] =
     { DRAWPSX_DISCEJECT ,"DRAWPSX_DISCEJECT"  , "PSX CD Ejected" },
     { DRAWPSX_DISCORDER , "DRAWPSX_DISCORDER" , "Select Disc Order" },
     { DRAWPSX_PRESSOB   ,"DRAWPSX_PRESSOB"    , "Press CIRCLE to change the order" },
-    { DRAWPSX_PRESSXB   ,"DRAWPSX_PRESSXB"    , "Press CROSS to launch de game" },
+    { DRAWPSX_PRESSXB   ,"DRAWPSX_PRESSXB"    , "Press CROSS to launch the game" },
     { DRAWPSX_CHEATMAKE ,"DRAWPSX_CHEATMAKE"  , "PSX Cheat disc found, but different sector size\n\nDo you want to build one compatible?" },
     { DRAWPSX_COPYMC    ,"DRAWPSX_COPYMC"     , "Copying Memory Card to HDD0 device..." },
     { DRAWPSX_ERRCOPYMC ,"DRAWPSX_ERRCOPYMC"  , "Error copying the Memory Card to HDD0 device" },
@@ -454,7 +454,7 @@ int get_system_language(void)
     {
         int entry_name = 0x10002;
 
-        while(1)
+        while(true)
         {
             u64 pos;
             sysFsLseek( reg, (s64)entry_name, 0, &pos );

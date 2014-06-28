@@ -393,7 +393,7 @@ int Get_OSK_String(char *caption, char *str, int len)
 
             cls();
 
-            update_twat(1);
+            update_twat(true);
 
 
             SetCurrentFont(FONT_TTF);
@@ -538,7 +538,7 @@ int Get_OSK_String_no_lang(char *caption, char *str, int len)
 
         cls();
 
-        update_twat(1);
+        update_twat(true);
 
 
         SetCurrentFont(FONT_TTF);

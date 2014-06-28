@@ -889,7 +889,7 @@ int cobra_unset_psp_umd(void)
     struct stat s;
     char icon_path[MAXPATHLEN];
 
-    sprintf(icon_path, "%s/USRDIR/psp_icon.png", self_path);
+    sprintf(icon_path, "%s/USRDIR/icons/PSP_ICON.PNG", self_path);
 
     if(stat(icon_path, &s) != 0)
     {

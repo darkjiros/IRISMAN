@@ -1305,7 +1305,7 @@ cdup:           bytes = 0;
 
                                 ps3ntfs_seek64(fd, rest, SEEK_SET);
 
-                                while(1)
+                                while(true)
                                 {
                                     read = ps3ntfs_read(fd, databuf, OFTP_DATA_BUFSIZE);
                                     if(read <= 0) break;

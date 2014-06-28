@@ -213,7 +213,7 @@ void draw_pkginstall(float x, float y)
         SetFontAutoCenter(0);
 
         DrawFormatString(x, y, " %s", language[PKG_HEADER]);
-        update_twat(1);
+        update_twat(true);
 
         y += 24;
 

@@ -62,6 +62,7 @@
 #include "payload453/payload_453.h"
 #include "payload455/payload_455.h"
 #include "payload455dex/payload_455dex.h"
+#include "payload460/payload_460.h"
 
 #include "spu_soundmodule.bin.h" // load SPU Module
 #include "spu_soundlib.h"
@@ -124,6 +125,7 @@
 #include "cobra.h"
 #include "iso.h"
 
+#include "console_id.h"
 
 bool use_cobra = false;
 bool use_mamba = false; // cobra app version
@@ -155,8 +157,8 @@ enum GuiModes {
   MODE_GRID_6x4  = 10,
   MODE_GRID_5x5  = 11,
   MODE_GRID_6x5  = 12,
-  MODE_GRID_6x6  = 13,
-  MODE_GRID_8x5  = 14,
+  MODE_GRID_8x5  = 13,
+  MODE_GRID_7x6  = 14,
   MODE_GRID_8x6  = 15,
 };
 
@@ -217,6 +219,7 @@ int (*lv2_patch_bdvdemu)(uint32_t flags) = NULL;
 int (*lv2_patch_storage)(void) = NULL;
 int (*lv2_unpatch_storage)(void) = NULL;
 
+
 //Console id
 u64 off_idps = 0;
 u64 off_idps2 = 0;
@@ -230,29 +233,6 @@ u64 val_psid_part2 = 0;
 char psid[33];
 char console_id[33];
 char default_console_id[33];
-
-void draw_console_id_tools(float x, float y);
-void get_console_id_eid5();
-
-void set_console_id_lv2();
-void get_console_id_lv2();
-void get_console_id_val();
-int get_console_id_keyb();
-int is_valid_idps();
-
-void set_psid_lv2();
-void get_psid_lv2();
-void get_psid_val();
-int get_psid_keyb();
-bool is_valid_psid();
-
-bool is_hex_char(char c);
-
-int save_spoofed_psid();
-int load_spoofed_psid();
-
-int save_spoofed_console_id();
-int load_spoofed_console_id();
 
 void UTF8_to_Ansi(char *utf8, char *ansi, int len); // from osk_input
 
@@ -327,6 +307,9 @@ u32 Png_res_offset[MAX_RESOURCES];
 
 char self_path[MAXPATHLEN] = "/"__MKDEF_MANAGER_FULLDIR__;
 
+int firmware = 0;
+int fw_ver = 0;
+
 #define PATHS_SECTION "Paths"
 
 char backgrounds_path[MAXPATHLEN];
@@ -346,6 +329,7 @@ char video_extensions[300];
 char audio_extensions[300];
 char rom_extensions[300];
 char browser_extensions[100];
+char custom_homebrews[400];
 
 #define ROMS_SECTION "RetroPaths"
 
@@ -371,6 +355,7 @@ char retro_vb_path[ROMS_MAXPATHLEN];
 char retro_nxe_path[ROMS_MAXPATHLEN];
 char retro_wswan_path[ROMS_MAXPATHLEN];
 
+
 #define GUI_SECTION "GUI"
 
 bool bShowPlayOverlay = true;
@@ -384,6 +369,7 @@ bool bLoadPIC1 = false;
 bool bSkipPIC1 = false;
 bool bSpoofVersion = false;
 bool bHideCoverflowSortModeLabel = false;
+bool bAutoLaunchPrxLoader = true;
 
 u8 bShowPIC1 = 2;
 u8 bShowVersion = 2;
@@ -791,18 +777,29 @@ int get_icon(char * path, const int num_dir)
 
     if (!is_update)
     {
-        if(!strncmp(directories[num_dir].title_id, "HTSS00003", 9))
+        if(strstr("NETBROWSE|IRISMAN00|PRXLOADER|CDGPLAYER|GMPADTEST", directories[num_dir].title_id) != NULL)
         {
-            sprintf(path, "/dev_hdd0/game/HTSS00003/ICON0.PNG");
-            return SUCCESS;
-        }
-        else if(!strncmp(directories[num_dir].title_id, "IRISMAN00", 9))
-        {
-            sprintf(path, "%s/USRDIR/browser.png", self_path);
+            if(strncmp(directories[num_dir].title_id, "IRISMAN00", 9) == SUCCESS)
+                sprintf(path, "%s/USRDIR/icons/NETBROWSE.PNG", self_path);
+            else
+                sprintf(path, "%s/USRDIR/icons/%s.PNG", self_path, directories[num_dir].title_id);
+
             if(!stat(path, &s)) return SUCCESS;
 
-            sprintf(path, "%s/ICON0.PNG", self_path);
-            return SUCCESS;
+            sprintf(path, "%s/USRDIR/icons/DEFAULT.PNG", self_path);
+            if(!stat(path, &s)) return SUCCESS;
+
+            return FAILED;
+        }
+        else if(strstr(custom_homebrews, directories[num_dir].title_id) != NULL || (directories[num_dir].flags & HOMEBREW_FLAG) == HOMEBREW_FLAG)
+        {
+            sprintf(path, "/dev_hdd0/game/%s/ICON0.PNG", directories[num_dir].title_id);
+            if(!stat(path, &s)) return SUCCESS;
+
+            sprintf(path, "%s/USRDIR/icons/DEFAULT.PNG", self_path);
+            if(!stat(path, &s)) return SUCCESS;
+
+            return FAILED;
         }
 
 
@@ -996,6 +993,9 @@ int get_icon(char * path, const int num_dir)
     if(stat(path, &s) != SUCCESS)
     {
         sprintf(path, "%s%sICON0.PNG", directories[num_dir].path_name, &folder_mode[!((directories[num_dir].flags>>D_FLAG_HOMEB_DPL) & 1)][0]);
+        if(!stat(path, &s)) return SUCCESS;
+
+        sprintf(path, "%s/USRDIR/icons/DEFAULT.PNG", self_path);
         return SUCCESS;
     }
     else
@@ -1517,6 +1517,7 @@ int sys_fs_umount(char const* devicePath)
     return_to_user_prog(int);
 }
 
+
 u64 lv2peek(u64 addr)
 {
     lv2syscall1(6, (u64) addr);
@@ -1558,7 +1559,7 @@ char payload_str[256];
 int videoscale_x = 0;
 int videoscale_y = 0;
 
-bool flash;
+int flash;
 
 int select_px = 0;
 int select_py = 0;
@@ -1690,7 +1691,7 @@ void LoadManagerCfg()
             manager_cfg.gui_mode = MODE_COVERFLOW;
             manager_cfg.background_sel = 1;
             manager_cfg.background_fx = 0;
-            manager_cfg.bk_picture = BG_PIC1;
+            manager_cfg.bk_picture = BG_NONE;
             manager_cfg.show_custom_icons = 1;
             manager_cfg.filter_by_device = LIST_ALL_DEVICES;
 
@@ -1711,7 +1712,7 @@ void LoadManagerCfg()
         manager_cfg.gui_mode = MODE_COVERFLOW;
         manager_cfg.background_sel = 1;
         manager_cfg.background_fx = 0;
-        manager_cfg.bk_picture = BG_PIC1;
+        manager_cfg.bk_picture = BG_NONE;
         manager_cfg.show_custom_icons = 1;
         manager_cfg.filter_by_device = LIST_ALL_DEVICES;
 
@@ -1739,6 +1740,9 @@ void LoadManagerCfg()
     background_sel = manager_cfg.background_sel;
     background_fx = manager_cfg.background_fx;
     show_custom_icons = manager_cfg.show_custom_icons;
+
+    bk_picture = manager_cfg.bk_picture;
+    if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture = BG_NONE;
 
     switch(Video_Resolution.height)
     {
@@ -1833,6 +1837,15 @@ void fun_exit()
         sysProcessExitSpawn2("/dev_bdvd/PS3_GAME/USRDIR/EBOOT.BIN", NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
 
     if(set_install_pkg) sys_reboot();
+
+    if(bAutoLaunchPrxLoader && !use_cobra && (firmware == 0x421C || firmware == 0x421D || firmware == 0x446C || firmware == 0x446D ||
+                                              firmware == 0x450C || firmware == 0x450D || firmware == 0x453C || firmware == 0x455C))
+    {
+        sprintf(tmp_path, "%s/USRDIR/prxloader.self", self_path);
+        if(is_file_exist(tmp_path) && is_file_exist("/dev_hdd0/boot_plugins.txt"))
+            sysProcessExitSpawn2(tmp_path, NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
+    }
+
 }
 
 void auto_ftp(void)
@@ -2089,7 +2102,7 @@ void video_adjust()
 
         DrawAdjustBackground(0xffffffff) ; // light blue
 
-        update_twat(0);
+        update_twat(false);
         SetFontSize(16, 24);
         SetFontColor(0xffffffff, 0x0);
 
@@ -2357,9 +2370,6 @@ void init_music(int select_song)
 
 
 int payload_mode = 0;
-
-int firmware = 0;
-int fw_ver = 0;
 
 int load_from_bluray = 0;
 
@@ -2715,6 +2725,7 @@ void read_settings()
     char ShowPIC1[2];
     char ShowVersion[2];
     char SpoofVersion[2];
+    char AutoLaunchPrxLoader[2];
     char HideCoverflowSortModeLabel[2];
     char TimeoutByInactivity[2];
 
@@ -2751,6 +2762,7 @@ void read_settings()
     sprintf(audio_extensions, ".MP3 .WAV .WMA .AAC .AC3 .AT3 .OGG .OGA .MP2 .MPA .M4A .FLAC .RA .RAM .AIF .AIFF .MOD .S3M .XM .IT .MTM .STM .UMX .MO3 .NED .669 .MP1 .M1A .M2A .M4B .AA3 .OMA .AIFC");
     sprintf(rom_extensions, ".ZIP .GBA .NES .UNIF .GB .GBC .DMG .MD .SMD .GEN .SMS .GG .SG .BIN .CUE .IOS .FLAC .NGP .NGC .PCE .SGX .CUE .VB .VBOY .BIN .WS .WSC .FDS .EXE .WAD .IWAD .SMC .FIG .SFC .GD3 .GD7 .DX2 .BSX .SWC .A26 .BIN .PAK");
     sprintf(browser_extensions, ".HTML .HTM .TXT .INI .CFG .GIF");
+    sprintf(custom_homebrews, "HTSS00003|NETBROWSE|CDGPLAYER|GMPADTEST|IRISMAN00|IMANAGER4|PRXLOADER|RBGTLBOX2|BLES80608|BLES80688|SSNE10000|SNES90000|VBAM90000|GENP00001|FCEU90000|FBAN00000|FBAL00123|MAME90000|PSID81257|PS2L00123|ROGE12345|CNDR00001");
 
     sprintf(ShowPlayOverlay, "1");
     sprintf(ShowUSBIcon, "1");
@@ -2764,6 +2776,7 @@ void read_settings()
     sprintf(HideCoverflowSortModeLabel, "0");
     sprintf(TimeoutByInactivity, "1");
     sprintf(SpoofVersion, "0");
+    sprintf(AutoLaunchPrxLoader, "1");
 
     default_psxoptions = 1; //ps1_netemu
 
@@ -2809,6 +2822,7 @@ void read_settings()
         getConfigMemValueString((char *) file, file_size, EXTENSIONS_SECTION, "Audio", audio_extensions, 300, audio_extensions);
         getConfigMemValueString((char *) file, file_size, EXTENSIONS_SECTION, "Roms", rom_extensions, 300, rom_extensions);
         getConfigMemValueString((char *) file, file_size, EXTENSIONS_SECTION, "Browser", browser_extensions, 100, browser_extensions);
+        getConfigMemValueString((char *) file, file_size, EXTENSIONS_SECTION, "Homebrews", custom_homebrews, 400, custom_homebrews);
 
         getConfigMemValueString((char *) file, file_size, ROMS_SECTION, "ROMS", retro_root_path, ROMS_MAXPATHLEN - 1, retro_root_path);
         getConfigMemValueString((char *) file, file_size, ROMS_SECTION, "SNES", retro_snes_path, ROMS_MAXPATHLEN - 1, retro_snes_path);
@@ -2840,6 +2854,7 @@ void read_settings()
         getConfigMemValueString((char *) file, file_size, GUI_SECTION, "ShowPIC1", ShowPIC1, 2, ShowPIC1);
         getConfigMemValueString((char *) file, file_size, GUI_SECTION, "ShowVersion", ShowVersion, 2, ShowVersion);
         getConfigMemValueString((char *) file, file_size, GUI_SECTION, "SpoofVersion", SpoofVersion, 2, SpoofVersion);
+        getConfigMemValueString((char *) file, file_size, GUI_SECTION, "AutoLaunchPrxLoader", AutoLaunchPrxLoader, 2, AutoLaunchPrxLoader);
         getConfigMemValueString((char *) file, file_size, GUI_SECTION, "HideCoverflowSortModeLabel", HideCoverflowSortModeLabel, 2, HideCoverflowSortModeLabel);
         getConfigMemValueString((char *) file, file_size, GUI_SECTION, "TimeoutByInactivity", TimeoutByInactivity, 2, TimeoutByInactivity);
 
@@ -2857,6 +2872,7 @@ void read_settings()
         bCachedGameList = strncmp(CachedGameList, "0", 1);
         bHideCoverflowSortModeLabel = strncmp(HideCoverflowSortModeLabel, "0", 1);
         bSpoofVersion = strncmp(SpoofVersion, "0", 1);
+        bAutoLaunchPrxLoader = strncmp(AutoLaunchPrxLoader, "0", 1);
 
         if(!strncmp(ShowVersion, "0", 1)) bShowVersion = 0; else //Don't show
         if(!strncmp(ShowVersion, "1", 1)) bShowVersion = 1; else //Show for all PS3 games
@@ -2991,167 +3007,179 @@ s32 main(s32 argc, const char* argv[])
 
     if(is_firm_341())
     {
-        firmware = 0x341C;
-        fw_ver = 0x8534;
-        off_idps = 0x80000000003BA880ULL;
+        firmware  = 0x341C;
+        fw_ver    = 0x8534;
+        off_idps  = 0x80000000003BA880ULL;
         off_idps2 = 0x800000000044A174ULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_341();
     }
     else if(is_firm_355())
     {
-        firmware = 0x355C;
-        fw_ver = 0x8AAC;
-        off_idps = 0x80000000003C2EF0ULL;
+        firmware  = 0x355C;
+        fw_ver    = 0x8AAC;
+        off_idps  = 0x80000000003C2EF0ULL;
         off_idps2 = 0x8000000000452174ULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_355();
     }
     else if(is_firm_355dex())
     {
-        firmware = 0x355D;
-        fw_ver = 0x8AAC;
-        off_idps = 0x80000000003DE170ULL;
+        firmware  = 0x355D;
+        fw_ver    = 0x8AAC;
+        off_idps  = 0x80000000003DE170ULL;
         off_idps2 = 0x8000000000472174ULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_355dex();
     }
     else if(is_firm_421())
     {
-        firmware = 0x421C;
-        fw_ver = 0xA474;
-        off_idps = 0x80000000003D9230ULL;
+        firmware  = 0x421C;
+        fw_ver    = 0xA474;
+        off_idps  = 0x80000000003D9230ULL;
         off_idps2 = 0x8000000000477E9CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_421();
     }
     else if(is_firm_421dex())
     {
-        firmware = 0x421D;
-        fw_ver = 0xA474;
-        off_idps = 0x80000000003F7A30ULL;
+        firmware  = 0x421D;
+        fw_ver    = 0xA474;
+        off_idps  = 0x80000000003F7A30ULL;
         off_idps2 = 0x800000000048FE9CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_421dex();
     }
     else if(is_firm_430())
     {
-        firmware = 0x430C;
-        fw_ver = 0xA7F8;
-        off_idps = 0x80000000003DB1B0ULL;
+        firmware  = 0x430C;
+        fw_ver    = 0xA7F8;
+        off_idps  = 0x80000000003DB1B0ULL;
         off_idps2 = 0x8000000000476F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_430();
     }
     else if(is_firm_431())
     {
-        firmware = 0x431C;
-        fw_ver = 0xA85C;
-        off_idps = 0x80000000003DB1B0ULL;
+        firmware  = 0x431C;
+        fw_ver    = 0xA85C;
+        off_idps  = 0x80000000003DB1B0ULL;
         off_idps2 = 0x8000000000476F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_431();
     }
     else if(is_firm_430dex())
     {
-        firmware = 0x430D;
-        fw_ver = 0xA7F8;
-        off_idps = 0x80000000003F9930ULL;
+        firmware  = 0x430D;
+        fw_ver    = 0xA7F8;
+        off_idps  = 0x80000000003F9930ULL;
         off_idps2 = 0x8000000000496F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_430dex();
     }
     else if(is_firm_440())
     {
-        firmware = 0x440C;
-        fw_ver = 0xABE0;
-        off_idps = 0x80000000003DB830ULL;
+        firmware  = 0x440C;
+        fw_ver    = 0xABE0;
+        off_idps  = 0x80000000003DB830ULL;
         off_idps2 = 0x8000000000476F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_440();
     }
     else if(is_firm_441())
     {
-        firmware = 0x441C;
-        fw_ver = 0xAC44;
-        off_idps = 0x80000000003DB830ULL;
+        firmware  = 0x441C;
+        fw_ver    = 0xAC44;
+        off_idps  = 0x80000000003DB830ULL;
         off_idps2 = 0x8000000000476F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_441();
     }
     else if(is_firm_441dex())
     {
-        //if( is_file_exist( "/dev_flash/ps3itald.self" ) == 1 && is_file_exist( "/dev_flash/ps3ita" ) == 1) is_ps3ita = 1;
-        firmware = 0x441D;
-        fw_ver = 0xAC44;
-        off_idps = 0x80000000003FA2B0ULL;
+        //if( is_file_exist( "/dev_flash/ps3itald.self" ) && is_file_exist( "/dev_flash/ps3ita" ) ) is_ps3ita = true;
+        firmware  = 0x441D;
+        fw_ver    = 0xAC44;
+        off_idps  = 0x80000000003FA2B0ULL;
         off_idps2 = 0x8000000000496F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_441dex();
     }
     else if(is_firm_446())
     {
-        firmware = 0x446C;
-        fw_ver = 0xAE38;
-        off_idps = 0x80000000003DBE30ULL;
+        firmware  = 0x446C;
+        fw_ver    = 0xAE38;
+        off_idps  = 0x80000000003DBE30ULL;
         off_idps2 = 0x8000000000476F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_446();
     }
     else if(is_firm_446dex())
     {
-        firmware = 0x446D;
-        fw_ver = 0xAE38;
-        off_idps = 0x80000000003FA8B0ULL;
+        firmware  = 0x446D;
+        fw_ver    = 0xAE38;
+        off_idps  = 0x80000000003FA8B0ULL;
         off_idps2 = 0x8000000000496F3CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_446dex();
     }
     else if(is_firm_450())
     {
-        firmware = 0x450C;
-        fw_ver = 0xAFC8;
-        off_idps = 0x80000000003DE230ULL;
+        firmware  = 0x450C;
+        fw_ver    = 0xAFC8;
+        off_idps  = 0x80000000003DE230ULL;
         off_idps2 = 0x800000000046CF0CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_450();
     }
     else if(is_firm_450dex())
     {
-        //if( is_file_exist( "/dev_flash/ps3itald.self" ) == 1 && is_file_exist( "/dev_flash/ps3ita" ) == 1) is_ps3ita = 1;
-        firmware = 0x450D;
-        fw_ver = 0xAFC8;
-        off_idps = 0x8000000000402AB0ULL;
+        //if( is_file_exist( "/dev_flash/ps3itald.self" ) && is_file_exist( "/dev_flash/ps3ita" ) ) is_ps3ita = true;
+        firmware  = 0x450D;
+        fw_ver    = 0xAFC8;
+        off_idps  = 0x8000000000402AB0ULL;
         off_idps2 = 0x8000000000494F0CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_450dex();
     }
     else if(is_firm_453())
     {
-        firmware = 0x453C;
-        fw_ver = 0xB0F4;
-        off_idps = 0x80000000003DE430ULL;
+        firmware  = 0x453C;
+        fw_ver    = 0xB0F4;
+        off_idps  = 0x80000000003DE430ULL;
         off_idps2 = 0x800000000046CF0CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_453();
     }
     else if(is_firm_455())
     {
-        firmware = 0x455C;
-        fw_ver = 0xB1BC;
-        off_idps = 0x80000000003E17B0ULL;
-        off_idps2= 0x8000000000474F1CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        firmware  = 0x455C;
+        fw_ver    = 0xB1BC;
+        off_idps  = 0x80000000003E17B0ULL;
+        off_idps2 = 0x8000000000474F1CULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_455();
     }
     else if(is_firm_455dex())
     {
-        firmware = 0x455D;
-        fw_ver = 0xB1BC;
-        off_idps = 0x8000000000407930ULL;
-        off_idps2= 0x8000000000494F1CULL;
-        off_psid = off_idps2 + 0x18ULL;
+        //if(is_file_exist( "/dev_flash/ps3ita" )) is_ps3ita = true;
+        firmware  = 0x455D;
+        fw_ver    = 0xB1BC;
+        off_idps  = 0x8000000000407930ULL;
+        off_idps2 = 0x8000000000494F1CULL;
+        off_psid  = off_idps2 + 0x18ULL;
         payload_mode = is_payload_loaded_455dex();
+    }
+
+    else if(is_firm_460())
+    {
+        //if(is_file_exist( "/dev_flash/ps3ita" )) is_ps3ita = true;
+        firmware  = 0x460C;
+        fw_ver    = 0xB3B0;
+        off_idps  = 0x80000000003E2BB0ULL; //thanks Orion90 for the offsets & ERMAK for the LV2 dump of 4.60
+        off_idps2 = 0x8000000000474F1CULL;
+        off_psid  = off_idps2 + 0x18ULL;
+        payload_mode = is_payload_loaded_460();
     }
 
     if(is_cobra_based()) use_cobra = true;
@@ -3411,6 +3439,12 @@ s32 main(s32 argc, const char* argv[])
                     load_payload_450dex(payload_mode);
                     __asm__("sync");
                     sleep(1); /* maybe need it, maybe not */
+
+                    if(!use_cobra)
+                    {
+                        load_ps3_mamba_payload();
+                        use_mamba = true;
+                    }
                     break;
                 case SKY10_PAYLOAD:
                     break;
@@ -3468,6 +3502,19 @@ s32 main(s32 argc, const char* argv[])
                         load_ps3_mamba_payload();
                         use_mamba = true;
                     }
+                    break;
+                case SKY10_PAYLOAD:
+                    break;
+            }
+            break;
+        case 0x460C:
+            set_bdvdemu_460(payload_mode);
+            switch(payload_mode)
+            {
+                case ZERO_PAYLOAD: //no payload installed
+                    load_payload_460(payload_mode);
+                    __asm__("sync");
+                    sleep(1); /* maybe need it, maybe not */
                     break;
                 case SKY10_PAYLOAD:
                     break;
@@ -3661,8 +3708,6 @@ s32 main(s32 argc, const char* argv[])
 
     // load cfg and language strings
     LoadManagerCfg();
-
-    bk_picture = manager_cfg.bk_picture;
 
     noBDVD = manager_cfg.noBDVD;
     gui_mode = manager_cfg.gui_mode & 0xF;
@@ -3893,7 +3938,7 @@ s32 main(s32 argc, const char* argv[])
 
                     cls();
 
-                    update_twat(0);
+                    update_twat(false);
 
                     switch(menu_screen)
                     {
@@ -4278,7 +4323,7 @@ skip_bdvd:
                     // List net_host games from /dev_hdd0/xmlhost/game_plugin/mygames.xml
                     if (bSkipParseXML || bAllowNetGames == false || mode_homebrew || filter_by_device >= HDD0_DEVICE)
                         bSkipParseXML = false;
-                    else if(game_list_category == GAME_LIST_ALL || (game_list_category == GAME_LIST_CUSTOM && retro_mode == NET_GAMES))
+                    else if(game_list_category == GAME_LIST_ALL || (game_list_category == GAME_LIST_NETHOST && retro_mode == NET_GAMES))
                         parse_mygames_xml();
 
                     if(mode_homebrew)
@@ -4344,7 +4389,7 @@ skip_bdvd:
 
                     found_game_insert = true;
                 }
-                else if(((fdevices>>find_device) & 1) && (!mode_homebrew || (mode_homebrew && find_device != HDD0_DEVICE)) )
+                else if(((fdevices>>find_device) & 1) && mode_homebrew == GAMEBASE_MODE)
                 {
                     if(fill_entries_from_device(filename, directories, &ndirectories, (1<<find_device) | (HOMEBREW_FLAG * (mode_homebrew != 0)), 0 | (2 * (mode_homebrew != 0)), false) == SUCCESS)
                     {
@@ -4381,7 +4426,7 @@ skip_bdvd:
         }
 
         // NTFS/EXTx
-        if(/*noBDVD == MODE_DISCLESS &&*/ use_cobra)
+        if(/*noBDVD == MODE_DISCLESS &&*/ use_cobra && mode_homebrew != HOMEBREW_MODE)
         {
             u32 ports_plug_cnt = 0;
             signal_ntfs_mount = false;
@@ -4425,14 +4470,14 @@ skip_bdvd:
                                 {
                                     if(mode_homebrew == GAMEBASE_MODE)
                                     {
-                                        if(game_list_category != GAME_LIST_CUSTOM)
+                                        if(game_list_category == GAME_LIST_PS3_ONLY || game_list_category == GAME_LIST_ALL)
                                         {
                                             sprintf(filename, "/%s:/PS3ISO", (mounts[find_device]+k)->name);
                                             fill_iso_entries_from_device(filename, NTFS_FLAG, directories, &ndirectories);
                                             found_game_insert = true;
                                         }
 
-                                        if(mode_homebrew == GAMEBASE_MODE  && game_list_category != GAME_LIST_PS3_ONLY)
+                                        if(mode_homebrew == GAMEBASE_MODE  && (game_list_category == GAME_LIST_RETRO || game_list_category == GAME_LIST_ALL))
                                         {
                                             if(retro_mode == RETRO_ALL || retro_mode == RETRO_PSX || retro_mode == RETRO_PSALL)
                                             {
@@ -4644,7 +4689,7 @@ skip_bdvd:
         else
         {
             cls();
-            update_twat(1);
+            update_twat(true);
         }
 
         x = (848 - 640) / 2; y = (512 - 360) / 2;
@@ -4705,7 +4750,7 @@ skip_bdvd:
                 tiny3d_SetTextureWrap(0, Png_res_offset[IMG_BLURAY_DISC], Png_res[IMG_BLURAY_DISC].width,
                                       Png_res[IMG_BLURAY_DISC].height, Png_res[IMG_BLURAY_DISC].wpitch,
                                       TINY3D_TEX_FORMAT_A8R8G8B8,  TEXTWRAP_CLAMP, TEXTWRAP_CLAMP,1);
-                update_twat(1);
+                update_twat(true);
                 DrawTextBox((848 - 300)/2,(512 - 300)/2, 0, 300, 300, ((u >= 64) ? 0xff : u<<2) | 0xffffff00);
                 SetCurrentFont(FONT_TTF);
                 SetFontColor(((u & 16)) ? 0x0 : 0xffffffff, 0x00000000);
@@ -4734,7 +4779,7 @@ skip_bdvd:
             }
 
             cls();
-            update_twat(1);
+            update_twat(true);
             disc_less_on = 2;
 
             if(new_pad & BUTTON_CROSS) new_pad ^= BUTTON_CROSS;
@@ -4795,6 +4840,7 @@ skip_bdvd:
 
     }
 
+    fun_exit(0);
     return SUCCESS;
 }
 
@@ -5188,7 +5234,7 @@ void get_grid_dimensions(bool update_coords)
     if(gui_mode == MODE_GRID_6x4)  {cols = 6; rows = 4;} else // Grid 6x4
     if(gui_mode == MODE_GRID_5x5)  {cols = 5; rows = 5;} else // Grid 5x5
     if(gui_mode == MODE_GRID_6x5)  {cols = 6; rows = 5;} else // Grid 6x5
-    if(gui_mode == MODE_GRID_6x6)  {cols = 6; rows = 6;} else // Grid 6x6
+    if(gui_mode == MODE_GRID_7x6)  {cols = 7; rows = 6;} else // Grid 7x6
     if(gui_mode == MODE_GRID_8x5)  {cols = 8; rows = 5;} else // Grid 8x5
     if(gui_mode == MODE_GRID_8x6)  {cols = 8; rows = 6;} else // Grid 8x6
                                    {cols = 4; rows = 3;}      // Grid 4x3
@@ -6775,8 +6821,8 @@ int gui_control()
             {
                 if(old_pad & BUTTON_L2)
                 {
-                    fun_exit();
                     SaveGameList();
+                    fun_exit();
 
                     // relaunch iris manager
                     sprintf(tmp_path, "%s/USRDIR/RELOAD.SELF", self_path);
@@ -6898,12 +6944,6 @@ autolaunch_proc:
                     else
                         launch_showtime(0);
                 }
-                else if(!strncmp(directories[currentgamedir].title_id, "IRISMAN00", 9))
-                {
-                    if(is_file_exist(directories[currentgamedir].path_name))
-                        sysProcessExitSpawn2(directories[currentgamedir].path_name, NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
-                    return r;
-                }
                 else if(!strncmp(directories[currentgamedir].title_id, NETHOST, 9))
                 {
                     // Mount Network Game through webMAN
@@ -6914,6 +6954,12 @@ autolaunch_proc:
                         exit(0);
                     }
 
+                    return r;
+                }
+                else if(strstr(custom_homebrews, directories[currentgamedir].title_id) != NULL)
+                {
+                    if(is_file_exist(directories[currentgamedir].path_name))
+                        sysProcessExitSpawn2(directories[currentgamedir].path_name, NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
                     return r;
                 }
 
@@ -7540,6 +7586,8 @@ autolaunch_proc:
                 }
                 else
                     gui_mode = MODE_COVERFLOW;
+
+                if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture = BG_NONE;
             }
             else
             {
@@ -7549,6 +7597,9 @@ autolaunch_proc:
                     gui_mode = MODE_XMB_LIKE;
                     cover_mode ^= 1;
                 }
+
+                if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture = BG_NONE;
+
                 manager_cfg.cover_mode = cover_mode;
                 manager_cfg.gui_mode = ((sort_mode & 0xf)<<4) | (gui_mode & 0xf);
                 SaveManagerCfg();
@@ -7627,13 +7678,17 @@ autolaunch_proc:
                 Png_offset[BIG_PICT] = 0;
                 wait_event_thread();
 
-                if((bShowPIC1 == 1) || (bShowPIC1 == 2 && ((directories[indx].flags & (NTFS_FLAG)) != NTFS_FLAG)))
+                currentgamedir = get_currentdir(i);
+                int_currentdir = currentdir;
+
+                if(gui_mode > MODE_GRID_6x5) ; // avoid freeze on Game Options when large grids are used
+
+                else if((bShowPIC1 == 1) || (bShowPIC1 == 2 && ((directories[indx].flags & (NTFS_FLAG)) != NTFS_FLAG)))
                 {
                     // program new event thread function to show background picture
                     event_thread_send(0x555ULL, (u64) get_pict, (u64) &i);
                 }
 
-                currentgamedir = get_currentdir(i);
                 if(currentgamedir >= 0 && currentgamedir < ndirectories)
                 {
                     bool is_retro = ((directories[indx].flags & (RETRO_FLAG)) == (RETRO_FLAG)) &&
@@ -7816,10 +7871,25 @@ ask_delete_item:
     {
         if(gui_mode == MODE_XMB_LIKE)
         {
-            while((new_pad | old_pad) & BUTTON_L1) ps3pad_read();
+            if(old_pad & BUTTON_SELECT)
+            {
+                while((new_pad | old_pad) & BUTTON_L1) ps3pad_read();
 
-            old_pad = BUTTON_L2 | new_pad;
-            new_pad = BUTTON_R3;
+                old_pad = BUTTON_L2 | new_pad;
+                new_pad = BUTTON_R3;
+            }
+            else
+            {
+                if(mode_favourites >= 0x10000) ;
+                else if(mode_favourites) {mode_favourites = 0; get_games();}
+                else if(currentdir >= 10) {mode_favourites = 0; currentdir -= 10; get_games();}
+                else {mode_favourites = (!mode_favourites && havefavourites); currentdir = ndirectories - 1; get_games();}
+
+                GFX1_mode = 2; GFX1_counter = 20;
+
+                enable_draw_background_pic1();
+                return r;
+            }
         }
         else
         {
@@ -7838,9 +7908,24 @@ ask_delete_item:
     {
         if(gui_mode == MODE_XMB_LIKE)
         {
-            while((new_pad | old_pad) & BUTTON_R1) ps3pad_read();
+            if(old_pad & BUTTON_SELECT)
+            {
+                while((new_pad | old_pad) & BUTTON_R1) ps3pad_read();
 
-            new_pad = BUTTON_R3;
+                new_pad = BUTTON_R3;
+            }
+            else
+            {
+                if(mode_favourites >= 0x10000) ;
+                else if(mode_favourites) {mode_favourites = 0; get_games();}
+                else if(currentdir < (ndirectories - 10)) {mode_favourites = 0; currentdir += 10; get_games();}
+                else {mode_favourites = (!mode_favourites && havefavourites); currentdir = 0; get_games();}
+
+                GFX1_mode = 1; GFX1_counter = 20;
+
+                enable_draw_background_pic1();
+                return r;
+            }
         }
         else
         {
@@ -8356,7 +8441,9 @@ void draw_background_pic1()
         }
 
 
-        if((bShowPIC1 == 1) || (bShowPIC1 == 2 && ((directories[indx].flags & (NTFS_FLAG)) != NTFS_FLAG)))
+        if(gui_mode > MODE_GRID_6x5 || menu_screen == SCR_MENU_GLOBAL_OPTIONS) ; // avoid freeze on large grids
+
+        else if((bShowPIC1 == 1) || (bShowPIC1 == 2 && ((directories[indx].flags & (NTFS_FLAG)) != NTFS_FLAG)))
         {
             // program new event thread function to show background picture
             event_thread_send(0x555ULL, (u64) get_pict, (u64) &i);
@@ -9046,7 +9133,7 @@ void draw_device_cpyiso(float x, float y, int index)
 void draw_options(float x, float y, int index)
 {
 
-    if(!strncmp(directories[currentgamedir].title_id, "HTSS00003", 9) || !strncmp(directories[currentgamedir].title_id, "IRISMAN00", 9))
+    if(strstr("HTSS00003|NETBROWSE|IRISMAN00", directories[currentgamedir].title_id) != NULL)
     {
         sprintf(temp_buffer, "%s\n\nDo you want to remove Showtime and Internet Browser icons from the Game List?", directories[currentgamedir].title);
         if(DrawDialogYesNo(temp_buffer) == 1)
@@ -9764,7 +9851,7 @@ void draw_iso_options(float x, float y, int index)
 
         switch(select_option2)
         {
-            case 0:
+            case 0: // Copy to Favorites
                 if(TestFavouritesExits(directories[currentgamedir].title_id))
                 {
                         DeleteFavouritesIfExits(directories[currentgamedir].title_id);
@@ -9834,26 +9921,26 @@ void draw_iso_options(float x, float y, int index)
                 }
                 break;
 
-            case 1:
+            case 1: // Unmount NTFS device
                 NTFS_UnMount(is_ntfs_dev);
 
                 return_to_game_list(true);
                 return;
 
-             case 2:
+            case 2: // Test & Fix
                  i = selected;
 
                  if(Png_offset[i])
                  {
                     pause_music(1);
 
-                    test_game(currentgamedir);
+                    //test_game(currentgamedir);
                     patchps3iso(directories[currentgamedir].path_name, 0);
 
                     pause_music(0);
                  }
                  break;
-            case 3:
+            case 3: // Extract ISO
                 {
                 if(mode_homebrew >= HOMEBREW_MODE) break;
 
@@ -9893,7 +9980,7 @@ void draw_iso_options(float x, float y, int index)
                 break;
 
             ///
-            case 4:
+            case 4: // Copy Game
                 if(mode_homebrew >= HOMEBREW_MODE) break;
 
                 i = selected;
@@ -9941,7 +10028,7 @@ void draw_iso_options(float x, float y, int index)
                 }
                 break;
 
-            case 5:
+            case 5: // Delete Game
                 i = selected;
 
                 if(Png_offset[i])
@@ -9969,7 +10056,7 @@ void draw_iso_options(float x, float y, int index)
                 }
                 return;
 
-            case 6:
+            case 6: // Game Update
                if(get_net_status() != SUCCESS) break;
 
                if(game_update(directories[currentgamedir].title_id) > 0)
@@ -9984,7 +10071,7 @@ void draw_iso_options(float x, float y, int index)
             default:
                 break;
         }
-       // menu_screen = SCR_MAIN_GAME_LIST; return;
+       // return_to_game_list(true);; return;
     }
     else if(new_pad & (BUTTON_TRIANGLE | BUTTON_CIRCLE))
     {
@@ -10395,7 +10482,7 @@ void draw_gbloptions(float x, float y)
     if(gui_mode == MODE_GRID_6x4)  sprintf(temp_buffer, "%s: Grid 6x4" , language[DRAWGLOPT_CHANGEGUI]); else
     if(gui_mode == MODE_GRID_5x5)  sprintf(temp_buffer, "%s: Grid 5x5" , language[DRAWGLOPT_CHANGEGUI]); else
     if(gui_mode == MODE_GRID_6x5)  sprintf(temp_buffer, "%s: Grid 6x5" , language[DRAWGLOPT_CHANGEGUI]); else
-    if(gui_mode == MODE_GRID_6x6)  sprintf(temp_buffer, "%s: Grid 6x6" , language[DRAWGLOPT_CHANGEGUI]); else
+    if(gui_mode == MODE_GRID_7x6)  sprintf(temp_buffer, "%s: Grid 7x6" , language[DRAWGLOPT_CHANGEGUI]); else
     if(gui_mode == MODE_GRID_8x5)  sprintf(temp_buffer, "%s: Grid 8x5" , language[DRAWGLOPT_CHANGEGUI]); else
     if(gui_mode == MODE_GRID_8x6)  sprintf(temp_buffer, "%s: Grid 8x6" , language[DRAWGLOPT_CHANGEGUI]);
 
@@ -10603,6 +10690,9 @@ exit_gbloptions:
                     gui_mode = GUI_MODES;
                     cover_mode ^= 1;
                 }
+
+                if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture = BG_NONE;
+
                 refresh_gui = true;
                 break;
             case 2: // Change Background Color
@@ -10649,7 +10739,7 @@ exit_gbloptions:
             case 6: // Initialize FTP server
                 switch (net_option)
                 {
-                  case 1:
+                  case 1: // Mount net0/
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net0/.", NULL, 0, NULL);
@@ -10658,7 +10748,7 @@ exit_gbloptions:
                         file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 2:
+                  case 2: // Mount net0/PKG
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net0/PKG", NULL, 0, NULL);
@@ -10670,7 +10760,7 @@ exit_gbloptions:
                             file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 3:
+                  case 3: // Mount net1/
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net1/.", NULL, 0, NULL);
@@ -10678,7 +10768,7 @@ exit_gbloptions:
                         file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 4:
+                  case 4: // Mount net1/PKG
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net1/PKG", NULL, 0, NULL);
@@ -10690,7 +10780,7 @@ exit_gbloptions:
                             file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 5:
+                  case 5: // Refresh webMAN
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         DrawDialogTimer("webMAN is refreshing My Games (XML)\n\nPlease wait ...", 1200.0f);
@@ -10707,7 +10797,7 @@ exit_gbloptions:
                         return_to_game_list(true);
                     }
                     break;
-                  case 6:
+                  case 6: // Setup webMAN
                     fun_exit();
 
                     char* launchargv[2];
@@ -10762,7 +10852,7 @@ exit_gbloptions:
                     return_to_game_list(false);
                     return;
 
-                  case 8:
+                  case 8: // Launch Showtime
                     fun_exit();
                     if((old_pad & (BUTTON_SELECT | BUTTON_L2)) && is_file_exist("/dev_hdd0/game/HTSS00003/USRDIR/showtime.self"))
                     {
@@ -10775,7 +10865,7 @@ exit_gbloptions:
                     return;
                     break;
 
-                  case 9:
+                  case 9: // Launch Internet Browser
                     fun_exit();
 
                     sprintf(tmp_path, "%s/USRDIR/browser.self", self_path);
@@ -10945,6 +11035,8 @@ exit_gbloptions:
               else
               {
                   ROT_DEC(bk_picture, 0, 99);
+                  if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture--;
+
                   load_background_picture();
 
                   manager_cfg.bk_picture = bk_picture;
@@ -10954,6 +11046,8 @@ exit_gbloptions:
             else if(new_pad & (BUTTON_RIGHT))
             {
               ROT_INC(bk_picture, 99, 0);
+              if(gui_mode > MODE_GRID_6x5 && bk_picture == BG_PIC1) bk_picture++;
+
               load_background_picture();
 
               manager_cfg.bk_picture = bk_picture;
@@ -11362,6 +11456,31 @@ void draw_gamelist_options(float x, float y)
 
     if((new_pad & BUTTON_LEFT) && !(select_option == 0 || select_option == max_options)) {old_pad = new_pad; new_pad = BUTTON_CIRCLE;}
 
+    if(new_pad & BUTTON_L3) //L3 = Close menu
+    {
+        while((new_pad | old_pad) & BUTTON_L3) ps3pad_read();
+
+        new_pad = BUTTON_CIRCLE;
+    }
+    else if(new_pad & BUTTON_R3)  //R3 = Refresh
+    {
+        while((new_pad | old_pad) & BUTTON_R3) ps3pad_read();
+
+        if(mode_homebrew == VIDEOS_MODE) select_option = 3;
+        else if(mode_homebrew == HOMEBREW_MODE) select_option = 4;
+        else if(game_list_category == GAME_LIST_PS3_ONLY)  select_option = 1;
+        else if(game_list_category == (GAME_LIST_RETRO | GAME_LIST_NETHOST))
+        {
+            if(retro_mode == RETRO_PSALL) select_option = 2;
+            else if(retro_mode != NET_GAMES) select_option = max_options;
+            else max_options = max_options - 1;
+        }
+        else
+            select_option = 0;
+
+        new_pad = BUTTON_CROSS;
+    }
+
     if(new_pad & (BUTTON_CROSS | BUTTON_START))
     {
 
@@ -11392,7 +11511,7 @@ void draw_gamelist_options(float x, float y)
             case 2: // psx + ps2 + psp
                 DrawDialogTimer(language[GAMELIST_SCANNING2], 1200.0f);
                 retro_mode = RETRO_PSALL;
-                game_list_category = 2;
+                game_list_category = GAME_LIST_RETRO;
                 mode_homebrew = GAMEBASE_MODE;
                 mode_favourites = 0;
                 break;
@@ -11428,7 +11547,7 @@ void draw_gamelist_options(float x, float y)
 
                     if(old_pad & (BUTTON_SELECT | BUTTON_L2)) bXMLScanOnlyNetGames = false;
                 }
-                game_list_category = 2;
+                game_list_category = (GAME_LIST_RETRO | GAME_LIST_NETHOST);
                 mode_homebrew = GAMEBASE_MODE;
                 mode_favourites = 0;
                 break;
@@ -11560,7 +11679,7 @@ void draw_cache_external()
         frame_count++;
         cls();
 
-        update_twat(1);
+        update_twat(true);
         menu_screen = 5;
         draw_cachesel(28, 0);
     }
@@ -11967,317 +12086,6 @@ int move_bdemubackup_to_origin(u32 flags)
 }
 
 //------- idps / console id ----------
-s32 open_device( u64 device_ID, u32* fd )
-{
-    lv2syscall4( 600, device_ID, 0, (u64)fd, 0 );
-    return_to_user_prog(s32);
-}
-
-s32 read_device( u32 fd, u64 start_read_offset, u64 byte_to_read, const void* buffer, u32 *number_byte_read, u64 flags )
-{
-    lv2syscall7( 602, fd, 0, start_read_offset, byte_to_read, (u64)buffer, (u64)number_byte_read, flags );
-    return_to_user_prog(s32);
-}
-
-s32 close_device( u32 fd)
-{
-    lv2syscall1( 601, fd );
-    return_to_user_prog(s32);
-}
-
-void get_psid_lv2()
-{
-    u64 uPSID[2] = {0,0};
-    lv2syscall1(872, (u64) uPSID); //PSID
-
-    if((off_psid > 0) && ((uPSID[0] == 0 && uPSID[1] == 0) || !strncmp(console_id, psid, 32)))
-    {
-        uPSID[0] = lv2peek( off_psid );
-        uPSID[1] = lv2peek( off_psid + 8 );
-    }
-
-    snprintf( psid, 33, "%016llX%016llX", (long long unsigned int)uPSID[0], (long long unsigned int)uPSID[1] );
-}
-
-void get_console_id_lv2()
-{
-    u64 uIDPS[2] = {0,0};
-    lv2syscall1(870, (u64) uIDPS); //IDPS
-
-    if((off_idps > 0) && (uIDPS[0] == 0 && uIDPS[1] == 0))
-    {
-        uIDPS[0] = lv2peek( off_idps );
-        uIDPS[1] = lv2peek( off_idps + 8 );
-    }
-
-    snprintf( console_id, 33, "%016llX%016llX", (long long unsigned int)uIDPS[0], (long long unsigned int)uIDPS[1] );
-}
-
-void set_psid_lv2()
-{
-    if(is_valid_psid() == false) {DrawDialogOKTimer("Invalid PSID", 2000.0f); return;}
-
-    u64 uPSID[2] = {0,0};
-    lv2syscall1(872, (u64) uPSID); //PSID
-
-    if((off_psid > 0) && ((uPSID[0] == 0 && uPSID[1] == 0) || !strncmp(console_id, psid, 32)))
-    {
-        uPSID[0] = lv2peek( off_psid );
-        uPSID[1] = lv2peek( off_psid + 8 );
-    }
-
-    get_psid_val(); //val_psid_part1 & val_psid_part2 from PSID[]
-
-    if (uPSID[0] == 0 || uPSID[1] == 0 || val_psid_part1 == 0 || val_psid_part2 == 0)
-    {
-        DrawDialogOKTimer("Invalid PSID", 2000.0f);
-        return;
-    }
-
-    for(u64 j = 0x8000000000000000ULL; j < 0x8000000000600000ULL; j++)
-    {
-        if((peekq(j) == uPSID[0]) && (peekq(j+8) == uPSID[1]))
-        {
-            if(uPSID[0] != val_idps_part1) pokeq(j, val_psid_part1);
-            j+=8;
-            if(uPSID[1] != val_idps_part2) pokeq(j, val_psid_part2);
-            j+=8;
-        }
-    }
-}
-
-void set_console_id_lv2()
-{
-    if(is_valid_idps() == 0) {DrawDialogOKTimer("Invalid IDPS", 2000.0f); return;}
-
-    u64 uIDPS[2] = {0,0};
-    lv2syscall1(870, (u64) uIDPS); //IDPS
-
-    if(uIDPS[0] == 0 && uIDPS[1] == 0 && off_idps > 0)
-    {
-        uIDPS[0] = lv2peek( off_idps );
-        uIDPS[1] = lv2peek( off_idps + 8 );
-    }
-
-    get_console_id_val(); //val_idps_part1 & val_idps_part2 from IDPS[]
-
-    if (uIDPS[0] == 0 || uIDPS[1] == 0 || val_idps_part1 == 0 || val_idps_part2 == 0)
-    {
-        DrawDialogOKTimer("Invalid IDPS", 2000.0f);
-        return;
-    }
-
-    for(u64 j = 0x8000000000000000ULL; j < 0x8000000000600000ULL; j++)
-    {
-        if((peekq(j) == uIDPS[0]) && (peekq(j+8) == uIDPS[1]))
-        {
-            if(uIDPS[0] != val_idps_part1) pokeq(j, val_idps_part1);
-            j+=8;
-            if(uIDPS[1] != val_idps_part2) pokeq(j, val_idps_part2);
-            j+=8;
-        }
-    }
-}
-
-void get_console_id_eid5()
-{
-    u32 source, read;
-    u64 offset_c;
-    u64 buffer[ 0x40 ];
-    int ret = 666;
-
-    ret = open_device( 0x100000000000004ull, &source );
-
-    if( ret != SUCCESS ) //PS3 has nand
-    {
-        offset_c = 0x20D;  //0x20d * 0x200
-        close_device( source );
-        open_device( 0x100000000000001ull, &source );
-    }
-    else            //PS3 has nor
-        offset_c = 0x181;  //0x181 * 0x200
-
-    read_device( source, offset_c, 0x1, buffer, &read, 0x22 );
-
-    snprintf( console_id, 33, "%016llX%016llX", (long long unsigned int)buffer[ 0x3a ], (long long unsigned int)buffer[ 0x3b ] );
-
-    close_device( source );
-}
-
-void get_psid_val()
-{
-    char tmp[ 17 ], tmp2[ 17 ];
-    int i, y;
-
-    for( i = 0, y = 0; i <= 31; i++ )
-    {
-        if( i > 15 )
-        {
-            tmp2[ y ] = psid[ i ];
-            y++;
-        }
-        else
-            tmp[ i ] = psid[ i ];
-    }
-    tmp[ 16 ] = '\0';
-
-    val_psid_part1 = string_to_ull( tmp );
-    val_psid_part2 = string_to_ull( tmp2 );
-}
-
-void get_console_id_val()
-{
-    char tmp[ 17 ], tmp2[ 17 ];
-    int i, y;
-
-    for( i = 0, y = 0; i <= 31; i++ )
-    {
-        if( i > 15 )
-        {
-            tmp2[ y ] = console_id[ i ];
-            y++;
-        }
-        else
-            tmp[ i ] = console_id[ i ];
-    }
-    tmp[ 16 ] = '\0';
-
-    val_idps_part1 = string_to_ull( tmp );
-    val_idps_part2 = string_to_ull( tmp2 );
-}
-
-int get_psid_keyb()
-{
-    if( Get_OSK_String_no_lang("PSID:", psid, 32) == SUCCESS )
-    {
-        if(is_valid_psid())
-            return SUCCESS;
-        else
-            return FAILED;
-    }
-    else
-        return 1;
-}
-
-int get_console_id_keyb()
-{
-    if( Get_OSK_String_no_lang("Console ID:", console_id, 32) == SUCCESS )
-    {
-        if(is_valid_idps())
-            return SUCCESS;
-        else
-            return FAILED;
-    }
-    else
-        return 1;
-}
-
-bool is_valid_psid()
-{
-    for(int i = 0; i <= 31; i++)
-      if (is_hex_char(psid[i]) == false) return false;
-    return true;
-}
-
-int is_valid_idps()
-{
-    if( (console_id[0] == '0' && console_id[1] == '0' && console_id[2] == '0' && console_id[3] == '0' &&
-         console_id[4] == '0' && console_id[5] == '0' && console_id[6] == '0' && console_id[7] == '1' &&
-         console_id[8] == '0' && console_id[9] == '0' && console_id[10]== '8' &&
-         is_hex_char(console_id[11]) != 0 &&
-         console_id[12]== '0' && console_id[13]== '0' && console_id[14]== '0') &&
-         is_hex_char(console_id[15]) != 0 &&
-        (console_id[16]== '0' || console_id[16]== '1' || console_id[16]== 'F' || console_id[16]== 'f' ) &&
-        (console_id[17]== '0' || console_id[17]== '4' ))
-    {
-        for(int i = 18; i <= 31; i++)
-        {
-          if (is_hex_char(console_id[i]) == 0) return false;
-        }
-        return true;
-    }
-    return false;
-}
-
-bool is_hex_char(char c)
-{
-  if(c == 'A' || c == 'a' || c == '1' || c == '6' ||
-     c == 'B' || c == 'b' || c == '2' || c == '7' ||
-     c == 'C' || c == 'c' || c == '3' || c == '8' ||
-     c == 'D' || c == 'd' || c == '4' || c == '9' ||
-     c == 'E' || c == 'e' || c == '5' || c == '0' ||
-     c == 'F' || c == 'f' ) return true;
-  return false;
-}
-
-int save_spoofed_psid()
-{
-    sprintf(tmp_path, "%s/config/psid", self_path);
-    return SaveFile(tmp_path, (char *) &psid, sizeof(psid) - 1);
-}
-
-int load_spoofed_psid()
-{
-    sprintf(tmp_path, "%s/config/psid", self_path);
-
-    int file_size;
-    char *file = LoadFile(tmp_path, &file_size);
-
-    if(!file) return FAILED;
-    if(file_size < 32) {free(file); return FAILED;}
-
-    char tmp_psid[33];
-    memcpy(tmp_psid, file, 32);
-    tmp_psid[32] = 0;
-
-    if( strcmp(psid, tmp_psid) == SUCCESS )
-    {
-        free(file);
-        return 1;
-    }
-
-    memcpy(psid, file, 32);
-    psid[32] = 0;
-
-    set_psid_lv2();
-    free(file);
-    return SUCCESS;
-}
-
-int save_spoofed_console_id()
-{
-    sprintf(tmp_path, "%s/config/idps", self_path);
-    return SaveFile(tmp_path, (char *) &console_id, sizeof(console_id) - 1);
-}
-
-int load_spoofed_console_id()
-{
-    sprintf(tmp_path, "%s/config/idps", self_path);
-
-    int file_size;
-    char *file = LoadFile(tmp_path, &file_size);
-
-    if(!file) return FAILED;
-    if(file_size < 32) {free(file); return FAILED;}
-
-    char tmp_console_id[33];
-    memcpy(tmp_console_id, file, 32);
-    tmp_console_id[32] = 0;
-
-    if( strcmp(console_id, tmp_console_id) == SUCCESS )
-    {
-        free(file);
-        return 1;
-    }
-
-    memcpy(console_id, file, 32);
-    console_id[32] = 0;
-
-    set_console_id_lv2();
-    free(file);
-    return SUCCESS;
-}
-
 void draw_console_id_tools(float x, float y)
 {
     float y2, x2;

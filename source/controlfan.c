@@ -72,6 +72,7 @@ extern int flash;
 extern u64 frame_count;
 extern char self_path[MAXPATHLEN];
 
+/*
 static u64 lv2peek(u64 addr)
 {
     lv2syscall1(6, (u64) addr);
@@ -84,6 +85,7 @@ static u64 lv2poke(u64 addr, u64 value)
     lv2syscall2(7, (u64) addr, (u64) value);
     return_to_user_prog(u64);
 }
+*/
 
 static u32 lv2peek32(u64 addr) {
     u32 ret = (u32) (lv2peek(addr) >> 32ULL);
@@ -130,14 +132,16 @@ static u64 PAYLOAD_BASE = 0x8000000000000f70ULL;
 
 static bool is_ctrl_fan_loaded = false;
 
-int test_controlfan_compatibility()
+bool test_controlfan_compatibility()
 {
     if(firmware == 0x341C || firmware == 0x355C || firmware == 0x355D || firmware == 0x421C || firmware == 0x421D ||
        firmware == 0x430C || firmware == 0x430D || firmware == 0x431C || firmware == 0x440C || firmware == 0x441C ||
        firmware == 0x441D || firmware == 0x446C || firmware == 0x446D || firmware == 0x450C || firmware == 0x450D ||
-       firmware == 0x453C || firmware == 0x455C || firmware == 0x455D
-       ) return 1;
-    else return 0;
+       firmware == 0x453C || firmware == 0x455C || firmware == 0x455D || firmware == 0x460C
+       )
+        return true;
+    else
+        return false;
 }
 
 
@@ -170,13 +174,9 @@ int load_ps3_controlfan_payload()
     addr[6] += PAYLOAD_BASE;
     addr[7] = lv2peek(syscall_base + (u64) (379 * 8));
 
-    int n;
-
-    for(n = 0; n < 200; n++)
+    for(int n = 0; n < 200; n++)
     {
-        int m;
-
-        for(m = 0; m < ((ps3_controlfan_bin_size + 7) & ~7); m+=8)
+        for(int m = 0; m < ((ps3_controlfan_bin_size + 7) & ~7); m += 8)
             lv2poke(PAYLOAD_BASE + (u64) m, addr[m>>3]);
 
         lv2poke(syscall_base + (u64) (130 * 8), PAYLOAD_BASE + 0x10ULL);
@@ -388,6 +388,18 @@ int load_ps3_controlfan_payload()
         lv2poke32(0x800000000000A47CULL, 0x38600001); // sys 386
 
         ret = 1;
+    }  else if(firmware == 0x460C) { // firmware 4.60
+
+        // enables sys_game_get_temperature
+        lv2poke32(0x800000000000C6A4ULL, 0x38600000); // sys 383
+        // enables sys_sm_get_fan_policy
+        lv2poke32(0x8000000000009E38ULL, 0x38600001); // sys 409
+        // enables sys_sm_set_fan_policy
+        lv2poke32(0x800000000000A334ULL, 0x38600001); // sys 389
+        // enables sys_set_leds
+        lv2poke32(0x800000000000A3FCULL, 0x38600001); // sys 386
+
+        ret = 1;
     }
 
 skip_the_load:
@@ -474,7 +486,7 @@ void set_fan_mode(int mode)
     command =lv2peek(LV2_SM_CMD_ADDR)>>56ULL;
     if(command == 0x55ULL)
     {   // SM present!
-        while(1) {
+        while(true) {
             lv2poke(LV2_SM_CMD_ADDR, 0xFF00000000000000ULL); // get status
             usleep(2000);
             command =lv2peek(LV2_SM_CMD_ADDR);
@@ -518,11 +530,11 @@ void set_fan_mode(int mode)
         if(command == 0x55ULL)
         {   // SM present!
             lv2poke(LV2_SM_CMD_ADDR, 0xAA01000000000000ULL); // enable SM Fan Control Mode 1
-            while(1)
+            while(true)
             {
                 usleep(1000);
-                command =lv2peek(LV2_SM_CMD_ADDR)>>48ULL;
-                if(command== 0x55AAULL) break;
+                command = lv2peek(LV2_SM_CMD_ADDR)>>48ULL;
+                if(command == 0x55AAULL) break;
             }
         }
     }
@@ -533,7 +545,6 @@ void set_fan_mode(int mode)
 void set_device_wakeup_mode(u32 flags)
 {
     u64 command;
-    int n;
     int mode = 0;
 
     if(!test_controlfan_compatibility()) return;
@@ -541,7 +552,7 @@ void set_device_wakeup_mode(u32 flags)
     if(flags == 0xFFFFFFFF) {flags = 9; mode = 1;} // use bdvd
     else
     {
-        for(n = 1; n < 10; n++) {if(flags & (1<<n)) {flags = n - 1; mode = 1; break;}} // test/use usb port x
+        for(int n = 1; n < 10; n++) {if(flags & (1<<n)) {flags = n - 1; mode = 1; break;}} // test/use usb port x
     }
 
     if(!wakeup_time) mode = 0;
@@ -554,7 +565,7 @@ void set_device_wakeup_mode(u32 flags)
         if(!mode) lv2poke(LV2_SM_CMD_ADDR, 0xBB00000000000000ULL); // disable UsbWakeup
         else lv2poke(LV2_SM_CMD_ADDR, 0xBB01000000000000ULL | (((u64) flags) << 32ULL)
             | (((u64) (wakeup_time - 1))<<40ULL)); // enable UsbWakeup Mode 2
-        while(1)
+        while(true)
         {
             usleep(1000);
             command =lv2peek(LV2_SM_CMD_ADDR)>>48ULL;
@@ -573,7 +584,7 @@ void set_usleep_sm_main(u32 us)
     if(command == 0x55ULL)
     {   // SM present!
         lv2poke(LV2_SM_CMD_ADDR, 0xCCFE000000000000ULL | ((u64) us)); // set usleep time
-        while(1)
+        while(true)
         {
             usleep(1000);
             command =lv2peek(LV2_SM_CMD_ADDR)>>48ULL;
@@ -636,7 +647,7 @@ void draw_controlfan_options()
 
     u8 st, mode, speed, unknown;
 
-    while(1)
+    while(true)
     {
         flash = (frame_count >> 5) & 1;
 
@@ -646,7 +657,7 @@ void draw_controlfan_options()
 
         cls();
 
-        update_twat(1);
+        update_twat(true);
 
         SetCurrentFont(FONT_TTF);
 

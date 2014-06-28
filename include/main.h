@@ -122,7 +122,9 @@ enum game_list_categories
 {
     GAME_LIST_ALL      = 0,
     GAME_LIST_PS3_ONLY = 1,  // PS3 / Movies
-    GAME_LIST_CUSTOM   = 2,  // Homebrews / Retro / NET
+    GAME_LIST_RETRO    = 2,  // Homebrews / Retro / NET
+    GAME_LIST_HOMEBREW = 2,
+    GAME_LIST_NETHOST  = 2,
 };
 
 void load_gamecfg (int current_dir);
@@ -240,5 +242,7 @@ void SaveGameList();
 int get_net_status();
 void return_to_game_list(bool update);
 
+u64 lv2peek(u64 addr);
+u64 lv2poke(u64 addr, u64 value);
 #endif
 

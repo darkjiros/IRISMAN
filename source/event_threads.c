@@ -27,7 +27,7 @@ static void Event_thread(void *a)
 
     void (*func)(void * priv) = NULL;
 
-    while(1)
+    while(true)
     {
         if(sysEventQueueReceive(evQ_sd, &event_sd, 0) < 0) break;
         if(event_sd.data_1 == 0x666) break;

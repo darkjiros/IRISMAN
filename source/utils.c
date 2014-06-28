@@ -54,6 +54,7 @@ extern char ps2classic_path[MAXPATHLEN];
 extern char audio_extensions[300];
 extern char video_extensions[300];
 extern char browser_extensions[100];
+extern char custom_homebrews[400];
 
 extern int retro_mode;
 
@@ -76,7 +77,6 @@ extern char retro_atari_path[ROMS_MAXPATHLEN];
 extern char retro_vb_path[ROMS_MAXPATHLEN];
 extern char retro_nxe_path[ROMS_MAXPATHLEN];
 extern char retro_wswan_path[ROMS_MAXPATHLEN];
-
 
 //void UTF8_to_Ansi(char *utf8, char *ansi, int len); // from osk_input
 void UTF32_to_UTF8(u32 *stw, u8 *stb);
@@ -321,17 +321,15 @@ u8 game_category[3] = "??";
 bool is_video(char *ext)
 {
     sprintf(extension, "%s ", ext);
-    strtoupper(extension);
 
-    return (strstr(video_extensions, extension) != NULL);
+    return (strcasestr(video_extensions, extension) != NULL);
 }
 
 bool is_audio(char *ext)
 {
     sprintf(extension, "%s ", ext);
-    strtoupper(extension);
 
-    return (strstr(audio_extensions, extension) != NULL);
+    return (strcasestr(audio_extensions, extension) != NULL);
 }
 
 bool is_audiovideo(char *ext)
@@ -342,9 +340,8 @@ bool is_audiovideo(char *ext)
 bool is_browser_file(char *ext)
 {
     sprintf(extension, "%s ", ext);
-    strtoupper(extension);
 
-    return (strstr(browser_extensions, extension) != NULL);
+    return (strcasestr(browser_extensions, extension) != NULL);
 }
 
 int is_file_exist( char* path )
@@ -437,7 +434,7 @@ int strcmpext(char *path, char *ext)
 
     if(ext_len >= path_len) return FAILED;
 
-    return strncmp(path + path_len - ext_len, ext, ext_len);
+    return strncasecmp(path + path_len - ext_len, ext, ext_len);
 }
 
 int get_field_param_sfo(char *file, char *fieldname, char *value, int field_len)
@@ -1099,8 +1096,6 @@ int patch_exe_error_09(char *path_exe)
     int file = -1;
     int flag = 0; //not patched
 
-    //if(firmware < 0x421C || firmware >= 0x460C) return 0;
-
     // open self/sprx and changes the fw version
     ret = sysLv2FsOpen( path_exe, SYS_O_RDWR, &file, 0, NULL, 0 );
     if(ret == SUCCESS)
@@ -1120,14 +1115,14 @@ int patch_exe_error_09(char *path_exe)
                 if(ret == SUCCESS && pos == (u64) offset_fw)
                 {
                     ret = sysLv2FsRead( file, &ver, 0x2, &readed ); //self/sprx min fw version
-                    if(ret == SUCCESS && readed == 0x2ULL && (ver >= 34000 && ver < fw_460))
+                    if(ret == SUCCESS && readed == 0x2ULL && (ver >= 34000 && ver <= fw_460))
                     {
                         ret = sysLv2FsLSeek64( file, (u64) offset_fw, 0, &pos );
                         u16 cur_firm = ((firmware>>12) & 0xF) * 10000 + ((firmware>>8) & 0xF) * 1000 + ((firmware>>4) & 0xF) * 100;
 
                         if(ret == SUCCESS && ver > cur_firm)
                         {
-                            if(ver > fw_421 && (firmware >= 0x421C && firmware < 0x460C))
+                            if(ver > fw_421 && (firmware >= 0x421C && firmware <= 0x460C))
                             {
                                 sysLv2FsWrite( file, &cur_firm, 0x2, &written );
                                 flag = 1; //patch applied
@@ -1157,7 +1152,7 @@ void patch_error_09( const char *path )
     int d = -1;
     s32 ret = 1;
 
-    if(firmware < 0x421C || firmware >= 0x460C) return;
+    if(firmware < 0x421C || firmware > 0x460C) return;
 
     /* Open the directory specified by "path". */
     ret = sysLv2FsOpenDir( path, &d );
@@ -1470,43 +1465,118 @@ void sort_entries2(t_directories *list, int *max, u32 mode)
         }
 }
 
+bool icon_exists(char *title_id, t_directories *list, int max)
+{
+    int i;
+
+    for(i = 0; i < max; i++)
+    {
+        if(strncmp(list[i].title_id, title_id, 9) == SUCCESS) break;
+    }
+
+    return (i < max);
+}
+
+bool add_homebrew_icon(t_directories *list, int *max, char *title_id, char *spath)
+{
+    if(icon_exists(title_id, list, (*max)) == false)
+    {
+        char filepath[MAXPATHLEN];
+        char title_name[64] = {};
+
+        if(strncmp(spath, "/dev_", 5) == SUCCESS)
+            strcpy(filepath, spath);
+        else if(strncmp(title_id, "PRXLOADER", 9) == SUCCESS)
+        {
+            sprintf(filepath, "%s/USRDIR/prxloader.self", self_path);
+            sprintf(title_name, "PRX Loader");
+        }
+        else if(strncmp(title_id, "CDGPLAYER", 9) == SUCCESS)
+        {
+            sprintf(filepath, "%s/USRDIR/CDGPlayer.self", self_path);
+            sprintf(title_name, "CDG Player");
+        }
+        else if(strncmp(title_id, "GMPADTEST", 9) == SUCCESS)
+        {
+            sprintf(filepath, "%s/USRDIR/Testpad.self", self_path);
+            sprintf(title_name, "GamePad Test");
+        }
+        else
+            sprintf(filepath, "/dev_hdd0/game/%s/USRDIR/%s", title_id, spath);
+
+        if(is_file_exist(filepath) && ndirectories < MAX_DIRECTORIES)
+        {
+            int ret = SUCCESS;
+
+            if(title_name[0] == 0)
+            {
+                sprintf(filepath, "/dev_hdd0/game/%s/PARAM.SFO", title_id);
+                ret = parse_param_sfo(filepath, title_name);
+            }
+
+            if(ret == SUCCESS)
+            {
+                list[*max].flags = HOMEBREW_FLAG;
+                list[*max].splitted = 0;
+
+                sprintf(list[*max].title_id, title_id);
+                sprintf(list[*max].path_name, filepath);
+
+                sprintf(list[*max].title, title_name);
+                (*max) ++;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void add_custom_icons(t_directories *list, int *max)
 {
     char stself[MAXPATHLEN];
 
-    //-- add custom icons
+    //-- add Internet Browser icon
     if(mode_homebrew == HOMEBREW_MODE || game_list_category == GAME_LIST_ALL)
     {
         sprintf(stself, "%s/USRDIR/browser.self", self_path);
-
-        if(is_file_exist(stself) && ndirectories < MAX_DIRECTORIES)
-        {
-            list[*max].flags = HOMEBREW_FLAG;
-            list[*max].splitted = 0;
-
-            sprintf(list[*max].path_name, stself);
-            sprintf(list[*max].title, "Internet Browser");
-            sprintf(list[*max].title_id, "IRISMAN00");
-
-            (*max) ++;
-        }
+        if(add_homebrew_icon(list, max, "NETBROWSE", stself)) sprintf(list[*max].title, "Internet Browser");
     }
 
+    //-- add Showtime icon
     if(mode_homebrew == VIDEOS_MODE || mode_homebrew == HOMEBREW_MODE || game_list_category == GAME_LIST_ALL)
     {
         sprintf(stself, "%s/USRDIR/SHOWTIME.SELF", self_path);
-        if(is_file_exist(stself) == 0) sprintf(stself, "/dev_hdd0/game/HTSS00003/USRDIR/showtime.self");
+        if(is_file_exist(stself))
+            add_homebrew_icon(list, max, "HTSS00003", stself); // Showtime
+        else
+            add_homebrew_icon(list, max, "HTSS00003", "showtime.self");
 
-        if(is_file_exist(stself) && ndirectories < MAX_DIRECTORIES)
+    }
+
+    if(mode_homebrew == HOMEBREW_MODE)
+    {
+        char title_id[10];
+
+        for(int i = 0; i < strlen(custom_homebrews); i+=10)
         {
-            list[*max].flags = HOMEBREW_FLAG;
-            list[*max].splitted = 0;
+            strncpy(title_id, custom_homebrews + i, 9);
 
-            sprintf(list[*max].path_name, stself);
-            sprintf(list[*max].title, "Showtime Media Player");
-            sprintf(list[*max].title_id, "HTSS00003");
-
-            (*max) ++;
+            if(strncmp(title_id, "BLES80608", 9) == SUCCESS)
+            {
+                if(!use_mamba) add_homebrew_icon(list, max, title_id, "RELOAD.SELF"); // multiMAN
+            }
+            else if(strncmp(title_id, "SSNE10000", 9) == SUCCESS)
+                add_homebrew_icon(list, max, title_id, "cores/snes9x_next_libretro_ps3.SELF"); // RetroArch
+            else if(strncmp(title_id, "IRISMAN00", 9) == SUCCESS) ;
+            else if(strncmp(title_id, "IMANAGER4", 9) == SUCCESS)
+                add_homebrew_icon(list, max, title_id, "iris_manager.self"); // Iris Manager
+            else if(strncmp(title_id, "MAME90000", 9) == SUCCESS)
+                add_homebrew_icon(list, max, title_id, "frontend.self");
+            else if(strncmp(title_id, "PSID81257", 9) == SUCCESS)
+                add_homebrew_icon(list, max, title_id, "ps1_emu.self");
+            else
+                add_homebrew_icon(list, max, title_id, "RELOAD.SELF"); // default RELOAD.SELF
         }
     }
     //-- end of custom icons
@@ -1520,7 +1590,7 @@ int delete_custom_icons(t_directories *list, int *max)
     n = 0;
     while(n < (*max) )
     {
-        if(!strcmp(list[n].title_id, "IRISMAN00") || !strcmp(list[n].title_id, "HTSS00003"))
+        if(strstr(custom_homebrews, list[n].title_id) != NULL)
         {
             deleted++;
 
@@ -1700,17 +1770,15 @@ int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int 
             {
                 if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4))
                 {
-                    if(strcmpext(entry->d_name, ".mkv")   && strcmpext(entry->d_name, ".MKV") &&
-                       strcmpext(entry->d_name, ".iso")   && strcmpext(entry->d_name, ".ISO") &&
-                       strcmpext(entry->d_name, ".iso.0") && strcmpext(entry->d_name, ".ISO.0")) continue;
+                    if(strcmpext(entry->d_name, ".mkv") &&
+                       strcmpext(entry->d_name, ".iso") && strcmpext(entry->d_name, ".iso.0")) continue;
                 }
                 else if(is_audiovideo(get_extension(entry->d_name)));
-                else if(strcmpext(entry->d_name, ".iso")   && strcmpext(entry->d_name, ".ISO") &&
-                        strcmpext(entry->d_name, ".iso.0") && strcmpext(entry->d_name, ".ISO.0")) continue;
+                else if(strcmpext(entry->d_name, ".iso")   && strcmpext(entry->d_name, ".iso.0")) continue;
             }
             else if(is_ps2_classic)
             {
-                if(strcmpext(entry->d_name, ".bin.enc") && strcmpext(entry->d_name, ".BIN.ENC")) continue;
+                if(strcmpext(entry->d_name, ".bin.enc")) continue;
             }
             else if((flag & (PSP_FLAG)) == (PSP_FLAG))
             {
@@ -1720,19 +1788,9 @@ int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int 
             {
                 int flen = strlen(entry->d_name) - 4;
 
-                if(flen < 0) continue;
-
-                if(strncmp(entry->d_name + flen, ".ISO", 4) &&
-                   strncmp(entry->d_name + flen, ".iso", 4) &&
-                   strncmp(entry->d_name + flen, ".BIN", 4) &&
-                   strncmp(entry->d_name + flen, ".bin", 4) &&
-                   strncmp(entry->d_name + flen, ".MDF", 4) &&
-                   strncmp(entry->d_name + flen, ".mdf", 4) &&
-                   strncmp(entry->d_name + flen, ".IMG", 4) &&
-                   strncmp(entry->d_name + flen, ".img", 4)) continue;
+                if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", entry->d_name + flen) == NULL) continue;
             }
-            else if(strcmpext(entry->d_name, ".iso")   && strcmpext(entry->d_name, ".ISO") &&
-                    strcmpext(entry->d_name, ".iso.0") && strcmpext(entry->d_name, ".ISO.0")) continue;
+            else if(strcmpext(entry->d_name, ".iso")   && strcmpext(entry->d_name, ".iso.0")) continue;
 
             sprintf(list[*max].path_name, "%s/%s", path, entry->d_name);
 
@@ -1777,10 +1835,9 @@ int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int 
             strcpy(name, entry->d_name);
 
             // remove file extension
-            if(!strcmpext(name, ".iso.0")   || !strcmpext(name, ".ISO.0"))
+            if(!strcmpext(name, ".iso.0"))
                 name[strlen(name) - 6] = 0;
-            else if(is_ps2_classic &&
-                   (!strcmpext(name, ".bin.enc") || !strcmpext(name, ".BIN.ENC")))
+            else if(is_ps2_classic && !strcmpext(name, ".bin.enc"))
                 name[strlen(name) - 8] = 0;
             else if(strlen(name) > 5 && name[strlen(name) - 5] == '.')
                 name[strlen(name) - 5] = 0;  // .????
@@ -1906,19 +1963,19 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
 
         file[n] = 0; strcat(file, "/PS3ISO");
         //mkdir_secure(file);
-        if(game_list_category != 2)
+        if(game_list_category == GAME_LIST_PS3_ONLY || game_list_category == GAME_LIST_ALL)
             fill_iso_entries_from_device(file, flag, list, max);
 
-        if(game_list_category != 1)
+        if(game_list_category == GAME_LIST_RETRO || game_list_category == GAME_LIST_ALL)
         {
-            if(retro_mode == RETRO_ALL || retro_mode == 1 || retro_mode == RETRO_PSALL)
+            if(retro_mode == RETRO_ALL || retro_mode == RETRO_PSX || retro_mode == RETRO_PSALL)
             {
                 file[n] = 0; strcat(file, "/PSXISO");
                 //mkdir_secure(file);
                 fill_iso_entries_from_device(file, flag | PS1_FLAG, list, max);
             }
 
-            if(retro_mode == RETRO_ALL || retro_mode == RETRO_PSX || retro_mode == RETRO_PSALL)
+            if(retro_mode == RETRO_ALL || retro_mode == RETRO_PS2 || retro_mode == RETRO_PSALL)
             {
                 file[n] = 0; strcat(file, ps2classic_path);
                 //mkdir_secure(file);
@@ -2105,7 +2162,9 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
 
 
     // add PSX Games
-    if(sel == GAMEBASE_MODE && game_list_category != 1 && append == false)
+    if((append == false) && (sel == GAMEBASE_MODE) && (game_list_category == GAME_LIST_ALL ||
+                                                      (game_list_category == GAME_LIST_RETRO &&
+                                                      (retro_mode == RETRO_ALL || retro_mode == RETRO_PSX || retro_mode == RETRO_PSALL))))
     {
         int n;
         strncpy(file, path, 0x420);
@@ -2186,7 +2245,7 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
     }
 
 
-    if(!(flag & BDVD_FLAG) && sel != HOMEBREW_MODE &&  game_list_category == GAME_LIST_CUSTOM) return SUCCESS;
+    if(!(flag & BDVD_FLAG) && sel != HOMEBREW_MODE &&  game_list_category == GAME_LIST_HOMEBREW) return SUCCESS;
 
     if(mode_homebrew == VIDEOS_MODE) return SUCCESS;
 
@@ -2293,7 +2352,7 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
 /* CONSOLE DEBUG                                                                                                                                       */
 /*******************************************************************************************************************************************************/
 
-#define CONSOLE_WIDTH       (84)
+#define CONSOLE_WIDTH       (100)
 #define CONSOLE_HEIGHT      (27)
 
 static char dbg_str1[128];
@@ -5009,7 +5068,7 @@ void test_game(int game_sel)
         tiny3d_Flip();
 
         ps3pad_read();
-        if(new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE))
+        if(new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE | BUTTON_CROSS))
         {
            new_pad = 0;
            break;

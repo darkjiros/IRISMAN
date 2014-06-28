@@ -182,8 +182,8 @@ void DrawTextBoxCover(float x, float y, float z, float w, float h, u32 rgba, int
         QUADPOLY(x + 0.0f, y, z, w,
                  x + 0.0f, y + h, z, w, 0xc0c0c060, 0xc0c0c060);
 
-        QUADPOLY(x + 0.0f, y + 2.0f, z, w/10.0f,
-                 x + 0.0f, y + h - 2.0f, z, w/10.0f, color2, color2);
+        QUADPOLY(x + 0.0f, y + 2.0f, z, w / 10.0f,
+                 x + 0.0f, y + h - 2.0f, z, w / 10.0f, color2, color2);
         tiny3d_End();
 
         x+= w/10.0f;
@@ -539,16 +539,14 @@ float DrawButton1_UTF8(float x, float y, float w, char * t, int select)
 
     if(w < (len + 24)) w = (len + 24);
 
-    if(select ==  1) {rgba = 0x000000ff; brgba2 = 0xc0c0c0ff; brgba = 0xffffffee;}
+    if(select ==  1) {brgba2 = 0xf0f0f0ff; brgba = 0x505050ee;}
     else
-    if(select == -1) {rgba = 0x0000006f; brgba2 = brgba = 0xffffff6f;}
-
+    if(select == -1) {brgba2 = brgba = 0xffffff6f; rgba = 0x0000006f;}
 
     DrawBox2(x, y, 0.0f, w, 40, brgba, brgba2);
     DrawLineBox(x, y, 0.0f, w, 40, rgba);
 
     //DrawString(x + (w - len * 12) / 2, y + 4, t);
-
     display_ttf_string(x + (w - len) / 2, y + 4, t, rgba, 0, 16, 32);
 
     return x + w;
@@ -589,7 +587,7 @@ void init_twat()
     m_twat[3].r = m_twat[4].r = m_twat[5].r = 0.0f;
 }
 
-void update_twat(int background)
+void update_twat(bool background)
 {
     float x = 840.0f - 170.0f, y = 512.0f - 180.0f;
 
@@ -731,9 +729,9 @@ void draw_twat2(float x, float y, float angle)
     {
         tiny3d_VertexPos(20.0f *sinf(ang), 20.0f *cosf(ang), 1000);
         tiny3d_VertexColor(0xffffff18);
-        tiny3d_VertexPos(28.0f *sinf(ang+angs/2), 28.0f *cosf(ang+angs/2), 1000);
+        tiny3d_VertexPos(28.0f *sinf(ang+angs/2), 28.0f *cosf(ang + angs/2), 1000);
         tiny3d_VertexColor(0xffffff18);
-        tiny3d_VertexPos(20.0f *sinf(ang+angs), 20.0f *cosf(ang+angs), 1000);
+        tiny3d_VertexPos(20.0f *sinf(ang+angs), 20.0f *cosf(ang + angs), 1000);
         tiny3d_VertexColor(0xffffff18);
 
         ang += angs;

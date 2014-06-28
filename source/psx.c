@@ -121,6 +121,8 @@ int sel2_psx_vm1 = 0;
 char *PSX_LAST_PATH = NULL;
 
 extern char temp_buffer[8192];
+extern char tmp_path[MAXPATHLEN];
+
 extern int flash;
 
 extern int select_px;
@@ -235,13 +237,24 @@ void draw_psx_options(float x, float y, int index)
     DrawFormatString(x, y, " PSX %s", language[DRAWGMOPT_OPTS]);
 
     utf8_to_ansi(directories[currentgamedir].title_id, temp_buffer, 12);
-    parse_iso_titleid(directories[currentgamedir].path_name, temp_buffer);
 
-    temp_buffer[12] = 0;
+    if(temp_buffer[4] != '_')
+    {
+        int flen = strlen(directories[currentgamedir].path_name) - 4;
+
+        if(flen >= 0 && strcasestr(".iso|.bin|.mdf|.img", directories[currentgamedir].path_name + flen) != NULL)
+        {
+           parse_iso_titleid(directories[currentgamedir].path_name, temp_buffer);
+           temp_buffer[12] = 0;
+           strncpy(directories[currentgamedir].title_id, temp_buffer, 12);
+        }
+        else
+           memset(temp_buffer, 12, 0);
+    }
 
     if(!(directories[currentgamedir].flags & BDVD_FLAG) &&
-        ((strcmp(psx_options.mc1, "No Memory Card") && strcmp(psx_options.mc1, "Internal_MC.VM1") && select_option == 0) ||
-        (strcmp(psx_options.mc2, "No Memory Card") && strcmp(psx_options.mc2, "Internal_MC.VM1") && select_option == 1)))
+        ((select_option == 0 && strcmp(psx_options.mc1, "No Memory Card") && strcmp(psx_options.mc1, "Internal_MC.VM1")) ||
+         (select_option == 1 && strcmp(psx_options.mc2, "No Memory Card") && strcmp(psx_options.mc2, "Internal_MC.VM1"))))
     {
         SetFontSize(18, 22);
         utf8_truncate("Press [] to copy MC as Internal_MC", temp_buffer, 64);
@@ -256,7 +269,7 @@ void draw_psx_options(float x, float y, int index)
     {
         mc_name = NULL;
 
-        if(temp_buffer[4] == 0x5F)
+        if(temp_buffer[4] == '_')
         {
             sprintf(temp_buffer, "%c%c%c%c-%c%c%c%c%c", temp_buffer[0], temp_buffer[1], temp_buffer[2], temp_buffer[3],
                                                         temp_buffer[5], temp_buffer[6], temp_buffer[7], temp_buffer[9], temp_buffer[10]);
@@ -419,18 +432,8 @@ void draw_psx_options(float x, float y, int index)
 
             int flen = strlen(directories[currentgamedir].path_name) - 4;
 
-            if(flen < 0 ||
-               (strcmp(directories[currentgamedir].path_name + flen, ".ISO") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".iso") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".BIN") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".bin") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".MDF") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".mdf") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".IMG") &&
-                strcmp(directories[currentgamedir].path_name + flen, ".img")))
-            {
+            if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", directories[currentgamedir].path_name + flen) == NULL)
                 sprintf(temp_buffer + 1024, "%s/%s", directories[currentgamedir].path_name, "Internal_MC.VM1");
-            }
             else
             {
                 char output[256];
@@ -944,17 +947,10 @@ void draw_psx_options2(float x, float y, int index)
                 if(!((directories[currentgamedir].flags  & GAMELIST_FILTER) ==  BDVD_FLAG) &&
                     DrawDialogYesNo(language[DRAWPSX_ASKFORMAT]) == 1) {
 
-                    if(strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".ISO") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".iso") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".BIN") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".bin") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".MDF") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".mdf") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".IMG") &&
-                       strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".img"))
-                    {
+                    int flen = strlen(directories[currentgamedir].path_name) - 4;
+
+                    if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", directories[currentgamedir].path_name + flen) == NULL)
                         sprintf(temp_buffer, "%s/%s", directories[currentgamedir].path_name, "Internal_MC.VM1");
-                    }
                     else
                     {
                         char output[256];
@@ -1533,16 +1529,9 @@ int psx_cd_with_cheats(void)
         {
             if(entry->d_type & DT_DIR) continue;
 
-            if(strlen(entry->d_name)<4) continue;
+            int flen = strlen(entry->d_name) - 4;
 
-            if(strcmp(entry->d_name + strlen(entry->d_name) - 4, ".ISO") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".iso") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".BIN") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".bin") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".MDF") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".mdf") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".IMG") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".img")) continue;
+            if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", entry->d_name + flen) == NULL) continue;
 
             sprintf(temp_buffer + 1024, "%s/%s", temp_buffer, entry->d_name);
 
@@ -1680,7 +1669,7 @@ int psx_iso_prepare(char *path, char *name, char *isopath)
         load_psx_payload();
     }
 
-    for(n = 0; n < 9; n++) if(!(files[n] = malloc(1024))) return 0;
+    for(n = 0; n < 9; n++) if(!(files[n] = malloc(MAXPATHLEN))) return 0;
 
     if(isopath != NULL)
     {
@@ -1710,16 +1699,9 @@ int psx_iso_prepare(char *path, char *name, char *isopath)
         {
             if(entry->d_type & DT_DIR) continue;
 
-            if(strlen(entry->d_name)<4) continue;
+            int flen = strlen(entry->d_name) - 4;
 
-            if(strcmp(entry->d_name + strlen(entry->d_name) - 4, ".ISO") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".iso") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".BIN") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".bin") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".MDF") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".mdf") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".IMG") &&
-               strcmp(entry->d_name + strlen(entry->d_name) - 4, ".img")) continue;
+            if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", entry->d_name + flen) == NULL) continue;
 
             sprintf(files[nfiles], "%s/%s", path, entry->d_name);
 
@@ -1786,9 +1768,9 @@ skip_scan_folder_isos:
             {
                 if(strcmp(files[m], files[n]) < 0)
                 {
-                    memcpy(files[8], files[m], 1024);
-                    memcpy(files[m], files[n], 1024);
-                    memcpy(files[n], files[8], 1024);
+                    memcpy(files[8], files[m], MAXPATHLEN);
+                    memcpy(files[m], files[n], MAXPATHLEN);
+                    memcpy(files[n], files[8], MAXPATHLEN);
                 }
             }
         }
@@ -1806,7 +1788,7 @@ skip_scan_folder_isos:
                 frame_count++;
                 cls();
 
-                update_twat(1);
+                update_twat(true);
 
                 SetCurrentFont(FONT_TTF);
 
@@ -1867,13 +1849,24 @@ skip_scan_folder_isos:
 
                 ps3pad_read();
 
-                if(new_pad & BUTTON_CROSS) {break;}
+                if(new_pad & (BUTTON_CROSS | BUTTON_START)) break;
 
-                if(new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE | BUTTON_DOWN))
+                if(new_pad & BUTTON_CIRCLE) return 0;
+
+                if(new_pad & (BUTTON_TRIANGLE | BUTTON_DOWN | BUTTON_R1))
                 {
-                   memcpy(files[8], files[0], 1024);
-                   for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], 1024);
-                   memcpy(files[nfiles - 1],  files[8], 1024);
+                    memcpy(files[8], files[0], MAXPATHLEN);
+                    for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], MAXPATHLEN);
+                    memcpy(files[nfiles - 1],  files[8], MAXPATHLEN);
+                }
+                if(new_pad & (BUTTON_UP | BUTTON_L1))
+                {
+                    if((nfiles > 0) && (nfiles < 8))
+                    {
+                        memcpy(files[8], files[nfiles - 1], MAXPATHLEN);
+                        for(n = nfiles - 1; n > 0; n--) memcpy(files[n], files[n-1], MAXPATHLEN);
+                        memcpy(files[0],  files[8], MAXPATHLEN);
+                    }
                 }
             }
         }
@@ -1885,12 +1878,12 @@ skip_scan_folder_isos:
             /////////////////////////////////////
             if(nfiles < 8 && forced_no_cd != 2)
             {
-                strncpy((char *) temp_buffer, "/dev_hdd0/PSXGAMES/CHEATS", 1024);
-                dir = opendir(temp_buffer);
+                strcpy((char *) tmp_path, "/dev_hdd0/PSXGAMES/CHEATS");
+                dir = opendir(tmp_path);
                 if(!dir)
                 {
-                    strncpy((char *) temp_buffer, "/dev_usb/PSXGAMES/CHEATS", 1024);
-                    dir = opendir(temp_buffer);
+                    strcpy((char *) tmp_path, "/dev_usb000/PSXGAMES/CHEATS");
+                    dir = opendir(tmp_path);
                 }
 
                 if(dir)
@@ -1901,23 +1894,17 @@ skip_scan_folder_isos:
                     {
                         if(entry->d_type & DT_DIR) continue;
 
-                        if(strlen(entry->d_name) < 4) continue;
+                        int flen = strlen(entry->d_name) - 4;
 
-                        if(strcmp(entry->d_name + strlen(entry->d_name) - 4, ".ISO") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".iso") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".BIN") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".bin") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".MDF") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".mdf") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".IMG") &&
-                           strcmp(entry->d_name + strlen(entry->d_name) - 4, ".img")) continue;
+                        if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", entry->d_name + flen) == NULL) continue;
 
-                        sprintf(files[nfiles], "%s/%s", temp_buffer, entry->d_name);
+                        sprintf(files[nfiles], "%s/%s", tmp_path, entry->d_name);
 
                         if(stat(files[nfiles], &s) < 0) continue;
 
                         int s_z =  get_sectorsize(files[nfiles]);
-                        if(s_z == 2352) {memcpy(files[8], files[nfiles], 1024);are_using_cheats = 2;} // possible candidate
+
+                        if(s_z == 2352) {memcpy(files[8], files[nfiles], MAXPATHLEN);are_using_cheats = 2;} // possible candidate
 
                         if(sector_size == s_z)
                         {
@@ -1929,9 +1916,9 @@ skip_scan_folder_isos:
                                 for(m = 0; m < nfiles - 1; m++)
                                 {
                                     // rotate cheat iso to the first
-                                    memcpy(files[8], files[0], 1024);
-                                    for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], 1024);
-                                    memcpy(files[nfiles - 1],  files[8], 1024);
+                                    memcpy(files[8], files[0], MAXPATHLEN);
+                                    for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], MAXPATHLEN);
+                                    memcpy(files[nfiles - 1],  files[8], MAXPATHLEN);
                                 }
                             }
                             else are_using_cheats = 0;
@@ -1952,16 +1939,16 @@ skip_scan_folder_isos:
                     {
                         if(build_iso(files[8], sector_size) == 0)
                         {
-                            memcpy(files[nfiles], files[8], 1024); // files[8] return no have the same name!
+                            memcpy(files[nfiles], files[8], MAXPATHLEN); // files[8] return no have the same name!
                             nfiles++;
                             int m;
                             are_using_cheats = 1;
                             for(m = 0; m < nfiles - 1; m++)
                             {
                                 // rotate cheat iso to the first
-                                memcpy(files[8], files[0], 1024);
-                                for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], 1024);
-                                memcpy(files[nfiles - 1],  files[8], 1024);
+                                memcpy(files[8], files[0], MAXPATHLEN);
+                                for(n = 0; n < nfiles - 1; n++) memcpy(files[n], files[n+1], MAXPATHLEN);
+                                memcpy(files[nfiles - 1],  files[8], MAXPATHLEN);
                             }
                         }
                      }
@@ -2159,17 +2146,10 @@ skip_scan_folder_isos:
             {
                 struct stat s;
 
-                if(strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".ISO") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".iso") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".BIN") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".bin") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".MDF") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".mdf") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".IMG") &&
-                   strcmp(directories[currentgamedir].path_name + strlen(directories[currentgamedir].path_name) - 4, ".img"))
-                {
+                int flen = strlen(directories[currentgamedir].path_name) - 4;
+
+                if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", directories[currentgamedir].path_name + flen) == NULL)
                     sprintf(files[8], "%s/%s", path, "Internal_MC.VM1");
-                }
                 else
                 {
                     char output[256];
@@ -2205,7 +2185,8 @@ skip_scan_folder_isos:
                             DrawDialogOK(language[DRAWPSX_ERRCOPYMC]);
 
                         }
-                        else memcpy(files[8], temp_buffer, 1024);
+                        else
+                            memcpy(files[8], temp_buffer, MAXPATHLEN);
                     }
                 }
                 else strncpy(psx_options.mc1, "No Memory Card", 256);
@@ -2855,33 +2836,28 @@ void LoadPSXOptions(char *path)
 
     if(path)
     {
-        if(strcmp(path + strlen(path) - 4, ".ISO") &&
-           strcmp(path + strlen(path) - 4, ".iso") &&
-           strcmp(path + strlen(path) - 4, ".BIN") &&
-           strcmp(path + strlen(path) - 4, ".bin") &&
-           strcmp(path + strlen(path) - 4, ".MDF") &&
-           strcmp(path + strlen(path) - 4, ".mdf") &&
-           strcmp(path + strlen(path) - 4, ".IMG") &&
-           strcmp(path + strlen(path) - 4, ".img"))
-        {
-            sprintf(temp_buffer, "%s/psx_config.cfg", path);
-        }
+        int flen = strlen(path) - 4;
+
+        if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", path + flen) == NULL)
+            sprintf(tmp_path, "%s/psx_config.cfg", path);
         else
         {
-            strcpy(temp_buffer, path);
-            if(temp_buffer[strlen(temp_buffer) - 1 ] == '0') temp_buffer[strlen(temp_buffer) - 6] = 0; else temp_buffer[strlen(temp_buffer) - 4] = 0;
-            strcat(temp_buffer, ".cfg");
+            strcpy(tmp_path, path);
+            strcpy(tmp_path + flen, ".cfg");
         }
 
-        mem = LoadFile(temp_buffer, &size);
+        mem = LoadFile(tmp_path, &size);
     }
 
     if(!mem || size != sizeof(psx_opt))
     {   // get psx options by default
         if(mem) free(mem);
+
+        sprintf(tmp_path, "%s/config/psx_config.bin", self_path);
+        if(!is_file_exist(tmp_path)) return;
+
         if(path) psx_modified = true;
-        sprintf(temp_buffer, "%s/config/psx_config.bin", self_path);
-        mem = LoadFile(temp_buffer, &size);
+        mem = LoadFile(tmp_path, &size);
     }
 
     if(mem && size == sizeof(psx_opt)) memcpy(&psx_options, mem, sizeof(psx_opt));
@@ -2893,23 +2869,17 @@ int SavePSXOptions(char *path)
     psx_modified = false;
 
     if(path)
-        if(strcmp(path + strlen(path) - 4, ".ISO") &&
-           strcmp(path + strlen(path) - 4, ".iso") &&
-           strcmp(path + strlen(path) - 4, ".BIN") &&
-           strcmp(path + strlen(path) - 4, ".bin") &&
-           strcmp(path + strlen(path) - 4, ".MDF") &&
-           strcmp(path + strlen(path) - 4, ".mdf") &&
-           strcmp(path + strlen(path) - 4, ".IMG") &&
-           strcmp(path + strlen(path) - 4, ".img"))
-        {
+    {
+        int flen = strlen(path) - 4;
+
+        if(flen < 0 || strcasestr(".iso|.bin|.mdf|.img", path + flen) == NULL)
             sprintf(temp_buffer, "%s/psx_config.cfg", path);
-        }
         else
         {
-            strcpy(temp_buffer, path);
-            if(temp_buffer[strlen(temp_buffer) - 1 ] == '0') temp_buffer[strlen(temp_buffer) - 6] = 0; else temp_buffer[strlen(temp_buffer) - 4] = 0;
-            strcat(temp_buffer, ".cfg");
+            strcpy(tmp_path, path);
+            strcpy(tmp_path + flen, ".cfg");
         }
+    }
     else
         sprintf(temp_buffer, "%s/config/psx_config.bin", self_path);
 

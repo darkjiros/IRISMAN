@@ -197,7 +197,7 @@ int mount_psp_iso(char *path);
 int sys_fs_mount(char const* deviceName, char const* deviceFileSystem, char const* devicePath, int writeProt);
 int sys_fs_umount(char const* devicePath);
 
-void MSGBOX(char *text, char *text2) {sprintf(temp_buffer + 0x1000, "%s = %s", text, text2); DrawDialogOKTimer(temp_buffer + 0x1000, 3000.0f);}    //debug message
+//void MSGBOX(char *text, char *text2) {sprintf(temp_buffer + 0x1000, "%s = %s", text, text2); DrawDialogOKTimer(temp_buffer + 0x1000, 3000.0f);}    //debug message
 
 char * getlv2error(s32 error)
 {
@@ -2400,7 +2400,7 @@ void draw_hex_editor()
 
     tiny3d_Project2D();
     cls2();
-    update_twat(0);
+    update_twat(false);
 
     DrawBox(0, 0, 0, 848, 32, BLUE5);
     DrawBox2(0, 32, 0, 848, 448);
@@ -3735,7 +3735,7 @@ void launch_retro(char *rom_path)
             sprintf(src_path, "%s/USRDIR/cores/gen-retroarch.cfg", self_path);
         else if(strcasestr(src_path, retro_nes_path) != NULL)
         {
-            if(!strcmpext(src_path, ".fds") || !strcmpext(src_path, ".FDS"))
+            if(!strcmpext(src_path, ".fds"))
                 sprintf(src_path, "%s/USRDIR/cores/fds-retroarch.cfg", self_path);
             else
                 sprintf(src_path, "%s/USRDIR/cores/nes-retroarch.cfg", self_path);
@@ -3909,7 +3909,7 @@ int mount_psp_iso(char *path)
     unlink_secure((char*) icon_path);
     cobra_unset_psp_umd();
 
-    sprintf(icon_path, "%s/USRDIR/psp_icon.png", self_path);
+    sprintf(icon_path, "%s/USRDIR/icons/PSP_ICON.PNG", self_path);
 
     int ret = cobra_set_psp_umd2(path, NULL, (char*)icon_path, 2);
 
@@ -3935,10 +3935,10 @@ int launch_iso_game(char *path, int mtype)
         launch_video(path);
 
         //ntfs
-        if(!strcmpext(path, ".mkv")   || !strcmpext(path, ".MKV") ||
-           !strcmpext(path, ".iso")   || !strcmpext(path, ".ISO") ||
-           !strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0")) type = EMU_BD;
-        else return FAILED;
+        if(!strcmpext(path, ".mkv")  || !strcmpext(path, ".iso")  || !strcmpext(path, ".iso.0"))
+            type = EMU_BD;
+        else
+            return FAILED;
     }
 
     if (use_cobra)
@@ -3950,21 +3950,15 @@ int launch_iso_game(char *path, int mtype)
 
     if((use_cobra && !use_mamba) &&
        (mtype == EMU_PSP || strstr(path, "/PSPISO/") != NULL || strstr(path, "/ISO/") != NULL) &&
-       (!strcmp(path + strlen(path) - 4, ".ISO") ||
-        !strcmp(path + strlen(path) - 4, ".iso")))
+       !strcmp(path + strlen(path) - 4, ".iso"))
     {
         mount_psp_iso(path);
     }
 
-    if(strstr(path, "/PSXISO/") != NULL &&
-      (!strcmp(path + strlen(path) - 4, ".ISO") ||
-       !strcmp(path + strlen(path) - 4, ".iso") ||
-       !strcmp(path + strlen(path) - 4, ".BIN") ||
-       !strcmp(path + strlen(path) - 4, ".bin") ||
-       !strcmp(path + strlen(path) - 4, ".MDF") ||
-       !strcmp(path + strlen(path) - 4, ".mdf") ||
-       !strcmp(path + strlen(path) - 4, ".IMG") ||
-       !strcmp(path + strlen(path) - 4, ".img")))
+    int flen = strlen(path) - 4;
+
+    if((strstr(path, "/PSXISO/") != NULL || strstr(path, "/PSXGAMES/") != NULL) &&
+       flen >= 0 && (strcasestr(".iso|.bin|.mdf|.img", path + flen) != NULL))
     {
         if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4))
         {
@@ -3993,6 +3987,11 @@ int launch_iso_game(char *path, int mtype)
             psx_launch();
             return FAILED;
         }
+    }
+
+    if(strstr(path, "/PSXGAMES/") != NULL)
+    {
+        return launch_iso_game_mamba(path, EMU_PSX);
     }
 
     if(use_mamba || mtype == EMU_BD || mtype == EMU_PSX)
@@ -4065,7 +4064,7 @@ int launch_iso_game(char *path, int mtype)
 
                 int parts = ps3ntfs_file_to_sectors(path, sections, sections_size, MAX_SECTIONS, 1);
 
-                if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+                if(!strcmpext(path, ".iso.0"))
                 {
                     int o;
 
@@ -4138,7 +4137,7 @@ int launch_iso_game(char *path, int mtype)
             files[0] = path;
             files[1] = NULL;
 
-            if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+            if(!strcmpext(path, ".iso.0"))
             {
                 int o;
 
@@ -4197,7 +4196,7 @@ mount_with_mamba:
 
                 int parts = 0;
 
-                if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+                if(!strcmpext(path, ".iso.0"))
                 {
                     int o;
 
@@ -4333,7 +4332,7 @@ int launch_iso_game_mamba(char *path, int mtype)
 
                 int parts = ps3ntfs_file_to_sectors(path, sections, sections_size, MAX_SECTIONS, 1);
 
-                if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+                if(!strcmpext(path, ".iso.0"))
                 {
                     int o;
 
@@ -4396,7 +4395,7 @@ int launch_iso_game_mamba(char *path, int mtype)
                 files[0] = path;
                 files[1] = NULL;
 
-                if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+                if(!strcmpext(path, ".iso.0"))
                 {
                     int o;
 
@@ -4452,7 +4451,7 @@ int launch_iso_game_mamba(char *path, int mtype)
 
                     int parts = 0;
 
-                    if(!strcmpext(path, ".iso.0") || !strcmpext(path, ".ISO.0"))
+                    if(!strcmpext(path, ".iso.0"))
                     {
                         int o;
 
@@ -4530,9 +4529,8 @@ int launch_iso_build(char *iso_path, char *src_path, int sel)
         launch_video(src_path);
 
         //ntfs
-        if(!strcmpext(src_path, ".mkv")   || !strcmpext(src_path, ".MKV") ||
-           !strcmpext(src_path, ".iso")   || !strcmpext(src_path, ".ISO") ||
-           !strcmpext(src_path, ".iso.0") || !strcmpext(src_path, ".ISO.0")) type = EMU_BD;
+        if(!strcmpext(src_path, ".mkv") || !strcmpext(src_path, ".iso") ||  !strcmpext(src_path, ".iso.0"))
+            type = EMU_BD;
         else
             return FAILED;
     }
@@ -4723,7 +4721,7 @@ void draw_file_manager()
 
         tiny3d_Project2D();
         cls2();
-        update_twat(0);
+        update_twat(false);
 
         //// Begin drawing File Manager screen ////
 
@@ -4852,20 +4850,13 @@ void draw_file_manager()
                     {
                         type = FILE_TYPE_NORMAL;
                         char *ext = get_extension(entries1[pos1 + n].d_name);
-                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
-                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
-                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
-                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
-                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
-                        if(!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")) type = FILE_TYPE_LUA; else
-                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
-                           !strcmpext(entries1[pos1 + n].d_name, ".iso.0") ||
-                           !strcmpext(entries1[pos1 + n].d_name, ".ISO.0") ||
-                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
-                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
-                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                          ) type = FILE_TYPE_ISO;
-                        else
+                        if(!strcasecmp(ext, ".pkg")) type = FILE_TYPE_PKG; else
+                        if(!strcasecmp(ext, ".self")) type = FILE_TYPE_SELF; else
+                        if(!strcasecmp(ext, ".png")) type = FILE_TYPE_PNG; else
+                        if(!strcasecmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
+                        if(!strcasecmp(ext, ".zip")) type = FILE_TYPE_ZIP; else
+                        if(!strcasecmp(ext, ".lua")) type = FILE_TYPE_LUA; else
+                        if(strcasestr(".iso|.bin|.img|.mdf|.iso.0", ext) != NULL) type = FILE_TYPE_ISO; else
                         if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
 
                         if(type == FILE_TYPE_ISO && strcmp(entries1[pos1 + n].d_name, "EBOOT.BIN") == SUCCESS)
@@ -4977,20 +4968,13 @@ void draw_file_manager()
                     {
                         type = FILE_TYPE_NORMAL;
                         char *ext = get_extension(entries2[pos2 + n].d_name);
-                        if(!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")) type = FILE_TYPE_PKG; else
-                        if(!strcmp(ext, ".self") || !strcmp(ext, ".SELF")) type = FILE_TYPE_SELF; else
-                        if(!strcmp(ext, ".PNG") || !strcmp(ext, ".png")) type = FILE_TYPE_PNG; else
-                        if(!strcmp(ext, ".JPG") || !strcmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
-                        if(!strcmp(ext, ".zip") || !strcmp(ext, ".ZIP")) type = FILE_TYPE_ZIP; else
-                        if(!strcmp(ext, ".lua") || !strcmp(ext, ".LUA")) type = FILE_TYPE_LUA; else
-                        if(!strcmp(ext, ".iso") || !strcmp(ext, ".ISO")    ||
-                           !strcmpext(entries2[pos2 + n].d_name, ".iso.0") ||
-                           !strcmpext(entries2[pos2 + n].d_name, ".ISO.0") ||
-                           !strcmp(ext, ".bin") || !strcmp(ext, ".BIN")    ||
-                           !strcmp(ext, ".img") || !strcmp(ext, ".IMG")    ||
-                           !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                          ) type = FILE_TYPE_ISO;
-                        else
+                        if(!strcasecmp(ext, ".pkg")) type = FILE_TYPE_PKG; else
+                        if(!strcasecmp(ext, ".self")) type = FILE_TYPE_SELF; else
+                        if(!strcasecmp(ext, ".png")) type = FILE_TYPE_PNG; else
+                        if(!strcasecmp(ext, ".jpg")) type = FILE_TYPE_JPG; else
+                        if(!strcasecmp(ext, ".zip")) type = FILE_TYPE_ZIP; else
+                        if(!strcasecmp(ext, ".lua")) type = FILE_TYPE_LUA; else
+                        if(strcasestr(".iso|.bin|.img|.mdf|.iso.0", ext) != NULL) type = FILE_TYPE_ISO; else
                         if(is_audiovideo(ext)) type = FILE_TYPE_ISO;
 
                         if(type == FILE_TYPE_ISO && strcmp(entries2[pos2 + n].d_name, "EBOOT.BIN") == SUCCESS)
@@ -5937,11 +5921,8 @@ int file_manager(char *pathw1, char *pathw2)
                      strcmp(entries1[sel1].d_name, "GAMES") == SUCCESS ||
                      strcmp(entries1[sel1].d_name, "GAMEZ") == SUCCESS ||
                      (strstr(path1, "/PS3ISO") > 0 &&
-                     (!strcmpext(entries1[sel1].d_name, ".iso") ||
-                      !strcmpext(entries1[sel1].d_name, ".ISO") ||
-                      !strcmpext(entries1[sel1].d_name, ".iso.0") ||
-                      !strcmpext(entries1[sel1].d_name, ".ISO.0"))))
-                    ) max_menu2 = 9;
+                     (!strcmpext(entries1[sel1].d_name, ".iso") || !strcmpext(entries1[sel1].d_name, ".iso.0")))
+                   )) max_menu2 = 9;
             else if(fm_pane &&
                     (strcmp(path2, "/dev_hdd0/game") == SUCCESS ||
                      strstr(path2, "/GAME") > 0 ||
@@ -5949,11 +5930,8 @@ int file_manager(char *pathw1, char *pathw2)
                      strcmp(entries2[sel2].d_name, "GAMES") == SUCCESS ||
                      strcmp(entries2[sel2].d_name, "GAMEZ") == SUCCESS ||
                      (strstr(path2, "/PS3ISO") > 0 &&
-                     (!strcmpext(entries2[sel2].d_name, ".iso") ||
-                      !strcmpext(entries2[sel2].d_name, ".ISO") ||
-                      !strcmpext(entries2[sel2].d_name, ".iso.0") ||
-                      !strcmpext(entries2[sel2].d_name, ".ISO.0"))))
-                   ) max_menu2 = 9;
+                     (!strcmpext(entries2[sel2].d_name, ".iso") || !strcmpext(entries2[sel2].d_name, ".iso.0")))
+                   )) max_menu2 = 9;
 
             DrawBox((848 - 224)/2, (512 - (24 * max_menu2 + 1))/2 - 20 - 20, 0, 224, (24 * max_menu2 + 1) + 40, GRAY);
             DrawBox((848 - 216)/2, (512 - (24 * (max_menu2 + 1)))/2 - 20, 0, 216, (24 * (max_menu2 + 1)), POPUPMENUCOLOR);
@@ -6081,11 +6059,8 @@ int file_manager(char *pathw1, char *pathw2)
                      strcmp(entries1[sel1].d_name, "GAMES") == 0 ||
                      strcmp(entries1[sel1].d_name, "GAMEZ") == 0 ||
                      (strstr(path1, "/PS3ISO") > 0 &&
-                     (!strcmpext(entries1[sel1].d_name, ".iso") ||
-                      !strcmpext(entries1[sel1].d_name, ".ISO") ||
-                      !strcmpext(entries1[sel1].d_name, ".iso.0") ||
-                      !strcmpext(entries1[sel1].d_name, ".ISO.0"))))
-                    ) max_menu2 = 9;
+                     (!strcmpext(entries1[sel1].d_name, ".iso") || !strcmpext(entries1[sel1].d_name, ".iso.0"))
+                    ))) max_menu2 = 9;
             else if(fm_pane &&
                     (strcmp(path2, "/dev_hdd0/game") == 0 ||
                      strstr(path2, "/GAME") > 0 ||
@@ -6093,11 +6068,8 @@ int file_manager(char *pathw1, char *pathw2)
                      strcmp(entries2[sel2].d_name, "GAMES") == 0 ||
                      strcmp(entries2[sel2].d_name, "GAMEZ") == 0 ||
                      (strstr(path2, "/PS3ISO") > 0 &&
-                     (!strcmpext(entries2[sel2].d_name, ".iso") ||
-                      !strcmpext(entries2[sel2].d_name, ".ISO") ||
-                      !strcmpext(entries2[sel2].d_name, ".iso.0") ||
-                      !strcmpext(entries2[sel2].d_name, ".ISO.0"))))
-                   ) max_menu2 = 9;
+                     (!strcmpext(entries2[sel2].d_name, ".iso") || !strcmpext(entries2[sel2].d_name, ".iso.0"))
+                   ))) max_menu2 = 9;
 
             if(new_pad & BUTTON_UP)
                 ROT_DEC(set_menu2, 1, max_menu2)
@@ -7026,9 +6998,7 @@ int file_manager(char *pathw1, char *pathw2)
                         launch_video(temp_buffer);
                     }
                     else if(noBDVD == 2 && use_cobra && !(entries1[sel1].d_type & IS_MARKED) &&
-                        (!strcmp(ext, ".iso") || !strcmp(ext, ".ISO") || !strcmp(ext, ".bin") || !strcmp(ext, ".bin") || !strcmp(ext, ".img") || !strcmp(ext, ".IMG") || !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                        || !strcmpext(entries1[sel1].d_name, ".iso.0")
-                        || !strcmpext(entries1[sel1].d_name, ".ISO.0")))
+                           (strcasestr(".iso|.bin|.img|.mdf|.iso.0", ext) != NULL))
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                         launch_iso_game(temp_buffer, DETECT_EMU_TYPE);
@@ -7516,9 +7486,7 @@ int file_manager(char *pathw1, char *pathw2)
                         launch_video(temp_buffer);
                     }
                     else if(noBDVD == 2 && use_cobra && !(entries2[sel2].d_type & IS_MARKED) &&
-                        (!strcmp(ext, ".iso") || !strcmp(ext, ".ISO") || !strcmp(ext, ".bin") || !strcmp(ext, ".bin") || !strcmp(ext, ".img") || !strcmp(ext, ".IMG") || !strcmp(ext, ".mdf") || !strcmp(ext, ".MDF")
-                        || !strcmpext(entries2[sel2].d_name, ".iso.0")
-                        || !strcmpext(entries2[sel2].d_name, ".ISO.0")))
+                           (strcasestr(".iso|.bin|.img|.mdf|.iso.0", ext) != NULL))
                     {
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
                         launch_iso_game(temp_buffer, DETECT_EMU_TYPE);
