@@ -404,8 +404,8 @@ static int lv2_unpatch_bdvdemu_421dex(void)
             {
                 sys8_memcpy(LV2MOUNTADDR_421dex + n + 0x69, (u64) (mem + n + 0x79), 11);
                 sys8_memset(LV2MOUNTADDR_421dex + n + 0x79, 0ULL, 12);
-                flag+=10;
-            }
+                flag += 10;
+           }
         }
         if(!memcmp(mem + n, "CELL_FS_UTILITY:HDD0", 21) && mem[n-9]== 1 && mem[n-5]== 1)
         {
@@ -414,9 +414,8 @@ static int lv2_unpatch_bdvdemu_421dex(void)
             {
                 mem[0x1200+ 0xc -1] = mem[n-1];
                 sys8_memcpy(LV2MOUNTADDR_421dex + (u64) (n - 0xc), (u64) (mem + 0x1200) , (u64) LV2MOUNTADDR_421dex_CSIZE);
-
-            flag+=10;
-            }
+                flag += 10;
+           }
         }
     }
 
@@ -438,9 +437,9 @@ static int lv2_unpatch_bdvdemu_421dex(void)
 static int lv2_patch_bdvdemu_421dex(uint32_t flags)
 {
     int n;
-    int flag = 0;
-    int usb = -1;
-    int pos = -1;
+    int flag =  0;
+    int usb  = -1;
+    int pos  = -1;
     int pos2 = -1;
 
     char * mem = temp_buffer;
@@ -457,7 +456,8 @@ static int lv2_patch_bdvdemu_421dex(uint32_t flags)
         }
     }
 
-    if(usb >= 0) {
+    if(usb >= 0)
+    {
         sprintf(path_name, "CELL_FS_IOS:USB_MASS_STORAGE00%c", 48 + usb);
         sprintf(&path_name[128], "dev_usb00%c", 48 + usb);
     }
@@ -495,7 +495,7 @@ static int lv2_patch_bdvdemu_421dex(uint32_t flags)
             sys8_memcpy(LV2MOUNTADDR_421dex + n + 0x69, (u64) "dev_bdvd\0\0", 11);
             sys8_memcpy(LV2MOUNTADDR_421dex + n + 0x79, (u64) &path_name[128], 11);
 
-            flag+=10;
+            flag += 10;
         }
         else if(usb < 0 && !memcmp(mem + n, "CELL_FS_UTILITY:HDD0", 21)
                 && !memcmp(mem + n + 0x48, "CELL_FS_UFS", 11)
@@ -527,8 +527,7 @@ static int lv2_patch_bdvdemu_421dex(uint32_t flags)
       sys8_memcpy(0x80000000007EF000ULL , ((u64) mem + 0x1200), LV2MOUNTADDR_421dex_CSIZE + 0x20);
       sys8_memcpy(LV2MOUNTADDR_421dex + (u64) pos2, ((u64) (mem + pos2)), (u64) (LV2MOUNTADDR_421dex_CSIZE - 0xc));
 
-      int k;
-      for(k = 0; k < 100; k++)
+      for(int k = 0; k < 100; k++)
       {
         PATCH_CALL(UMOUNT_SYSCALL_OFFSET, PAYLOAD_UMOUNT_OFFSET); // UMOUNT ROUTINE PATCH
         usleep(1000);

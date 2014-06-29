@@ -384,7 +384,7 @@ static int lv2_unpatch_bdvdemu_460(void)
     sys8_memcpy((u64) mem, LV2MOUNTADDR_460, 0x10 * 0x118);
     sys8_memcpy((u64) (mem + 0x1200), 0x80000000007EF020ULL , LV2MOUNTADDR_460_CSIZE);
 
-    for(n = 0; n< 0x116c; n+= LV2MOUNTADDR_460_ESIZE)
+    for(n = 0; n < 0x116c; n+= LV2MOUNTADDR_460_ESIZE)
     {
         if(!memcmp(mem + n, "CELL_FS_UTILITY:HDD1", 21) && mem[n-9]== 1 && mem[n-13]== 1)
         {
@@ -409,27 +409,26 @@ static int lv2_unpatch_bdvdemu_460(void)
             {
                 sys8_memcpy(LV2MOUNTADDR_460 + n + 0x69, (u64) (mem + n + 0x79), 11);
                 sys8_memset(LV2MOUNTADDR_460 + n + 0x79, 0ULL, 12);
-                flag+=10;
+                flag += 10;
             }
         }
         if(!memcmp(mem + n, "CELL_FS_UTILITY:HDD0", 21) && mem[n-9]== 1 && mem[n-13]== 1)
         {
            if(!memcmp(mem + n + 0x69, "dev_bdvd", 9)
               && !memcmp(mem + n + 0x79, "esp_bdvd", 9) && peekq(0x80000000007EF000ULL)!=0)
-            {
+           {
                 mem[0x1200+ 0x10 -1] = mem[n-1];
                 sys8_memcpy(LV2MOUNTADDR_460 + (u64) (n - 0x10), (u64) (mem + 0x1200) , (u64) LV2MOUNTADDR_460_CSIZE);
-
-            flag+=10;
-            }
+                flag += 10;
+           }
         }
     }
 
-    for(n= 0; n < 100; n++) {
+    for(n = 0; n < 100; n++)
+    {
         _poke32(UMOUNT_SYSCALL_OFFSET, 0xFBA100E8); // UMOUNT RESTORE
         usleep(1000);
     }
-
 
     pokeq(0x80000000007EF000ULL, 0ULL);
 
@@ -442,9 +441,9 @@ static int lv2_unpatch_bdvdemu_460(void)
 static int lv2_patch_bdvdemu_460(uint32_t flags)
 {
     int n;
-    int flag = 0;
-    int usb = -1;
-    int pos=-1;
+    int flag =  0;
+    int usb  = -1;
+    int pos  = -1;
     int pos2 = -1;
 
     char * mem = temp_buffer;
@@ -461,12 +460,13 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
         }
     }
 
-    if(usb >= 0) {
+    if(usb >= 0)
+    {
         sprintf(path_name, "CELL_FS_IOS:USB_MASS_STORAGE00%c", 48 + usb);
         sprintf(&path_name[128], "dev_usb00%c", 48 + usb);
     }
 
-    for(n = 0; n< 0x116c; n+= LV2MOUNTADDR_460_ESIZE)
+    for(n = 0; n < 0x116c; n+= LV2MOUNTADDR_460_ESIZE)
     {
         if(noBDVD && !memcmp(mem + n, "CELL_FS_UTILITY:HDD1", 21)
             && !memcmp(mem + n + 0x69, "dev_bdvd", 9) && mem[n-9]== 1 && mem[n-13]== 1)
@@ -499,7 +499,7 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
             sys8_memcpy(LV2MOUNTADDR_460 + n + 0x69, (u64) "dev_bdvd\0\0", 11);
             sys8_memcpy(LV2MOUNTADDR_460 + n + 0x79, (u64) &path_name[128], 11);
 
-            flag+=10;
+            flag += 10;
         }
         else if(usb < 0 && !memcmp(mem + n, "CELL_FS_UTILITY:HDD0", 21)
                 && !memcmp(mem + n + 0x48, "CELL_FS_UFS", 11)
@@ -509,7 +509,8 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
         }
     }
 
-    if(pos>0 && pos2>0) {
+    if(pos > 0 && pos2 > 0)
+    {
       u64 dat;
 
       memcpy(mem + 0x1220, mem + pos2 - 0x10, LV2MOUNTADDR_460_CSIZE);
@@ -517,9 +518,9 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
       memcpy(mem + 0x1200, &dat, 0x8);
       dat = 0x8000000000000000ULL + (u64)UMOUNT_SYSCALL_OFFSET;
       memcpy(mem + 0x1208, &dat, 0x8);
-      n=(int) 0xFBA100E8; // UMOUNT RESTORE
+      n = (int) 0xFBA100E8; // UMOUNT RESTORE
       memcpy(mem + 0x1210, &n, 0x4);
-      n=(int) LV2MOUNTADDR_460_CSIZE; // CDATAS
+      n = (int) LV2MOUNTADDR_460_CSIZE; // CDATAS
       memcpy(mem + 0x1214, &n, 0x4);
 
       memcpy(mem + pos2, mem + pos, LV2MOUNTADDR_460_CSIZE - 0x10);
@@ -530,8 +531,8 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
       sys8_memcpy(0x80000000007EF000ULL , ((u64) mem + 0x1200), LV2MOUNTADDR_460_CSIZE + 0x20);
       sys8_memcpy(LV2MOUNTADDR_460 + (u64) pos2, ((u64) (mem + pos2)), (u64) (LV2MOUNTADDR_460_CSIZE - 0x10));
 
-      int k;
-      for(k= 0; k < 100; k++) {
+      for(int k = 0; k < 100; k++)
+      {
         PATCH_CALL(UMOUNT_SYSCALL_OFFSET, PAYLOAD_UMOUNT_OFFSET); // UMOUNT ROUTINE PATCH
         usleep(1000);
       }
@@ -539,8 +540,7 @@ static int lv2_patch_bdvdemu_460(uint32_t flags)
       flag = 100;
     }
 
-    if(flag < 11)
-        return -1;
+    if(flag < 11) return -1;
 
     return 0;
 }

@@ -10589,7 +10589,11 @@ void draw_gbloptions(float x, float y)
     else if(select_option < 7)
     {
         SetFontSize(16, 20);
-        DrawFormatString(0, y2 - 28, payload_str );
+
+        if((firmware & 0xF) == 0xD)
+            DrawFormatString(0, y2 - 28, "%xDEX  -  %s", firmware>>4, payload_str);
+        else
+            DrawFormatString(0, y2 - 28, "%xCEX  -  %s", firmware>>4, payload_str);
     }
 
     SetFontAutoCenter(0);
@@ -12137,7 +12141,12 @@ void draw_console_id_tools(float x, float y)
     SetFontColor(0xccccffff, 0x00000000);
     SetFontSize(18, 20);
     SetFontAutoCenter(1);
-    DrawFormatString(0, y2 + 40, payload_str );
+
+    if((firmware & 0xF) == 0xD)
+        DrawFormatString(0, y2 + 40, "%xDEX  -  %s", firmware>>4, payload_str);
+    else
+        DrawFormatString(0, y2 + 40, "%xCEX  -  %s", firmware>>4, payload_str);
+
     SetFontAutoCenter(0);
 
     //Display Console id
