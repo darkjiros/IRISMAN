@@ -25,6 +25,8 @@ DRAWSCREEN_SOPTIONS     = △: 游戏选项
 DRAWSCREEN_SDELETE      = △: 删除收藏夹
 DRAWSCREEN_STGLOPT      = START: 全局选项
 DRAWSCREEN_EXITXMB      = 返回至XMB™界面?
+DRAWSCREEN_RESTART      = Restart the PS3 System?
+DRAWSCREEN_SHUTDOWN     = Turn Off the PS3 System?
 DRAWSCREEN_CANRUNFAV    = 不能打开此收藏夹
 DRAWSCREEN_MARKNOTEXEC  = 标记为不可执行 尝试安装到内置缓存
 DRAWSCREEN_MARKNOTEX4G  = 标记为不可执行 - 包含分割文件 >= 4GB

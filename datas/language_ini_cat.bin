@@ -25,6 +25,8 @@ DRAWSCREEN_SOPTIONS     = SELECT: Opcions del Joc
 DRAWSCREEN_SDELETE      = SELECT: Esborrar Favorit
 DRAWSCREEN_STGLOPT      = START: Opcions Globals
 DRAWSCREEN_EXITXMB      = Sortir a XMB?
+DRAWSCREEN_RESTART      = Reiniciar el sistema PS3?
+DRAWSCREEN_SHUTDOWN     = Apagar el sistema PS3?
 DRAWSCREEN_CANRUNFAV    = No es pot executar aquest favorit
 DRAWSCREEN_MARKNOTEXEC  = Assenyalat com a no executable. Intentant la instal·lació en memòria cau (HDD0)
 DRAWSCREEN_MARKNOTEX4G  = Assenyalat com a no executable – Conté fitxers partits >= 4GB

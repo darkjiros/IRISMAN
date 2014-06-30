@@ -6834,9 +6834,13 @@ int gui_control()
                 {
                     if(DrawDialogYesNo(language[DRAWSCREEN_RESTART]) == 1) {SaveGameList(); set_install_pkg = true; game_cfg.direct_boot = 0; fun_exit(0);}
                 }
+                if (old_pad & (BUTTON_R2))
+                {
+                    if(DrawDialogYesNo(language[DRAWSCREEN_SHUTDOWN]) == 1) {SaveGameList(); bAutoLaunchPrxLoader = false; set_install_pkg = false; fun_exit(0); sys_shutdown();}
+                }
                 else
                 {
-                    if(DrawDialogYesNo(language[DRAWSCREEN_EXITXMB]) == 1) {SaveGameList(); exit_program = true; return r;}
+                    if(DrawDialogYesNo(language[DRAWSCREEN_EXITXMB]) == 1) {SaveGameList(); exit_program = true; fun_exit(0); return r;}
                 }
 
                 tiny3d_Flip();
@@ -7031,7 +7035,7 @@ autolaunch_proc:
 
                     if(!stat(tmp_path, &s))
                     {
-                        int r =  patch_exe_error_09(tmp_path);
+                        int r = patch_exe_error_09(tmp_path);
                         if(r == 1)
                         {
                             pause_music(1);
@@ -7616,8 +7620,25 @@ autolaunch_proc:
         }
         else if(old_pad & BUTTON_SELECT)
         {
-            if (file_manager(NULL, NULL) == 1)
-                return_to_game_list(true);
+            if(strncmp(directories[currentgamedir].title_id, NETHOST, 9) != SUCCESS)
+            {
+                strcpy(tmp_path, directories[currentgamedir].path_name);
+
+                int flen = strlen(get_extension(tmp_path));
+
+                if(flen)
+                {
+                    flen = strlen(get_filename(tmp_path));
+                    if(flen > 0 && strlen(tmp_path) > flen)
+                    {
+                        tmp_path[strlen(tmp_path) - flen - 1] = 0;
+                    }
+                }
+            }
+            else
+                memset(tmp_path, 0, MAXPATHLEN);
+
+            if (file_manager(tmp_path, NULL) == REFRESH_GAME_LIST) return_to_game_list(true);
 
             frame_count = 0xFF; // force display temp
             return r;
@@ -9446,7 +9467,7 @@ void draw_options(float x, float y, int index)
                     DrawDialogOK(language[DRAWGMOPT_FIXCOMPLETE]);
                  }
                  break;
-            case 4: // Test Game
+            case 4: // Test & Fix Game
                  i = selected;
 
                  if(Png_offset[i])
@@ -11165,7 +11186,7 @@ void draw_toolsoptions(float x, float y)
         switch(select_option)
         {
             case 0: // file manager
-                if (file_manager(NULL, NULL) == 1) return_to_game_list(true);
+                if (file_manager(NULL, NULL) == REFRESH_GAME_LIST) return_to_game_list(true);
 
                 frame_count = 0xFF; // force display temp
                 return;

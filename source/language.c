@@ -76,6 +76,7 @@ t_lngstr lang_strings[] =
     { DRAWSCREEN_STGLOPT, "DRAWSCREEN_STGLOPT"           , "START: Global Options" },
     { DRAWSCREEN_EXITXMB, "DRAWSCREEN_EXITXMB"           , "Exit to XMB?" },
     { DRAWSCREEN_RESTART, "DRAWSCREEN_RESTART"           , "Do you want to Restart the PS3?"},
+    { DRAWSCREEN_SHUTDOWN, "DRAWSCREEN_SHUTDOWN"         , "Do you want to turn off the PS3?"},
     { DRAWSCREEN_CANRUNFAV, "DRAWSCREEN_CANRUNFAV"       , "Cannot run this favorite" },
     { DRAWSCREEN_MARKNOTEXEC, "DRAWSCREEN_MARKNOTEXEC"   , "Marked as non executable. Trying to install in HDD0 cache" },
     { DRAWSCREEN_MARKNOTEX4G, "DRAWSCREEN_MARKNOTEX4G"   , "Marked as not executable - Contains splited files >= 4GB" },

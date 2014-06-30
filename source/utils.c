@@ -5019,10 +5019,10 @@ void test_game(int game_sel)
 
     self_alarm_version = 0;
 
-    if(!sysLv2FsStat(game_update_path, &s)) {
-
+    if(!sysLv2FsStat(game_update_path, &s))
         patch_error_09(game_update_path);
-    }
+    else if((directories[game_sel].flags & (BDVD_FLAG | PS3_FLAG)) == (PS3_FLAG))
+        patch_error_09(directories[game_sel].path_name);
 
     DPrintf(language[GAMETSTSL_FINALNFO2], num_directories, file_counter, num_files_big, num_files_split);
     DPrintf("\n\n");
@@ -5030,14 +5030,10 @@ void test_game(int game_sel)
     DPrintf("\n\n");
 
     if(r)
-    {
         DPrintf("This game requires a higher CFW or rebuild the SELFs/SPRX\n\nEste juego requiere un CFW superior o reconstruir los SELFs/SPRX\n\n");
-    }
 
     if(self_alarm_version)
-    {
         DPrintf("The update of this game requires a higher CFW or rebuild the SELFs/SPRX\n\nLa actualizacion de este juego requiere un CFW superior o reconstruir los SELFs/SPRX\n\n");
-    }
 
     int seconds = (int) (time(NULL) - time_start);
     int vflip = 0;

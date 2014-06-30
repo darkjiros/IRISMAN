@@ -25,6 +25,8 @@ DRAWSCREEN_SOPTIONS     = SELECT: Spillvalg
 DRAWSCREEN_SDELETE      = SELECT: slett favoritt
 DRAWSCREEN_STGLOPT      = START: Globale valg
 DRAWSCREEN_EXITXMB      = Avslutt til XMB?
+DRAWSCREEN_RESTART      = Restarter PS3-systemet?
+DRAWSCREEN_SHUTDOWN     = Slå av PS3-systemet?
 DRAWSCREEN_CANRUNFAV    = Kan ikke kjøre denne favoritten
 DRAWSCREEN_MARKNOTEXEC  = Merket som ikke kjørbar. Prøver å installere på HDD0
 DRAWSCREEN_MARKNOTEX4G  = Merket som ikke kjørbar - Inneholder delte filer >= 4GB

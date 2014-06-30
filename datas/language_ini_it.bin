@@ -25,6 +25,8 @@ DRAWSCREEN_SOPTIONS     = TRIANGOLO: Opzioni del Gioco
 DRAWSCREEN_SDELETE      = TRIANGOLO: Elimina Preferito
 DRAWSCREEN_STGLOPT      = START: Opzioni Globali
 DRAWSCREEN_EXITXMB      = Uscire e ritornare alla XMB ?
+DRAWSCREEN_RESTART      = Reinizio il sistema PS3?
+DRAWSCREEN_SHUTDOWN     = Spegnere il sistema PS3?
 DRAWSCREEN_CANRUNFAV    = Non è possibile avviare questo preferito
 DRAWSCREEN_MARKNOTEXEC  = Contrassegnato come non eseguibile. Tentare di installare nella memoria (HDD0)
 DRAWSCREEN_MARKNOTEX4G  = Contrassegnato come non eseguibile - Contiene file splittati >= 4GB

@@ -26,6 +26,8 @@ DRAWSCREEN_SOPTIONS     = يﺯﺎﺑ تﺎﻤﻴﻆﻨﺗ : TRIANGLE
 DRAWSCREEN_SDELETE      = دكمه :SELECT حذف برگزيده
 DRAWSCREEN_STGLOPT      = ﻰﻠﺻا تﺎﻤﻴﻆﻨﺗ : START
 DRAWSCREEN_EXITXMB      = khoroj az XMB?
+DRAWSCREEN_RESTART      = Restart the PS3 System?
+DRAWSCREEN_SHUTDOWN     = Turn Off the PS3 System?
 DRAWSCREEN_CANRUNFAV    = Cannot run this favourite
 DRAWSCREEN_MARKNOTEXEC  = Marked as non executable. Trying to install in HDD0 cache
 DRAWSCREEN_MARKNOTEX4G  = Marked as not executable - Contains splited files >= 4GB

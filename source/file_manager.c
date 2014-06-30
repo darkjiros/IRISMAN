@@ -532,7 +532,7 @@ static int CountFiles(char* path, int *nfiles, int *nfolders, u64 *size)
     u64 read;
     sysFSDirent dir;
     int ret = 0;
-    int p1=strlen(path);
+    int p1 = strlen(path);
     DIR_ITER *pdir = NULL;
     struct stat st;
     bool is_ntfs = false;
@@ -6272,7 +6272,7 @@ int file_manager(char *pathw1, char *pathw2)
                      sprintf(temp_buffer, "Do you want to create the new folder %s\non %s ?", buffer1, !fm_pane ? path1 : path2);
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
-                         exitcode = 1;
+                         exitcode = REFRESH_GAME_LIST;
 
                          if(!fm_pane)
                             sprintf(temp_buffer, "%s/%s", path1, buffer1);
@@ -6292,7 +6292,7 @@ int file_manager(char *pathw1, char *pathw2)
                             DrawDialogOK(temp_buffer);
                          }
 
-                         nentries2=nentries1 = 0;
+                         nentries2 = nentries1 = 0;
                          pos1 = sel1 = 0;
                          pos2 = sel2 = 0;
                      }
@@ -6318,7 +6318,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
-                        exitcode = 1;
+                         exitcode = REFRESH_GAME_LIST;
 
                          if(!fm_pane)
                          {
@@ -6343,7 +6343,7 @@ int file_manager(char *pathw1, char *pathw2)
                             DrawDialogOK(temp_buffer);
                          }
 
-                         nentries2=nentries1 = 0;
+                         nentries2 = nentries1 = 0;
                          pos1 = sel1 = 0;
                          pos2 = sel2 = 0;
                      }
@@ -6366,14 +6366,14 @@ int file_manager(char *pathw1, char *pathw2)
                         if(!strcmp(path2, "/") || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = copy_file_manager(path1, path2, entries1, nentries1, -1, free_device2);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                     else
                     {
                         if(!strcmp(entries1[sel1].d_name, "..") || !strcmp(path2, "/")  || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = copy_file_manager(path1, path2, entries1, nentries1, sel1, free_device2);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                 }
                 else
@@ -6385,14 +6385,14 @@ int file_manager(char *pathw1, char *pathw2)
                         if(!strcmp(path1, "/") || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = copy_file_manager(path2, path1, entries2, nentries2, -1, free_device1);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                     else
                     {
                         if(!strcmp(entries2[sel2].d_name, "..") || !strcmp(path1, "/")  || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = copy_file_manager(path2, path1, entries2, nentries2, sel2, free_device1);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                 }
 
@@ -6402,7 +6402,7 @@ int file_manager(char *pathw1, char *pathw2)
                     DrawDialogOK(temp_buffer);
                 }
 
-                nentries2=nentries1 = 0;
+                nentries2 = nentries1 = 0;
                 pos1 = sel1 = 0;
                 pos2 = sel2 = 0;
 
@@ -6424,14 +6424,14 @@ int file_manager(char *pathw1, char *pathw2)
                         if(!strcmp(path2, "/") || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = move_file_manager(path1, path2, entries1, nentries1, -1, free_device2);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                     else
                     {
                         if(!strcmp(entries1[sel1].d_name, "..") || !strcmp(path2, "/")  || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = move_file_manager(path1, path2, entries1, nentries1, sel1, free_device2);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                 }
                 else
@@ -6441,14 +6441,14 @@ int file_manager(char *pathw1, char *pathw2)
                         // multiple
                         if(!strcmp(path1, "/") || !strcmp(path1, path2)) {set_menu2 = 0;goto skip_menu2;}
                         ret = move_file_manager(path2, path1, entries2, nentries2, -1, free_device1);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                     else
                     {
                         if(!strcmp(entries2[sel2].d_name, "..") || !strcmp(path1, "/")  || !strcmp(path1, path2))
                             {set_menu2 = 0;goto skip_menu2;}
                         ret = move_file_manager(path2, path1, entries2, nentries2, sel2, free_device1);
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
                     }
                 }
 
@@ -6458,7 +6458,7 @@ int file_manager(char *pathw1, char *pathw2)
                     DrawDialogOK(temp_buffer);
                  }
 
-                 nentries2=nentries1 = 0;
+                 nentries2 = nentries1 = 0;
                  pos1 = sel1 = 0;
                  pos2 = sel2 = 0;
 
@@ -6497,7 +6497,7 @@ int file_manager(char *pathw1, char *pathw2)
                     // multiple
                     sprintf(temp_buffer, "Do you want to delete the selected Files and Folders?\n\n(%i) Items", files);
                     if(DrawDialogYesNo(temp_buffer) == 1) {
-                        exitcode = 1;
+                        exitcode = REFRESH_GAME_LIST;
 
                         single_bar("Deleting...");
 
@@ -6609,7 +6609,7 @@ int file_manager(char *pathw1, char *pathw2)
                      sprintf(temp_buffer, "Do you want to create the new file %s.bin\non %s ?", buffer1, !fm_pane ? path1 : path2);
                      if(DrawDialogYesNo(temp_buffer) == 1)
                      {
-                         exitcode = 1;
+                         exitcode = REFRESH_GAME_LIST;
 
                          if(!fm_pane)
                          {
@@ -6650,7 +6650,7 @@ int file_manager(char *pathw1, char *pathw2)
                             DrawDialogOKTimer(temp_buffer, 2000.0f);
                          }
 
-                         nentries2=nentries1 = 0;
+                         nentries2 = nentries1 = 0;
                          pos1 = sel1 = 0;
                          pos2 = sel2 = 0;
                      }
@@ -6661,7 +6661,7 @@ int file_manager(char *pathw1, char *pathw2)
             else if(set_menu2 == 7)
             {
                 // Build ISO from file
-                exitcode = 1;
+                exitcode = REFRESH_GAME_LIST;
 
                 set_menu2 = 0;
 
@@ -7115,7 +7115,7 @@ int file_manager(char *pathw1, char *pathw2)
                     else if(!options_locked && !(entries1[sel1].d_type & IS_MARKED) && !strcmp(entries1[sel1].d_name, "PARAM.SFO"))
                     {
                         sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
-                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = 1;
+                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = REFRESH_GAME_LIST;
                     }
                     else if(!options_locked && !(entries1[sel1].d_type & IS_MARKED) && (!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")))
                     {
@@ -7603,7 +7603,7 @@ int file_manager(char *pathw1, char *pathw2)
                     else if(!options_locked && !(entries2[sel2].d_type & IS_MARKED) && !strcmp(entries2[sel2].d_name, "PARAM.SFO"))
                     {
                         sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
-                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = 1;
+                        if(edit_title_param_sfo(temp_buffer) == SUCCESS) exitcode = REFRESH_GAME_LIST;
                     }
                     else if(!options_locked && !(entries2[sel2].d_type & IS_MARKED) && (!strcmp(ext, ".pkg") || !strcmp(ext, ".PKG")))
                     {
