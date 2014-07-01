@@ -696,8 +696,8 @@ int get_icon(char * path, const int num_dir)
 
     if((directories[num_dir].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
     {
-        bool is_retro = (strstr(directories[num_dir].path_name, retro_root_path) != NULL);
-        bool is_ps2_classic = !is_retro &&
+        bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[num_dir].path_name, retro_root_path) != NULL);
+        bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                               (strstr(directories[num_dir].path_name, ps2classic_path) != NULL);
 
         if(cover_mode || is_retro || is_ps2_classic)
@@ -777,7 +777,7 @@ int get_icon(char * path, const int num_dir)
 
     if (!is_update)
     {
-        if(strstr("NETBROWSE|IRISMAN00|PRXLOADER|CDGPLAYER|GMPADTEST", directories[num_dir].title_id) != NULL)
+        if(strlen(directories[num_dir].title_id) == 9 && strstr("NETBROWSE|IRISMAN00|PRXLOADER|CDGPLAYER|GMPADTEST", directories[num_dir].title_id) != NULL)
         {
             if(strncmp(directories[num_dir].title_id, "IRISMAN00", 9) == SUCCESS)
                 sprintf(path, "%s/USRDIR/icons/NETBROWSE.PNG", self_path);
@@ -791,7 +791,8 @@ int get_icon(char * path, const int num_dir)
 
             return FAILED;
         }
-        else if(strstr(custom_homebrews, directories[num_dir].title_id) != NULL || (directories[num_dir].flags & HOMEBREW_FLAG) == HOMEBREW_FLAG)
+        else if((strlen(directories[num_dir].title_id) == 9 && strstr(custom_homebrews, directories[num_dir].title_id) != NULL) ||
+                (directories[num_dir].flags & HOMEBREW_FLAG) == HOMEBREW_FLAG)
         {
             sprintf(path, "/dev_hdd0/game/%s/ICON0.PNG", directories[num_dir].title_id);
             if(!stat(path, &s)) return SUCCESS;
@@ -2762,7 +2763,7 @@ void read_settings()
     sprintf(audio_extensions, ".MP3 .WAV .WMA .AAC .AC3 .AT3 .OGG .OGA .MP2 .MPA .M4A .FLAC .RA .RAM .AIF .AIFF .MOD .S3M .XM .IT .MTM .STM .UMX .MO3 .NED .669 .MP1 .M1A .M2A .M4B .AA3 .OMA .AIFC");
     sprintf(rom_extensions, ".ZIP .GBA .NES .UNIF .GB .GBC .DMG .MD .SMD .GEN .SMS .GG .SG .BIN .CUE .IOS .FLAC .NGP .NGC .PCE .SGX .CUE .VB .VBOY .BIN .WS .WSC .FDS .EXE .WAD .IWAD .SMC .FIG .SFC .GD3 .GD7 .DX2 .BSX .SWC .A26 .BIN .PAK");
     sprintf(browser_extensions, ".HTML .HTM .TXT .INI .CFG .GIF");
-    sprintf(custom_homebrews, "HTSS00003|NETBROWSE|CDGPLAYER|GMPADTEST|IRISMAN00|IMANAGER4|PRXLOADER|RBGTLBOX2|BLES80608|BLES80688|SSNE10000|SNES90000|VBAM90000|GENP00001|FCEU90000|FBAN00000|FBAL00123|MAME90000|PSID81257|PS2L00123|ROGE12345|CNDR00001");
+    sprintf(custom_homebrews, "HTSS00003|NETBROWSE|CDGPLAYER|GMPADTEST|IRISMAN00|IMANAGER4|GMANAGER9|PRXLOADER|RBGTLBOX2|BLES80608|BLES80688|SSNE10000|SNES90000|VBAM90000|GENP00001|FCEU90000|FBAN00000|FBAL00123|MAME90000|PSID81257|PS2L00123|ROGE12345|CNDR00001");
 
     sprintf(ShowPlayOverlay, "1");
     sprintf(ShowUSBIcon, "1");
@@ -4372,17 +4373,20 @@ skip_bdvd:
                     strncpy(file, filename, 0x420);
                     n = 1; while(file[n] != '/' && file[n] != 0) n++;
 
-                    file[n] = 0; strcat(file, "/BDISO");
-                    fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device), directories, &ndirectories);
+                    fill_directory_entries_with_alt_path(file, n, "/BDISO", "/DVDISO", directories, &ndirectories, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device));
+                    fill_directory_entries_with_alt_path(file, n, "/VIDEO", "/MOVIES", directories, &ndirectories, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device));
 
-                    file[n] = 0; strcat(file, "/DVDISO");
-                    fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_DVD | (1<<find_device), directories, &ndirectories);
+                    //file[n] = 0; strcat(file, "/BDISO");
+                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device), directories, &ndirectories);
 
-                    file[n] = 0; strcat(file, "/VIDEO");
-                    fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
+                    //file[n] = 0; strcat(file, "/DVDISO");
+                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_DVD | (1<<find_device), directories, &ndirectories);
 
-                    file[n] = 0; strcat(file, "/MOVIES");
-                    fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
+                    //file[n] = 0; strcat(file, "/VIDEO");
+                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
+
+                    //file[n] = 0; strcat(file, "/MOVIES");
+                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
 
                     file[n] = 0; strcat(file, video_path);
                     fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
@@ -4500,108 +4504,96 @@ skip_bdvd:
 
                                             if(roms_count < max_roms && is_file_exist(cfg_path))
                                             {
+                                                sprintf(filename, "/%s:", (mounts[find_device]+k)->name);
+                                                int n = strlen(filename);
+
                                                 sprintf(cfg_path, "%s/USRDIR/cores/snes-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_SNES) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_snes_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_snes_path, "/ROMS/snes", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/gba-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GBA) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_gba_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_gba_path, "/ROMS/vba", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/gen-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GEN) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_gen_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_gen_path, "/ROMS/gen", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/nes-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_NES) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_nes_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_nes_path, "/ROMS/fceu", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/mame-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_MAME) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_mame_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_mame_path, "/ROMS/mame", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/fba-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_FBA) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_fba_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_fba_path, "/ROMS/fba", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/quake-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_QUAKE) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_quake_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_quake_path, "/ROMS/pak", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/doom-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_DOOM) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_doom_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_doom_path, "/ROMS/pak", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/pce-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_PCE) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_pce_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_pce_path, "/ROMS/pce", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GBC) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_gbc_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_gbc_path, "/ROMS/gbc", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
 
                                                     if(roms_count < max_roms)
                                                     {
-                                                        sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_gb_path);
-                                                        fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                        fill_directory_entries_with_alt_path(filename, n, retro_gb_path, "/ROMS/gb", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                     }
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/atari-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_ATARI) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_atari_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_atari_path, "/ROMS/atari", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/vb-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_VBOY) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_vb_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_vb_path, "/ROMS/vboy", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/nxe-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_NXE) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_nxe_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_nxe_path, "/ROMS/nxe", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 sprintf(cfg_path, "%s/USRDIR/cores/wswan-retroarch.cfg", self_path);
                                                 if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_WSWAN) && is_file_exist(cfg_path))
                                                 {
-                                                    sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, retro_wswan_path);
-                                                    fill_iso_entries_from_device(filename, RETRO_FLAG | D_FLAG_NTFS, directories, &ndirectories);
+                                                    fill_directory_entries_with_alt_path(filename, n, retro_wswan_path, "/ROMS/wsw", directories, &ndirectories, RETRO_FLAG | D_FLAG_NTFS);
                                                 }
 
                                                 if(roms_count) roms_count = max_roms;
@@ -4724,7 +4716,7 @@ skip_bdvd:
                     if(directories[favourites.list[n].index].flags == 0) exit(0);
                 }
             }
-            for (; n < 48; n++) favourites.list[n].index = -1;
+            for (; n < MAX_FAVORITES; n++) favourites.list[n].index = -1;
         }
 
         // fake disc insertion
@@ -5108,8 +5100,8 @@ void get_pict(int *index)
 
         if(is_psp)
         {
-            is_retro = (strstr(directories[ind].path_name, retro_root_path) != NULL);
-            bool is_ps2_classic = !is_retro &&
+            is_retro = (strlen(retro_root_path) > 0 && strstr(directories[ind].path_name, retro_root_path) != NULL);
+            bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                   (strstr(directories[ind].path_name, ps2classic_path) != NULL);
 
             if(is_retro || is_ps2_classic) goto default_pict;
@@ -5543,8 +5535,8 @@ void draw_grid(float x, float y)
                     // add PSP / PS2 / PSX ISO icon
                     if((directories[get_currentdir(i)].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
                     {
-                        bool is_retro = (strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
-                        bool is_ps2_classic = !is_retro &&
+                        bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
+                        bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                               (strstr(directories[get_currentdir(i)].path_name, ps2classic_path) != NULL);
 
                         if(is_retro)
@@ -5636,11 +5628,11 @@ void draw_grid(float x, float y)
                                 TINY3D_TEX_FORMAT_A8R8G8B8,  TEXTWRAP_CLAMP, TEXTWRAP_CLAMP,1);
 
                             if(gui_mode == MODE_XMB_LIKE)
-                                DrawTextBox(x + 250, y + 225, 0, FIX_X(32), FIX_X(24), 0xff9999aa);
-                            else if(directories[get_currentdir(i)].splitted)
-                                DrawTextBox(xx + ww * m + 4 - 4 * f2, yy + n * hh + 4 - 4 * f2, 0, FIX_X(32), FIX_X(24), 0xff9999aa);
+                                DrawTextBox(x + 250, y + 225, 0, FIX_X(32), FIX_X(24),
+                                            directories[get_currentdir(i)].splitted ? 0xff9999aa : 0xffffffcf);
                             else
-                                DrawTextBox(xx + ww * m + 4 - 4 * f2, yy + n * hh + 4 - 4 * f2, 0, FIX_X(32), FIX_X(24), 0xffffffcf);
+                                DrawTextBox(xx + ww * m + 4 - 4 * f2, yy + n * hh + 4 - 4 * f2, 0, FIX_X(32), FIX_X(24),
+                                            directories[get_currentdir(i)].splitted ? 0xff9999aa : 0xffffffcf);
                         }
                     }
                 }
@@ -6268,8 +6260,8 @@ void draw_coverflow(float x, float y)
                         // add PSP / PS2 / PSX ISO icon
                         if((directories[get_currentdir(i)].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
                         {
-                            bool is_retro = (strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
-                            bool is_ps2_classic = !is_retro &&
+                            bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
+                            bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                                   (strstr(directories[get_currentdir(i)].path_name, ps2classic_path) != NULL);
 
                             if(is_retro)
@@ -6629,9 +6621,9 @@ void draw_coverflow(float x, float y)
 
              u32 ff = directories[get_currentdir(i)].flags & D_FLAG_HOMEB_MKV;
 
-             if(ff == D_FLAG_HOMEB_BD) x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "BD ISO");
-             else if(ff == D_FLAG_HOMEB_DVD) x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "DVD ISO");
-             else if(ff == D_FLAG_HOMEB_MKV) x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "VIDEO");
+             x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, ff == D_FLAG_HOMEB_MKV ? "VIDEO"   :
+                                                            ff == D_FLAG_HOMEB_BD  ? "BD ISO"  :
+                                                            ff == D_FLAG_HOMEB_DVD ? "DVD ISO" : "");
 
         }
         else
@@ -6641,8 +6633,8 @@ void draw_coverflow(float x, float y)
                 // add PSP / PS2 / PSX ISO icon
                 if((directories[get_currentdir(i)].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
                 {
-                    bool is_retro = (strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
-                    bool is_ps2_classic = !is_retro &&
+                    bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
+                    bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                           (strstr(directories[get_currentdir(i)].path_name, ps2classic_path) != NULL);
 
                     if(is_retro)
@@ -6696,30 +6688,23 @@ void draw_coverflow(float x, float y)
                 SetCurrentFont(FONT_TTF);
                 SetFontSize(12, 24);
 
-                if((directories[get_currentdir(i)].flags & (PS1_FLAG)) == (PS1_FLAG))
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "PSX ISO");
-                else if(n == 1)
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "BD EMU");
-                else if(n == 2)
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "LIBFS");
+                x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, (directories[get_currentdir(i)].flags & (PS1_FLAG)) == (PS1_FLAG) ? "PSX ISO" :
+                                                                                                                      (n == 1)   ? "BD EMU"  :
+                                                                                                                      (n == 2)   ? "LIBFS"   : "");
             }
             else if((directories[get_currentdir(i)].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
             {
-                bool is_retro = (strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
-                bool is_ps2_classic = !is_retro &&
+                bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[get_currentdir(i)].path_name, retro_root_path) != NULL);
+                bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                       (strstr(directories[get_currentdir(i)].path_name, ps2classic_path) != NULL);
 
-                if(is_retro)
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "RETRO");
-                else if(is_ps2_classic)
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "PS2 CLASSIC");
-                else
-                    x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "PSP ISO");
+                x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, is_retro       ? "RETRO" :
+                                                               is_ps2_classic ? "PS2 CLASSIC" :
+                                                                                "PSP ISO");
             }
-            else if((directories[get_currentdir(i)].flags & (PS2_FLAG)) == (PS2_FLAG))
-                x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "PS2 ISO");
             else
-                x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, "PS3 ISO");
+                x2 = DrawString(x + x2,  y + 3 * 150 - 48 + 4, (directories[get_currentdir(i)].flags & (PS2_FLAG)) == (PS2_FLAG) ? "PS2 ISO" : "PS3 ISO");
+
         }
     }
 
@@ -6732,12 +6717,9 @@ void draw_coverflow(float x, float y)
 
         SetFontAutoCenter(1);
 
-        if(sort_mode == 1)
-            DrawString(0,  y + 3 * 150 - 48 + 4, "PS3 > PSX");
-        else if(sort_mode == 2)
-            DrawString(0,  y + 3 * 150 - 48 + 4, "PSX > PS3");
-        else
-            DrawString(0,  y + 3 * 150 - 48 + 4, "PS3 - PSX");
+        DrawString(0,  y + 3 * 150 - 48 + 4, sort_mode == 1 ? "PS3 > PSX" :
+                                             sort_mode == 2 ? "PSX > PS3" :
+                                                              "PS3 - PSX");
 
         SetFontAutoCenter(0);
     }
@@ -6960,7 +6942,7 @@ autolaunch_proc:
 
                     return r;
                 }
-                else if(strstr(custom_homebrews, directories[currentgamedir].title_id) != NULL)
+                else if(strlen(directories[currentgamedir].title_id) == 9 && strstr(custom_homebrews, directories[currentgamedir].title_id) != NULL)
                 {
                     if(is_file_exist(directories[currentgamedir].path_name))
                         sysProcessExitSpawn2(directories[currentgamedir].path_name, NULL, NULL, NULL, 0, 3071, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
@@ -6970,7 +6952,7 @@ autolaunch_proc:
 
                 // Launch Retro / ROM
                 bool is_retro = ((directories[currentgamedir].flags & (RETRO_FLAG)) == (RETRO_FLAG)) &&
-                                (strstr(directories[currentgamedir].path_name, retro_root_path) != NULL);
+                                (strlen(retro_root_path) > 0 && strstr(directories[currentgamedir].path_name, retro_root_path) != NULL);
 
                 if(is_retro)
                 {
@@ -6982,7 +6964,7 @@ autolaunch_proc:
 
                 // Mount PS2 Classic ISO (*.ENC.BIN)
                 bool is_ps2_classic = ((directories[currentgamedir].flags & (PS2_CLASSIC_FLAG)) == (PS2_CLASSIC_FLAG)) &&
-                                      (strstr(directories[currentgamedir].path_name, ps2classic_path) != NULL);
+                                      (strlen(ps2classic_path) > 0 && strstr(directories[currentgamedir].path_name, ps2classic_path) != NULL);
 
                 if(is_ps2_classic)
                 {
@@ -7713,12 +7695,12 @@ autolaunch_proc:
                 if(currentgamedir >= 0 && currentgamedir < ndirectories)
                 {
                     bool is_retro = ((directories[indx].flags & (RETRO_FLAG)) == (RETRO_FLAG)) &&
-                                    (strstr(directories[indx].path_name, retro_root_path) != NULL);
+                                    (strlen(retro_root_path) > 0 && strstr(directories[indx].path_name, retro_root_path) != NULL);
 
                     if(is_retro) goto ask_delete_item;
 
                     bool is_ps2_classic = ((directories[indx].flags & (PS2_CLASSIC_FLAG)) == (PS2_CLASSIC_FLAG)) &&
-                                          (strstr(directories[indx].path_name, ps2classic_path) != NULL);
+                                          (strlen(ps2classic_path) > 0 && strstr(directories[indx].path_name, ps2classic_path) != NULL);
 
                     if(is_ps2_classic) goto ask_delete_item;
 
@@ -8448,11 +8430,11 @@ void draw_background_pic1()
             // ignore PS1/PS2/RETRO
             if((directories[indx].flags & (RETRO_FLAG | PS2_CLASSIC_FLAG)) == (RETRO_FLAG | PS2_CLASSIC_FLAG))
             {
-                bool is_retro = (strstr(directories[indx].path_name, retro_root_path) != NULL);
+                bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[indx].path_name, retro_root_path) != NULL);
 
                 if(gui_mode != MODE_XMB_LIKE)
                 {
-                    bool is_ps2_classic = !is_retro &&
+                    bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                           (strstr(directories[indx].path_name, ps2classic_path) != NULL);
 
                     if(is_retro || is_ps2_classic) return;
@@ -8592,8 +8574,8 @@ void draw_app_version(float x, float y)
 
                 if((directories[currentgamedir].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
                 {
-                    bool is_retro = (strstr(directories[currentgamedir].path_name, retro_root_path) != NULL);
-                    bool is_ps2_classic = !is_retro &&
+                    bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[currentgamedir].path_name, retro_root_path) != NULL);
+                    bool is_ps2_classic = !is_retro && strlen(ps2classic_path) > 0 &&
                                           (strstr(directories[currentgamedir].path_name, ps2classic_path) != NULL);
 
                     if(is_retro || is_ps2_classic)
@@ -9154,7 +9136,7 @@ void draw_device_cpyiso(float x, float y, int index)
 void draw_options(float x, float y, int index)
 {
 
-    if(strstr("HTSS00003|NETBROWSE|IRISMAN00", directories[currentgamedir].title_id) != NULL)
+    if(strlen(directories[currentgamedir].title_id) == 9 && strstr("HTSS00003|NETBROWSE|IRISMAN00", directories[currentgamedir].title_id) != NULL)
     {
         sprintf(temp_buffer, "%s\n\nDo you want to remove Showtime and Internet Browser icons from the Game List?", directories[currentgamedir].title);
         if(DrawDialogYesNo(temp_buffer) == 1)
@@ -10611,10 +10593,7 @@ void draw_gbloptions(float x, float y)
     {
         SetFontSize(16, 20);
 
-        if((firmware & 0xF) == 0xD)
-            DrawFormatString(0, y2 - 28, "%xDEX  -  %s", firmware>>4, payload_str);
-        else
-            DrawFormatString(0, y2 - 28, "%xCEX  -  %s", firmware>>4, payload_str);
+        DrawFormatString(0, y2 - 28, "%x%s  -  %s", firmware>>4, (firmware & 0xF) == 0xD ? "DEX": "CEX", payload_str);
     }
 
     SetFontAutoCenter(0);
@@ -12163,10 +12142,8 @@ void draw_console_id_tools(float x, float y)
     SetFontSize(18, 20);
     SetFontAutoCenter(1);
 
-    if((firmware & 0xF) == 0xD)
-        DrawFormatString(0, y2 + 40, "%xDEX  -  %s", firmware>>4, payload_str);
-    else
-        DrawFormatString(0, y2 + 40, "%xCEX  -  %s", firmware>>4, payload_str);
+    DrawFormatString(0, y2 - 28, "%x%s  -  %s", firmware>>4, (firmware & 0xF) == 0xD ? "DEX": "CEX", payload_str);
+
 
     SetFontAutoCenter(0);
 

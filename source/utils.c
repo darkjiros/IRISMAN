@@ -380,7 +380,12 @@ char *str_replace(char *orig, char *rep, char *with)
 
     if (!orig) return NULL;
 
-    if (!rep) rep = "";
+    if (!rep)
+    {
+        result = malloc(strlen(orig) + 1);
+        strcpy(result, orig);
+        return result;
+    }
 
     len_rep = strlen(rep);
 
@@ -1122,13 +1127,13 @@ int patch_exe_error_09(char *path_exe)
 
                         if(ret == SUCCESS && ver > cur_firm)
                         {
-                            if(ver > fw_421 && (firmware >= 0x421C && firmware <= 0x460C))
+                            if(ver > fw_421 && (firmware >= 0x421C && firmware < 0x460C))
                             {
                                 sysLv2FsWrite( file, &cur_firm, 0x2, &written );
                                 flag = 1; //patch applied
                             }
                             else
-                                flag = -1; //already patched
+                                flag = -1; //already patched or patch not needed
                         }
                     }
                 }
@@ -1152,7 +1157,7 @@ void patch_error_09( const char *path )
     int d = -1;
     s32 ret = 1;
 
-    if(firmware < 0x421C || firmware > 0x460C) return;
+    if(firmware < 0x421C || firmware >= 0x460C) return;
 
     /* Open the directory specified by "path". */
     ret = sysLv2FsOpenDir( path, &d );
@@ -1196,7 +1201,6 @@ void patch_error_09( const char *path )
         }
         else if(ext > 1 )
         {
-
             // SELF/SPRX/EBOOT.BIN
             if((entry.d_name[ ext ] == 's' && entry.d_name[ ext + 1 ] == 'p' && entry.d_name[ ext + 2 ] == 'r' && entry.d_name[ ext + 3 ] == 'x') ||
                (entry.d_name[ ext ] == 'S' && entry.d_name[ ext + 1 ] == 'P' && entry.d_name[ ext + 2 ] == 'R' && entry.d_name[ ext + 3 ] == 'X') ||
@@ -1590,7 +1594,7 @@ int delete_custom_icons(t_directories *list, int *max)
     n = 0;
     while(n < (*max) )
     {
-        if(strstr(custom_homebrews, list[n].title_id) != NULL)
+        if(strlen(list[n].title_id) > 0 && strstr(custom_homebrews, list[n].title_id) != NULL)
         {
             deleted++;
 
@@ -1652,8 +1656,6 @@ int delete_entries(t_directories *list, int *max, u32 flag)
 void fill_psx_iso_entries_from_device(char *path, u32 flag, t_directories *list, int *max)
 {
     DIR  *dir;
-
-    //mkdir_secure(path);
 
     dir = opendir(path);
     if(dir)
@@ -1723,14 +1725,13 @@ int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int 
 
     if(!mem) return 0;
 
-    //mkdir_secure(path);
-
     dir = opendir(path);
     if(dir)
     {
         bool is_psp = (flag & (PSP_FLAG | RETRO_FLAG)) == (PSP_FLAG | RETRO_FLAG);
-        bool is_retro = is_psp && (strstr(path, retro_root_path) != NULL);
-        bool is_ps2_classic = is_psp && !is_retro && (strstr(path, ps2classic_path) != NULL);
+        bool is_retro = is_psp && strlen(retro_root_path) > 0 && (strstr(path, retro_root_path) != NULL);
+        bool is_ps2_classic = is_psp && !is_retro &&
+                              (strlen(ps2classic_path) > 0 && strstr(path, ps2classic_path) != NULL);
 
         while(true)
         {
@@ -1930,6 +1931,19 @@ read_next_file:
     return (*max);
 }
 
+void fill_directory_entries_with_alt_path(char *file, int n, char *retro_path, char *alt_path, t_directories *list, int *max, u32 flag)
+{
+    file[n] = 0; strcat(file, retro_path);
+    fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+
+    if(roms_count < max_roms && ((strncmp(file, "/dev_hdd0", 9) == SUCCESS && strcmp(retro_path, alt_path) != SUCCESS) ||
+                                 (strncmp(file, "/dev_hdd0", 9) != SUCCESS && strcasecmp(retro_path, alt_path) != SUCCESS)))
+    {
+        file[n] = 0; strcat(file, alt_path);
+        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+    }
+}
+
 int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag, int sel, bool append)
 {
     DIR  *dir;
@@ -1962,7 +1976,7 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
         n = 1; while(file[n] != '/' && file[n] != 0) n++;
 
         file[n] = 0; strcat(file, "/PS3ISO");
-        //mkdir_secure(file);
+
         if(game_list_category == GAME_LIST_PS3_ONLY || game_list_category == GAME_LIST_ALL)
             fill_iso_entries_from_device(file, flag, list, max);
 
@@ -1971,14 +1985,12 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
             if(retro_mode == RETRO_ALL || retro_mode == RETRO_PSX || retro_mode == RETRO_PSALL)
             {
                 file[n] = 0; strcat(file, "/PSXISO");
-                //mkdir_secure(file);
                 fill_iso_entries_from_device(file, flag | PS1_FLAG, list, max);
             }
 
             if(retro_mode == RETRO_ALL || retro_mode == RETRO_PS2 || retro_mode == RETRO_PSALL)
             {
                 file[n] = 0; strcat(file, ps2classic_path);
-                //mkdir_secure(file);
                 fill_iso_entries_from_device(file, flag | PS2_CLASSIC_FLAG, list, max);
             }
 
@@ -1989,7 +2001,6 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
                     if(!strncmp(file, "/dev_hdd0", 9))
                     {
                         file[n] = 0; strcat(file, "/PS2ISO");
-                        //mkdir_secure(file);
                         fill_iso_entries_from_device(file, flag | PS2_FLAG, list, max);
                     }
                 }
@@ -1999,12 +2010,10 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
                     if(strncmp(file, "/dev_hdd0", 9))
                     {
                         file[n] = 0; strcat(file, "/ISO");
-                        //mkdir_secure(file);
                         fill_iso_entries_from_device(file, flag | PSP_FLAG, list, max);
                     }
 
                     file[n] = 0; strcat(file, "/PSPISO");
-                    //mkdir_secure(file);
                     fill_iso_entries_from_device(file, flag | PSP_FLAG, list, max);
                 }
 
@@ -2016,120 +2025,88 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
                     sprintf(cfg_path, "%s/USRDIR/cores/snes-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_SNES) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_snes_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_snes_path, "/ROMS/snes", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/gba-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GBA) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_gba_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_gba_path, "/ROMS/vba", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/gen-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GEN) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_gen_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_gen_path, "/ROMS/gen", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/nes-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_NES) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_nes_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_nes_path, "/ROMS/fceu", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/mame-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_MAME) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_mame_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_mame_path, "/ROMS/mame", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/fba-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_FBA) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_fba_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_fba_path, "/ROMS/fba", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/quake-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_QUAKE) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_quake_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_quake_path, "/ROMS/pak", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/doom-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_DOOM) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_doom_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_doom_path, "/ROMS/prb", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/pce-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_PCE) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_pce_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_pce_path, "/ROMS/pce", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_GBC) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_gbc_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_gbc_path, "/ROMS/gbc", list, max, flag);
 
                         if(roms_count < max_roms)
-                        {
-                            file[n] = 0; strcat(file, retro_gb_path);
-                            //mkdir_secure(file);
-                            fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
-                        }
+                           fill_directory_entries_with_alt_path(file, n, retro_gb_path, "/ROMS/gb", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/atari-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_ATARI) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_atari_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_atari_path, "/ROMS/atari", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/vb-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_VBOY) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_vb_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_atari_path, "/ROMS/vboy", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/nxe-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_NXE) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_nxe_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_atari_path, "/ROMS/nxe", list, max, flag);
                     }
 
                     sprintf(cfg_path, "%s/USRDIR/cores/wswan-retroarch.cfg", self_path);
                     if(roms_count < max_roms && (retro_mode == RETRO_ALL || retro_mode == RETRO_WSWAN) && is_file_exist(cfg_path))
                     {
-                        file[n] = 0; strcat(file, retro_wswan_path);
-                        //mkdir_secure(file);
-                        fill_iso_entries_from_device(file, flag | RETRO_FLAG, list, max);
+                        fill_directory_entries_with_alt_path(file, n, retro_wswan_path, "/ROMS/wsw", list, max, flag);
                     }
 
                     if(roms_count) roms_count = max_roms;
@@ -2171,7 +2148,7 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
         n = 1; while(file[n] != '/' && file[n] != 0)  n++;
 
         file[n] = 0; strcat(file, "/PSXGAMES");
-        //mkdir_secure(file);
+
 
         dir = opendir(file);
         if(dir)

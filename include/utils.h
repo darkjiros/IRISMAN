@@ -48,6 +48,8 @@ typedef struct {
     char title_id[64];
 } entry_favourites;
 
+#define MAX_FAVORITES 48
+
 typedef struct {
     u32 version;
     entry_favourites list[12];
@@ -55,7 +57,7 @@ typedef struct {
 
 typedef struct {
     u32 version;
-    entry_favourites list[48];
+    entry_favourites list[MAX_FAVORITES];
 } tfavourites2;
 
 #define MAX_DIRECTORIES 1024
@@ -122,6 +124,7 @@ int delete_custom_icons(t_directories *list, int *max);
 int delete_entries(t_directories *list, int *max, u32 flag);
 int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag, int sel, bool append);
 int fill_iso_entries_from_device(char *path, u32 flag, t_directories *list, int *max);
+void fill_directory_entries_with_alt_path(char *file, int n, char *retro_path, char *alt_path, t_directories *list, int *max, u32 flag);
 void fill_psx_iso_entries_from_device(char *path, u32 flag, t_directories *list, int *max);
 
 void copy_from_selection(int game_sel);

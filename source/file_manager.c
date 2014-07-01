@@ -3580,7 +3580,7 @@ void fun_exit();
 
 bool is_retro_file(char *rom_path, char *rom_file)
 {
-    if(strstr(rom_path, retro_root_path) == NULL) return false;
+    if(strlen(retro_root_path) > 0 && strstr(rom_path, retro_root_path) == NULL) return false;
 
     sprintf(rom_extension, "%s", get_extension(rom_file));
     if(strlen(rom_extension) < 2) return false;
@@ -3588,7 +3588,7 @@ bool is_retro_file(char *rom_path, char *rom_file)
     strtoupper(rom_extension);
     strcat(rom_extensions, " ");
 
-    return (strstr(rom_extensions, rom_extension) != NULL);
+    return (strlen(rom_extension) > 0 && strstr(rom_extensions, rom_extension) != NULL);
 }
 
 void launch_ps2classic(char *ps2iso_path, char *ps2iso_title)
@@ -3706,7 +3706,7 @@ void launch_retro(char *rom_path)
      if(is_file_exist(dst_path))
      {
          // Copy prboom.wad to rom path
-         if(strstr(rom_path, retro_doom_path))
+         if(strlen(retro_doom_path) > 0 && strstr(rom_path, retro_doom_path))
          {
              char wad_path[MAXPATHLEN];
              strcpy(wad_path, dst_path);
@@ -3727,40 +3727,40 @@ void launch_retro(char *rom_path)
         sprintf(libretro_rom_path, "libretro_rom_path = \"%s\"\n", dst_path);
 
         // Select template
-        if(strcasestr(src_path, retro_snes_path) != NULL)
+        if(strcasestr(src_path, retro_snes_path) != NULL || strcasestr(src_path, "/ROMS/snes/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/snes-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_gba_path) != NULL)
+        else if(strcasestr(src_path, retro_gba_path) != NULL || strcasestr(src_path, "/ROMS/gba/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gba-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_gen_path) != NULL)
+        else if(strcasestr(src_path, retro_gen_path) != NULL || strcasestr(src_path, "/ROMS/gen/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gen-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_nes_path) != NULL)
+        else if(strcasestr(src_path, retro_nes_path) != NULL || strcasestr(src_path, "/ROMS/fceu/") != NULL)
         {
             if(!strcmpext(src_path, ".fds"))
                 sprintf(src_path, "%s/USRDIR/cores/fds-retroarch.cfg", self_path);
             else
                 sprintf(src_path, "%s/USRDIR/cores/nes-retroarch.cfg", self_path);
         }
-        else if(strcasestr(src_path, retro_mame_path) != NULL)
+        else if(strcasestr(src_path, retro_mame_path) != NULL || strcasestr(src_path, "/ROMS/mame/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/mame-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_fba_path) != NULL)
+        else if(strcasestr(src_path, retro_fba_path) != NULL || strcasestr(src_path, "/ROMS/fba/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/fba-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_doom_path) != NULL)
+        else if(strcasestr(src_path, retro_doom_path) != NULL || strcasestr(src_path, "/ROMS/prb/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/doom-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_quake_path) != NULL)
+        else if(strcasestr(src_path, retro_quake_path) != NULL || strcasestr(src_path, "/ROMS/pak/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/quake-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_pce_path) != NULL)
+        else if(strcasestr(src_path, retro_pce_path) != NULL || strcasestr(src_path, "/ROMS/pce/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/pce-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_gb_path) != NULL)
+        else if(strcasestr(src_path, retro_gb_path) != NULL || strcasestr(src_path, "/ROMS/gb") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_gbc_path) != NULL)
+        else if(strcasestr(src_path, retro_gbc_path) != NULL || strcasestr(src_path, "/ROMS/snes/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/gbc-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_atari_path) != NULL)
+        else if(strcasestr(src_path, retro_atari_path) != NULL || strcasestr(src_path, "/ROMS/atari/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/atari-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_vb_path) != NULL)
+        else if(strcasestr(src_path, retro_vb_path) != NULL || strcasestr(src_path, "/ROMS/voy/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/vb-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_nxe_path) != NULL)
+        else if(strcasestr(src_path, retro_nxe_path) != NULL || strcasestr(src_path, "/ROMS/nxe/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/nxe-retroarch.cfg", self_path);
-        else if(strcasestr(src_path, retro_wswan_path) != NULL)
+        else if(strcasestr(src_path, retro_wswan_path) != NULL || strcasestr(src_path, "/ROMS/wsw/") != NULL)
             sprintf(src_path, "%s/USRDIR/cores/wswan-retroarch.cfg", self_path);
         else
         {
@@ -4314,7 +4314,6 @@ int launch_iso_game_mamba(char *path, int mtype)
                 if(strstr(path, "/BDISO/")) type = EMU_BD;
             }
         }
-
 
         if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4))
         {
