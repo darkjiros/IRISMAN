@@ -1979,7 +1979,7 @@ void LoadGameList()
 
         cached_game_list = true;
 
-        if(ndirectories <= 0) fdevices_old = -1; // force scan
+        if(ndirectories <= 0) cached_game_list = false; //fdevices_old = -1; // force scan
     }
 }
 
@@ -3696,7 +3696,7 @@ s32 main(s32 argc, const char* argv[])
         manager_cfg.videoscale_x[n] = 1024;
 
     manager_cfg.background_sel = 0;
-    manager_cfg.noBDVD = MODE_DISCLESS;
+    manager_cfg.noBDVD = (use_cobra || use_mamba) ? MODE_DISCLESS : 0; //set default to DISCLESS only for Cobra/Mamba firmwares
     manager_cfg.language = SYSTEM_LANGUAGE;
 
     // get default console id
@@ -4188,11 +4188,10 @@ skip_bdvd:
             // bdvd
             if(find_device == BDVD_DEVICE)
             {
-                if((fdevices != fdevices_old || ((forcedevices>>find_device) & 1)))
+                if(((fdevices>>BDVD_DEVICE) != (fdevices_old>>BDVD_DEVICE) || ((forcedevices>>find_device) & 1)))
                 {
                     struct stat s;
                     currentdir = 0;
-                    found_game_insert = true;
 
                     // detect psx code
                     if(!noBDVD &&
@@ -4221,7 +4220,7 @@ skip_bdvd:
                         if(parse_param_sfo("/dev_bdvd/PS3_GAME/PARAM.SFO", bluray_game) == -1);
                         bluray_game[63] = 0;
                     }
-                    found_game_insert = true;
+
                     if(((fdevices>>BDVD_DEVICE) & 1)  && !mode_homebrew && !noBDVD)
                     {
                         if(ndirectories >= MAX_DIRECTORIES) ndirectories = MAX_DIRECTORIES - 1;
@@ -4277,7 +4276,7 @@ skip_bdvd:
                                 ndirectories--;
 
                                 psx_inserted = 0;
-                                fdevices&= ~ BDVD_FLAG;
+                                fdevices &= ~ BDVD_FLAG;
                                 goto skip_bdvd;
                             }
                             else
@@ -4295,8 +4294,9 @@ skip_bdvd:
                     }
                     else
                     {
+                        int nd = ndirectories;
                         delete_entries(directories, &ndirectories, BDVD_FLAG);
-                        found_game_remove = true;
+                        if(ndirectories < nd) found_game_remove = true;
                     }
 
                     sort_entries2(directories, &ndirectories, sort_mode);
@@ -4314,13 +4314,15 @@ skip_bdvd:
             {
                 roms_count = 0;
                 currentdir = 0;
-                found_game_insert = true;
+                //found_game_insert = true;
                 SaveLastGame();
 
                 forcedevices &= ~ (1<<find_device);
 
                 if(find_device == HDD0_DEVICE)
                 {
+                    int nd = ndirectories;
+
                     // List net_host games from /dev_hdd0/xmlhost/game_plugin/mygames.xml
                     if (bSkipParseXML || bAllowNetGames == false || mode_homebrew || filter_by_device >= HDD0_DEVICE)
                         bSkipParseXML = false;
@@ -4347,6 +4349,8 @@ skip_bdvd:
                     freeSpace[find_device] = freeSpace[find_device] / GIGABYTES;
 
                     if(show_custom_icons) add_custom_icons(directories, &ndirectories);
+
+                    if(ndirectories > nd) found_game_insert = true;
                 }
                 else
                 {
@@ -4365,10 +4369,15 @@ skip_bdvd:
                                                 && find_device == HDD0_DEVICE)
                 {
                     // isos BR-DVD
-                    int n;
                     char file[0x420];
 
+                    int n, nd = ndirectories;
+
                     delete_entries(directories, &ndirectories, (1<<find_device));
+
+                    if(ndirectories < nd) found_game_remove = true;
+
+                    nd = ndirectories;
 
                     strncpy(file, filename, 0x420);
                     n = 1; while(file[n] != '/' && file[n] != 0) n++;
@@ -4376,25 +4385,15 @@ skip_bdvd:
                     fill_directory_entries_with_alt_path(file, n, "/BDISO", "/DVDISO", directories, &ndirectories, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device));
                     fill_directory_entries_with_alt_path(file, n, "/VIDEO", "/MOVIES", directories, &ndirectories, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device));
 
-                    //file[n] = 0; strcat(file, "/BDISO");
-                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device), directories, &ndirectories);
-
-                    //file[n] = 0; strcat(file, "/DVDISO");
-                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_DVD | (1<<find_device), directories, &ndirectories);
-
-                    //file[n] = 0; strcat(file, "/VIDEO");
-                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
-
-                    //file[n] = 0; strcat(file, "/MOVIES");
-                    //fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
-
                     file[n] = 0; strcat(file, video_path);
                     fill_iso_entries_from_device(file, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | (1<<find_device), directories, &ndirectories);
 
-                    found_game_insert = true;
+                    if(ndirectories > nd) found_game_insert = true;
                 }
                 else if(((fdevices>>find_device) & 1) && mode_homebrew == GAMEBASE_MODE)
                 {
+                    int nd = ndirectories;
+
                     if(fill_entries_from_device(filename, directories, &ndirectories, (1<<find_device) | (HOMEBREW_FLAG * (mode_homebrew != 0)), 0 | (2 * (mode_homebrew != 0)), false) == SUCCESS)
                     {
                         //append gamez, games_dup, games_bad
@@ -4413,12 +4412,16 @@ skip_bdvd:
                         }
 
                     }
-                    found_game_insert = true;
+
+                    if(ndirectories > nd) found_game_insert = true;
                 }
                 else
                 {
+                    int nd = ndirectories;
+
                     delete_entries(directories, &ndirectories, (1<<find_device));
-                    found_game_remove = true;
+
+                    if(ndirectories < nd) found_game_remove = true;
                 }
 
                 sort_entries2(directories, &ndirectories, sort_mode);
@@ -4470,15 +4473,16 @@ skip_bdvd:
                             int k;
                             for (k = 0; k < mountCount[find_device]; k++)
                             {
-                                 if((mounts[find_device]+k)->name[0])
+                                if((mounts[find_device]+k)->name[0])
                                 {
+                                    int nd = ndirectories;
+
                                     if(mode_homebrew == GAMEBASE_MODE)
                                     {
                                         if(game_list_category == GAME_LIST_PS3_ONLY || game_list_category == GAME_LIST_ALL)
                                         {
                                             sprintf(filename, "/%s:/PS3ISO", (mounts[find_device]+k)->name);
                                             fill_iso_entries_from_device(filename, NTFS_FLAG, directories, &ndirectories);
-                                            found_game_insert = true;
                                         }
 
                                         if(mode_homebrew == GAMEBASE_MODE  && (game_list_category == GAME_LIST_RETRO || game_list_category == GAME_LIST_ALL))
@@ -4598,9 +4602,6 @@ skip_bdvd:
 
                                                 if(roms_count) roms_count = max_roms;
                                             }
-
-
-                                            found_game_insert = true;
                                         }
                                     }
                                     else if(mode_homebrew == VIDEOS_MODE)
@@ -4619,9 +4620,10 @@ skip_bdvd:
 
                                         sprintf(filename, "/%s:%s", (mounts[find_device]+k)->name, video_path);
                                         fill_iso_entries_from_device(filename, D_FLAG_HOMEB | D_FLAG_HOMEB_MKV | D_FLAG_NTFS, directories, &ndirectories);
-
-                                        found_game_insert = true;
                                     }
+
+
+                                    if(ndirectories > nd) found_game_insert = true;
                                 }
                             }
                         }

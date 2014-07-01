@@ -4821,10 +4821,12 @@ void draw_file_manager()
         {
             int py = 0;
 
+            if(sel1 > nentries1) sel1 = nentries1 > 0 ? nentries1 - 1: 0;
+
             if((sel1 >= pos1) && (frame & 16) && !fm_pane)
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, CURSORCOLOR);
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1 - pos1), 0, 848, 24, CURSORCOLOR);
             else
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1-pos1), 0, 848, 24, BLACK);
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 24 * (sel1 - pos1), 0, 848, 24, BLACK);
 
             for(int n = 0; n < (is_vsplit? 24 : 9); n++)
             {
@@ -4939,10 +4941,12 @@ void draw_file_manager()
         {
             int py = 0;
 
+            if(sel2 > nentries2) sel2 = nentries2 > 0 ? nentries2 - 1: 0;
+
             if((sel2 >= pos2) && (frame & 16) && fm_pane)
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, CURSORCOLOR);
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2 - pos2), 0, 848, 24, CURSORCOLOR);
             else
-                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2-pos2), 0, 848, 24, BLACK);
+                DrawBox(0, py + (is_vsplit ? 48 : 32) + 256 + 24 * (sel2 - pos2), 0, 848, 24, BLACK);
 
             for(int n = 0; n < (is_vsplit? 24 : 9); n++)
             {
