@@ -460,7 +460,7 @@ void Load_PNG_resources()
     int i;
 
     for(i = 0; i < MAX_RESOURCES; i++) Png_res[i].png_in = NULL;
-    for(i = 0; i < MAX_PICTURES; i++) {Png_iscover[i] = 0; Png_index[i] = i;}
+    for(i = 0; i < MAX_PICTURES; i++) {Png_iscover[i] = Png_offset[i] = 0; Png_index[i] = i;}
 
     // datas for PNG from memory
 
@@ -1174,10 +1174,10 @@ void get_games_3(u64 var)
             Png_datas[n] = Png_datas[n + 1];
             Png_index[n] = Png_index[n + 1];
             if(Png_offset[n]) ;
-            else {Png_iscover[n] = 0; Png_offset[n] = 0;}
+            else {Png_iscover[n] = Png_offset[n] = 0;}
         }
 
-        Png_iscover[num_box - 1] = 0; Png_offset[num_box - 1] = 0; Png_index[num_box - 1] = indx;
+        Png_iscover[num_box - 1] = Png_offset[num_box - 1] = 0; Png_index[num_box - 1] = indx;
 
     }
     else
@@ -1190,16 +1190,14 @@ void get_games_3(u64 var)
             Png_datas[n] = Png_datas[n - 1];
             Png_index[n] = Png_index[n - 1];
             if(Png_offset[n]) ;
-            else {Png_iscover[n] = 0; Png_offset[n] = 0;}
+            else {Png_iscover[n] = Png_offset[n] = 0;}
         }
 
-        Png_iscover[0] = 0; Png_offset[0] = 0;  Png_index[0] = indx;
+        Png_iscover[0] = Png_offset[0] = 0;  Png_index[0] = indx;
     }
 
     for(n = num_box; n < BIG_PICT; n++)
-    {
-        Png_iscover[n] = 0; Png_offset[n] = 0;
-    }
+        Png_iscover[n] = Png_offset[n] = 0;
 
     get_games_2(NULL);
  }
@@ -1214,7 +1212,7 @@ void get_games()
     int_currentdir = currentdir;
 
     // reset icon datas
-    for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = 0; Png_offset[n] = 0; Png_index[n] = n;}
+    for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
 
     get_grid_dimensions(false);
 
@@ -1889,6 +1887,7 @@ void RemoveNtfsFromGameList()
     for (int i = ndirectories; i < MAX_DIRECTORIES; i++)
     {
         directories[i].flags = 0;
+        directories[i].title[0] = 0;
         directories[i].title_id[0] = 0;
         directories[i].path_name[0] = 0;
     }
@@ -1944,6 +1943,7 @@ void LoadGameList()
                 else if(!strcmp(directories[i].path_name, "/dev_bdvd") || !is_file_exist(directories[i].path_name))
                 {
                     directories[i].flags = 0;
+                    directories[i].title[0] = 0;
                     directories[i].title_id[0] = 0;
                     directories[i].path_name[0] = 0;
                 }
@@ -2004,6 +2004,7 @@ void SaveGameList()
     for(int i = ndirectories; i < MAX_DIRECTORIES; i++)
     {
         directories[i].flags = 0;
+        directories[i].title[0] = 0;
         directories[i].title_id[0] = 0;
         directories[i].path_name[0] = 0;
     }
@@ -2394,7 +2395,7 @@ void DiscInsertCallback(u32 discType, char *title)
 
     bdvd_notify = 0;
 
-    if(!noBDVD && lv2_patch_storage)
+    if((noBDVD == MODE_WITHBDVD) && lv2_patch_storage)
     {
         if(firmware < 0x421C)
             Reset1_BDVD();
@@ -3696,7 +3697,7 @@ s32 main(s32 argc, const char* argv[])
         manager_cfg.videoscale_x[n] = 1024;
 
     manager_cfg.background_sel = 0;
-    manager_cfg.noBDVD = (use_cobra || use_mamba) ? MODE_DISCLESS : 0; //set default to DISCLESS only for Cobra/Mamba firmwares
+    manager_cfg.noBDVD = (use_cobra || use_mamba) ? MODE_DISCLESS : MODE_WITHBDVD; //set default to DISCLESS only for Cobra/Mamba firmwares
     manager_cfg.language = SYSTEM_LANGUAGE;
 
     // get default console id
@@ -3849,7 +3850,7 @@ s32 main(s32 argc, const char* argv[])
 
     init_music(-1);
 
-    if(!noBDVD && lv2_patch_storage)
+    if((noBDVD == MODE_WITHBDVD) && lv2_patch_storage)
     {
         if(!bdvd_notify)
         {
@@ -4154,7 +4155,7 @@ s32 main(s32 argc, const char* argv[])
                 // check psx
                 if(find_device == BDVD_DEVICE)
                 {
-                    if(!noBDVD && (get_psx_region_cd() & 0x10) == 0x10) {psx_inserted |= 0x100;}
+                    if((noBDVD == MODE_WITHBDVD) && (get_psx_region_cd() & 0x10) == 0x10) {psx_inserted |= 0x100;}
                     else
                     {
                         ret = sysLv2FsStat("/dev_bdvd/PS3_GAME", &dstat);
@@ -4167,7 +4168,7 @@ s32 main(s32 argc, const char* argv[])
             else
             {
                 // check psx
-                if(find_device == BDVD_DEVICE && !noBDVD && (get_psx_region_cd() & 0x10) == 0x10)
+                if(find_device == BDVD_DEVICE && (noBDVD == MODE_WITHBDVD) && (get_psx_region_cd() & 0x10) == 0x10)
                     {bdvd_notify = 0;fdevices|= 1<<find_device; psx_inserted |= 0x100;}
                 else
                 {
@@ -4194,14 +4195,14 @@ skip_bdvd:
                     currentdir = 0;
 
                     // detect psx code
-                    if(!noBDVD &&
+                    if((noBDVD == MODE_WITHBDVD) &&
                        (stat("/dev_bdvd/PSX.EXE", &s) == SUCCESS || stat("/dev_bdvd/SYSTEM.CNF", &s) == SUCCESS || (psx_inserted & 0x100) == 0x100))
                     {
                         psx_inserted &= ~0x100;
                         psx_inserted |= 0x80;
                         strncpy(bluray_game, "PSX-GAME", 64);
                         bdvd_ejected = false;
-                        if(!noBDVD && lv2_patch_storage)
+                        if((noBDVD == MODE_WITHBDVD) && lv2_patch_storage)
                         {
                             psx_inserted|= get_psx_region_cd();
                             strncpy(bluray_game, (char *) psx_id, 64);
@@ -4221,7 +4222,7 @@ skip_bdvd:
                         bluray_game[63] = 0;
                     }
 
-                    if(((fdevices>>BDVD_DEVICE) & 1)  && !mode_homebrew && !noBDVD)
+                    if(((fdevices>>BDVD_DEVICE) & 1)  && !mode_homebrew && (noBDVD == MODE_WITHBDVD))
                     {
                         if(ndirectories >= MAX_DIRECTORIES) ndirectories = MAX_DIRECTORIES - 1;
 
@@ -4249,7 +4250,7 @@ skip_bdvd:
 
                         s32 fdr;
 
-                        if(!noBDVD && !sysLv2FsOpen("/dev_bdvd/PS3_GAME/USRDIR/EBOOT.BIN", 0, &fdr, S_IREAD | S_IRGRP | S_IROTH, NULL, 0))
+                        if((noBDVD == MODE_WITHBDVD) && !sysLv2FsOpen("/dev_bdvd/PS3_GAME/USRDIR/EBOOT.BIN", 0, &fdr, S_IREAD | S_IRGRP | S_IROTH, NULL, 0))
                         {
                             u64 bytes;
                             u32 dat;
@@ -4263,7 +4264,7 @@ skip_bdvd:
                                 if(counter == 0)
                                 {
                                     counter = 1;
-                                    if(!noBDVD && lv2_patch_storage)
+                                    if((noBDVD == MODE_WITHBDVD) && lv2_patch_storage)
                                     {
                                         bdvd_notify = 0;
                                         Eject_BDVD(EJECT_BDVD);
@@ -4460,6 +4461,8 @@ skip_bdvd:
                                 if(find_device) {fdevices_old = fdevices; break;}
 
                                 delete_entries(directories, &ndirectories, 0xFFFFFFFF);
+                                for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
+
                                 ndirectories = currentgamedir = currentdir = select_px = select_py = 0;
                                 found_game_remove = true;
 
@@ -7175,7 +7178,7 @@ autolaunch_proc:
                 if((game_cfg.useBDVD && (fdevices & D_FLAG_BDVD) == 0) || (game_cfg.direct_boot == 2))
                 {
                     load_from_bluray |= 1;
-                    if(!noBDVD && check_disc() == -1)
+                    if((noBDVD == MODE_WITHBDVD) && check_disc() == -1)
                     return r;
                 }
                 if(!(directories[currentgamedir].flags & D_FLAG_BDVD))
@@ -7217,10 +7220,10 @@ autolaunch_proc:
                 {
                     load_from_bluray |= 1;
 
-                    if(!noBDVD && check_disc() == -1)
+                    if((noBDVD == MODE_WITHBDVD) && check_disc() == -1)
                         return r;
 
-                    if(!noBDVD || use_cobra)
+                    if((noBDVD == MODE_WITHBDVD) || use_cobra)
                         sys_fs_mount("CELL_FS_IOS:BDVD_DRIVE", "CELL_FS_ISO9660", "/dev_ps2disc", 1);
 
                     if((game_cfg.bdemu == 2 && (directories[currentgamedir].flags & D_FLAG_HDD0)) ||
@@ -7953,7 +7956,7 @@ ask_delete_item:
 /* GUI 1: COVERFLOW                                                                                         */
 /************************************************************************************************************/
     // AUTO_BUTTON_REP(auto_up, BUTTON_UP)
-    //AUTO_BUTTON_REP(auto_down, BUTTON_DOWN)
+    // AUTO_BUTTON_REP(auto_down, BUTTON_DOWN)
     AUTO_BUTTON_REP3(auto_left, BUTTON_LEFT)
     AUTO_BUTTON_REP3(auto_right, BUTTON_RIGHT)
 
@@ -7963,6 +7966,8 @@ ask_delete_item:
 
     if(new_pad & BUTTON_UP)
     {
+        while((new_pad | old_pad) & BUTTON_UP) ps3pad_read();
+
         auto_up = 1;
         anim_mode = 0; anim_step = 0;
 
@@ -8293,6 +8298,11 @@ ask_delete_item:
         int r = old_pad;
         while((new_pad | old_pad) & BUTTON_R3) ps3pad_read();
         old_pad = r;
+
+        // clean all
+        delete_entries(directories, &ndirectories, 0xFFFFFFFF);
+        for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
+
 
         if(old_pad & BUTTON_SELECT)
         {   // [SELECT + R3] = List All Games
@@ -11126,12 +11136,9 @@ void draw_toolsoptions(float x, float y)
 
     y2+= 52;
 
-    if(!noBDVD)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, language[DRAWTOOLS_WITHBDVD], (flash && (select_option == 4)));
-    else if(noBDVD == MODE_DISCLESS)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, language[DRAWTOOLS_NOBDVD2], (flash && (select_option == 4)));
-    else
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, language[DRAWTOOLS_NOBDVD], (flash && (select_option == 4)));
+    DrawButton1_UTF8((848 - 520) / 2, y2, 520, (noBDVD == MODE_WITHBDVD) ? language[DRAWTOOLS_WITHBDVD] :
+                                               (noBDVD == MODE_DISCLESS) ? language[DRAWTOOLS_NOBDVD2]  :
+                                                                           language[DRAWTOOLS_NOBDVD], (flash && (select_option == 4)));
 
     y2+= 52;
 
@@ -11200,28 +11207,22 @@ void draw_toolsoptions(float x, float y)
 
                 if(new_pad & BUTTON_LEFT)
                 {
-                    if(noBDVD > 0) noBDVD--; else noBDVD = 2; //MODE_DISCLESS
+                    ROT_DEC(noBDVD, 0, 2);
                 }
                 else
                 {
-                    if(noBDVD < 2) noBDVD++; else noBDVD = 0; //WITH BDVD CONTROLLER
+                    ROT_INC(noBDVD, 2, 0);
                 }
                 break;
 
             case 5: //Language
                 if(new_pad & BUTTON_LEFT)
                 {
-                    if(manager_cfg.language > 0)
-                        manager_cfg.language--;
-                    else
-                        manager_cfg.language = LANGCOUNT;
+                    ROT_DEC(manager_cfg.language, 0, LANGCOUNT);
                 }
                 else
                 {
-                    if(manager_cfg.language < LANGCOUNT)
-                        manager_cfg.language++;
-                    else
-                        manager_cfg.language = 0;
+                    ROT_INC(manager_cfg.language, LANGCOUNT, 0);
                 }
 
                 sprintf(tmp_path, "%s/config/language.ini", self_path);
@@ -11954,7 +11955,7 @@ int move_origin_to_bdemubackup(char *path)
     if(autolaunch < LAUNCHMODE_STARTED)
     {
         sprintf(temp_buffer + 256, language[MOVEOBEMU_MOUNTOK], temp_buffer);
-        DrawDialogOKTimer(temp_buffer + 256, 2000.0f);
+        DrawDialogOKTimer(temp_buffer + 256, 1200.0f);
     }
 
     return SUCCESS;

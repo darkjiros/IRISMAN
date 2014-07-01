@@ -1588,26 +1588,25 @@ void add_custom_icons(t_directories *list, int *max)
 
 int delete_custom_icons(t_directories *list, int *max)
 {
-    int n;
-    int deleted = 0;
+    int n, deleted = 0;
 
     n = 0;
-    while(n < (*max) )
+    while(n < (*max) && (*max) > 0)
     {
-        if(strlen(list[n].title_id) > 0 && strstr(custom_homebrews, list[n].title_id) != NULL)
+        if((strlen(list[n].title_id) > 0) && (strstr(custom_homebrews, list[n].title_id) != NULL))
         {
             deleted++;
 
             if((*max) > 1)
             {
-                list[n].flags = 0;
-                list[n].title_id[0] = 0;
                 list[n] = list[(*max) - 1];
+
                 (*max) --;
             }
             else if((*max) == 1)
             {
                 (*max) --;
+
                 break;
             }
 
@@ -1617,38 +1616,53 @@ int delete_custom_icons(t_directories *list, int *max)
             n++;
     }
 
+    list[(*max)].flags = 0;
+    list[(*max)].title[0] = 0;
+    list[(*max)].title_id[0] = 0;
+    list[(*max)].path_name[0] = 0;
+
+    for(n = (*max); n < MAX_DIRECTORIES; n++)
+        list[n] = list[(*max)];
+
     return deleted;
 }
 
 int delete_entries(t_directories *list, int *max, u32 flag)
 {
-    int n;
-    int deleted = 0;
+    int n, deleted = 0;
 
     n = 0;
     flag &= GAMELIST_FILTER; // filter entries
-    while(n < (*max) )
+    while(n < (*max) && (*max) > 0)
     {
-        if(list[n].flags & flag || list[n].flags == flag)
+        if((list[n].flags & flag) || (list[n].flags == flag))
         {
             deleted++;
 
             if((*max) > 1)
             {
-                list[n].flags = 0;
-                list[n].title_id[0] = 0;
                 list[n] = list[(*max) - 1];
+
                 (*max) --;
             }
             else if((*max) == 1)
             {
                 (*max) --;
+
                 break;
             }
         }
         else
             n++;
     }
+
+    list[(*max)].flags = 0;
+    list[(*max)].title[0] = 0;
+    list[(*max)].title_id[0] = 0;
+    list[(*max)].path_name[0] = 0;
+
+    for(n = (*max); n < MAX_DIRECTORIES; n++)
+        list[n] = list[(*max)];
 
     return deleted;
 }

@@ -211,6 +211,7 @@ MKV file : D_FLAG_HOMEB_DPL | D_FLAG_HOMEB_MKV | x (from /MKV    , x = D_FLAG_HD
 #define NTFS_DEVICE_MOUNT    1
 #define NTFS_DEVICE_UNMOUNT -1
 
+#define MODE_WITHBDVD    0
 #define MODE_NOBDVD      1
 #define MODE_DISCLESS    2
 
