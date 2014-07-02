@@ -5055,7 +5055,7 @@ void set_BdId(int index)
 {
     struct stat s;
     int readed;
-    int ret = 0;
+    int ret = SUCCESS;
     void *mem;
 
 
@@ -5082,10 +5082,10 @@ void set_BdId(int index)
     if(ret != SUCCESS && stat(temp_buffer, &s) == 0 && s.st_size == 0x10)
     {
         mem = LoadFile((void *) temp_buffer, &readed);
-        if(!mem || readed != 0x10) {if(mem) free(mem); ret = -1;}
+        if(!mem || readed != 0x10) {if(mem) free(mem); ret = FAILED;}
         else
         {
-            ret = 0; memcpy(BdId, mem, 0x10);
+            ret = SUCCESS; memcpy(BdId, mem, 0x10);
             SaveFile(tmp_path, (char *) BdId, 0x10);
             free(mem);
         }
@@ -12029,14 +12029,14 @@ int move_bdemubackup_to_origin(u32 flags)
 
     int file_size;
     char *file;
-    int ret = 0;
+    int ret = SUCCESS;
 
     sysFSStat dstat;
-    if(sysLv2FsStat(temp_buffer, &dstat) != SUCCESS) {ret = -1; goto PS3_GM01;}
+    if(sysLv2FsStat(temp_buffer, &dstat) != SUCCESS) {ret = FAILED; goto PS3_GM01;}
 
     file = LoadFile(temp_buffer + 256, &file_size);
 
-    if(!file) {ret = -1; goto PS3_GM01;}
+    if(!file) {ret = FAILED; goto PS3_GM01;}
 
     memset(temp_buffer + 1024, 0, 0x420);
 
@@ -12052,7 +12052,7 @@ int move_bdemubackup_to_origin(u32 flags)
         if(((u8)temp_buffer[1024 + n]) < 32) {temp_buffer[1024 + n] = 0; break;}
     }
 
-    if(strncmp(temp_buffer, temp_buffer + 1024, 10))  {ret = -1;goto PS3_GM01;} // if not /dev_usb00x return
+    if(strncmp(temp_buffer, temp_buffer + 1024, 10))  {ret = FAILED;goto PS3_GM01;} // if not /dev_usb00x return
 
     if(!strncmp(temp_buffer, "/dev_hdd0", 9)) ;
     else
@@ -12217,7 +12217,7 @@ void draw_console_id_tools(float x, float y)
         switch(select_option)
         {
             case 0: //set new psid
-                if( get_psid_keyb() == 0 )
+                if( get_psid_keyb() == SUCCESS )
                 {
                     set_psid_lv2();
                     save_spoofed_psid();
@@ -12227,7 +12227,7 @@ void draw_console_id_tools(float x, float y)
                 break;
 
             case 1: //set new console id
-                if( get_console_id_keyb() == 0 )
+                if( get_console_id_keyb() == SUCCESS )
                 {
                     set_console_id_lv2();
                     save_spoofed_console_id();
@@ -12243,7 +12243,7 @@ void draw_console_id_tools(float x, float y)
                     sprintf(temp_buffer, "Console ID has been set to:\n\n%s", console_id);
                     DrawDialogOKTimer(temp_buffer, 3000.0f);
                 }
-                else if(r  == 1)
+                else if(r == 1)
                 {
                     sprintf(temp_buffer, "Console ID is already set:\n\n%s", console_id);
                     DrawDialogOKTimer(temp_buffer, 3000.0f);
@@ -12254,12 +12254,13 @@ void draw_console_id_tools(float x, float y)
                 }
 
                 r = load_spoofed_psid();
+
                 if(r == SUCCESS)
                 {
                     sprintf(temp_buffer, "PSID has been set to:\n\n%s", psid);
                     DrawDialogOKTimer(temp_buffer, 3000.0f);
                 }
-                else if(r  == 1)
+                else if(r == 1)
                 {
                     sprintf(temp_buffer, "PSID is already set:\n\n%s", psid);
                     DrawDialogOKTimer(temp_buffer, 3000.0f);
