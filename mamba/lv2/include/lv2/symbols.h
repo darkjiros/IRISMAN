@@ -2181,7 +2181,7 @@
 
 #define storage_rtoc_entry_1				0x22E8 //done
 
-#define device_event_rtoc_entry_1			0x0x2670 //done
+#define device_event_rtoc_entry_1			0x2670 //done
 
 /* Legacy patches with no names yet */
 /* Kernel offsets */

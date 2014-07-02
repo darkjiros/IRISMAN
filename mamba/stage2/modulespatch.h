@@ -41,7 +41,7 @@
 #define dvd_video_region_check_offset	0x1B20
 
 /* ps1_emu */
-#define get_region_offset		0x3E74		
+#define get_region_offset		0x3E74
 
 /* game_ext_plugin */
 #define sfo_check_offset		0x2029C
@@ -107,7 +107,7 @@
 #define dvd_video_region_check_offset	0x1B20
 
 /* ps1_emu */
-#define ps1_emu_get_region_offset	0x3E74	
+#define ps1_emu_get_region_offset	0x3E74
 
 /* ps1_netemu */
 #define ps1_netemu_get_region_offset	0xB0154
@@ -118,7 +118,7 @@
 #define ps_region_error_offset		0x1C64
 
 /* psp_emulator */
-#define psp_set_psp_mode_offset		0x1714	
+#define psp_set_psp_mode_offset		0x1714
 
 /* emulator_api */
 #define psp_read			0x8710
@@ -226,7 +226,7 @@
 #define dvd_video_region_check_offset	0x1528
 
 /* ps1_emu */
-#define ps1_emu_get_region_offset	0x3E74	
+#define ps1_emu_get_region_offset	0x3E74
 
 /* ps1_netemu */
 #define ps1_netemu_get_region_offset	0xB19CC
@@ -349,7 +349,7 @@
 #define dvd_video_region_check_offset	0x152C
 
 /* ps1_emu */
-#define ps1_emu_get_region_offset	0x3E74	
+#define ps1_emu_get_region_offset	0x3E74
 
 /* ps1_netemu */
 #define ps1_netemu_get_region_offset	0xB19CC
@@ -403,7 +403,7 @@
 
 #elif defined(FIRMWARE_4_46)
 
-#define VSH_HASH			0xa00238b2002e0ce9
+#define VSH_HASH				0xa00238b2002e0ce9
 #define VSH_ROG_HASH			0xa00238b2002e0ce2 /* 1.00, 1.01. Same for rebug vsh.self.cexsp */
 #define VSH_HAB_HASH			0xa00238b2002e0ce1 /* 1.13. Same for arc A01 */
 #define VSH_FER_HASH			0xa00238b2002e0ce8 /* v3 */
@@ -479,7 +479,7 @@
 #define dvd_video_region_check_offset	0x152C
 
 /* ps1_emu */
-//#define ps1_emu_get_region_offset	0x3E74	
+//#define ps1_emu_get_region_offset	0x3E74
 
 /* ps1_netemu */
 //#define ps1_netemu_get_region_offset	0xB19CC
@@ -531,6 +531,14 @@
 /* libfs (external */
 //#define aio_copy_root_offset		0xD5B4
 
+#elif defined(FIRMWARE_4_50DEX)
+
+#define vmode_patch_offset		0x0 // undefined
+#define vsh_text_size			0x0 // undefined
+#define revision_offset			0x0
+#define revision_offset2		0x0 /* In data section */
+#define spoof_version_patch		0x0
+
 #elif defined(FIRMWARE_4_53)
 
 #define vmode_patch_offset		0x0 // undefined
@@ -539,7 +547,7 @@
 #define revision_offset2		0x0 /* In data section */
 #define spoof_version_patch		0x0
 
-#elif defined(FIRMWARE_4_50DEX)
+#elif defined(FIRMWARE_4_55)
 
 #define vmode_patch_offset		0x0 // undefined
 #define vsh_text_size			0x0 // undefined
@@ -555,6 +563,13 @@
 #define revision_offset2		0x0 /* In data section */
 #define spoof_version_patch		0x0
 
+#elif defined(FIRMWARE_4_60)
+
+#define vmode_patch_offset		0x0 // undefined
+#define vsh_text_size			0x0 // undefined
+#define revision_offset			0x0
+#define revision_offset2		0x0 /* In data section */
+#define spoof_version_patch		0x0
 
 #endif /* FIRMWARE */
 
@@ -607,7 +622,7 @@
 //#define psp400_drm_patch12		0x1524C
 //#define psp400_product_id_patch1	0x153E4
 //#define psp400_product_id_patch2	0x15414
-//#define psp400_product_id_patch3	0x15800 
+//#define psp400_product_id_patch3	0x15800
 
 /* pemucorelib */
 //#define psp400_eboot_dec_patch		0x5DFE8
