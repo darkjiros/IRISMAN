@@ -1848,26 +1848,30 @@ void fun_exit()
 
 }
 
+void show_ftp_error(int r)
+{
+    if(r == -1) DrawDialogOKTimer("Error in netInitialize()", 2000.0f); else
+    if(r == -2) DrawDialogOKTimer("Error in netCtlInit()", 2000.0f);    else
+    if(r == -3) DrawDialogOKTimer("Error in netCtlGetInfo()", 2000.0f); else
+    if(r == -4) DrawDialogOKTimer("Net Disconnected or Connection not Established", 2000.0f); else
+                DrawDialogOKTimer("FTP Unknown Error", 2000.0f);
+}
+
 void auto_ftp(void)
 {
     static int one = 1;
     static int counter = 0;
+
     if(!one) goto ftp_net;
 
-    one= 0;
+    one = 0;
     if (manager_cfg.opt_flags & OPTFLAGS_FTP) // maybe we need add an icon to user...
     {
         int r = ftp_init();
 
         if(r == SUCCESS) ftp_inited = true; //DrawDialogOK("FTP Service init on boot: OK");
         else
-        {
-            if(r == -1) DrawDialogOKTimer("Error in netInitialize()", 2000.0f);
-            else if(r == -2) DrawDialogOKTimer("Error in netCtlInit()", 2000.0f);
-            else if(r == -3) DrawDialogOKTimer("Error in netCtlGetInfo()", 2000.0f);
-            else if(r == -4) DrawDialogOKTimer("Net Disconnected or Connection not Established", 2000.0f);
-            else DrawDialogOK("FTP Unknown Error");
-        }
+            show_ftp_error(r);
     }
 
 ftp_net:
@@ -2200,7 +2204,7 @@ void Select_games_folder()
         closedir(dir);
         sprintf(temp_buffer, "%s %s %s", language[GAMEFOLDER_WANTUSE], "/dev_hdd0/GAMES", language[GAMEFOLDER_TOINSTALLNTR]);
 
-        if(DrawDialogYesNoDefaultYes(temp_buffer) == 1)
+        if(DrawDialogYesNoDefaultYes(temp_buffer) == YES)
         {
             strncpy(hdd_folder, "GAMES", 64);
             strncpy(manager_cfg.hdd_folder, "GAMES", 64);
@@ -2214,7 +2218,7 @@ void Select_games_folder()
         closedir(dir);
         sprintf(temp_buffer, "%s %s %s", language[GAMEFOLDER_WANTUSE], "/host_root", language[GAMEFOLDER_TOINSTALLNTR]);
 
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             strncpy(hdd_folder, "host_root", 64);
             strncpy(manager_cfg.hdd_folder, "host_root", 64);
@@ -2246,7 +2250,7 @@ void Select_games_folder()
 
                 sprintf(temp_buffer, "%s /%s %s", language[GAMEFOLDER_WANTUSE], entry->d_name, language[GAMEFOLDER_TOINSTALLNTR]);
 
-                if(DrawDialogYesNo(temp_buffer) == 1)
+                if(DrawDialogYesNo(temp_buffer) == YES)
                 {
                     strncpy(hdd_folder, entry->d_name, 64);
                     strncpy(manager_cfg.hdd_folder, entry->d_name, 64);
@@ -2265,7 +2269,7 @@ void Select_games_folder()
         closedir(dir);
         sprintf(temp_buffer, "%s %s %s", language[GAMEFOLDER_WANTUSE], "/dev_hdd0/video", language[GAMEFOLDER_TOINSTALLNTR]);
 
-        if(DrawDialogYesNoDefaultYes(temp_buffer) == 1)
+        if(DrawDialogYesNoDefaultYes(temp_buffer) == YES)
         {
             strncpy(hdd_folder, "video", 64);
             strncpy(manager_cfg.hdd_folder, "video", 64);
@@ -2277,7 +2281,7 @@ void Select_games_folder()
     {
         sprintf(temp_buffer, "%s %s %s", language[GAMEFOLDER_WANTUSE], "/dev_hdd0/" __MKDEF_GAMES_DIR, language[GAMEFOLDER_TOINSTALLNTR]);
 
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             strncpy(hdd_folder, "dev_hdd0", 64);
             strncpy(manager_cfg.hdd_folder, "dev_hdd0", 64);
@@ -2417,7 +2421,7 @@ void DiscInsertCallback(u32 discType, char *title)
         disc_less_on = 1;
 }
 
-int is_libfs_patched(void)
+bool is_libfs_patched(void)
 {
     struct stat s;
     char path[256];
@@ -2433,7 +2437,7 @@ bool test_ftp_working()
 {
     if(get_ftp_activity())
     {
-        if(DrawDialogYesNo("FTP is working now\nDo you want to interrupt the FTP activity?\n\nEl FTP esta trabajando ahora mismo\nDesea interrumpir su actividad?\n\nService FTP en cours\nL'intérompre?") == 1)
+        if(DrawDialogYesNo("FTP is working now\nDo you want to interrupt the FTP activity?\n\nEl FTP esta trabajando ahora mismo\nDesea interrumpir su actividad?\n\nService FTP en cours\nL'intérompre?") == YES)
         {
             ftp_deinit();
             ftp_inited = false;
@@ -3593,7 +3597,7 @@ s32 main(s32 argc, const char* argv[])
 
     if(sys8_disable_all != 0)
     {
-         if(DrawDialogYesNo2("Syscall 8 very old or not detected\n\nDo you want to REBOOT the PS3?\n\n(Select NO to exit to XMB)") == 1)
+         if(DrawDialogYesNo2("Syscall 8 very old or not detected\n\nDo you want to REBOOT the PS3?\n\n(Select NO to exit to XMB)") == YES)
          {
              set_install_pkg = true;
              game_cfg.direct_boot = 0;
@@ -3708,9 +3712,14 @@ s32 main(s32 argc, const char* argv[])
     for(n = 0; n < 4; n++)
         manager_cfg.videoscale_x[n] = 1024;
 
-    manager_cfg.background_sel = 0;
-    manager_cfg.noBDVD = (use_cobra || use_mamba) ? MODE_DISCLESS : MODE_WITHBDVD; //set default to DISCLESS only for Cobra/Mamba firmwares
+    if((firmware & 0xF) == 0xD)
+        sprintf(tmp_path, "%s/explore_plugin_%xdex.sprx", self_path, firmware>>4);
+    else
+        sprintf(tmp_path, "%s/explore_plugin_%x.sprx", self_path, firmware>>4);
+
+    manager_cfg.noBDVD = (use_cobra || use_mamba || is_file_exist(tmp_path)) ? MODE_DISCLESS : MODE_WITHBDVD; //set default to DISCLESS only for Cobra/Mamba firmwares
     manager_cfg.language = SYSTEM_LANGUAGE;
+    manager_cfg.background_sel = 0;
 
     // get default console id
     get_console_id_eid5();
@@ -3748,12 +3757,10 @@ s32 main(s32 argc, const char* argv[])
 
         if(firmware == 0x341C || firmware == 0x355C)
             syscall_40(6, 0x8d000B04);
-        else /*if(firmware == 0x421C)
-            syscall_40(6, 0x8d001A04);
-        else*/
-            if(firmware != 0x430C && firmware != 0x431C && firmware != 0x440C && manager_cfg.event_flag)
-                syscall_40(6, manager_cfg.event_flag);
-
+        /*else if(firmware == 0x421C)
+            syscall_40(6, 0x8d001A04);*/
+        else if(firmware != 0x430C && firmware != 0x431C && firmware != 0x440C && manager_cfg.event_flag)
+            syscall_40(6, manager_cfg.event_flag);
     }
 
     load_controlfan_config();
@@ -6837,15 +6844,15 @@ int gui_control()
 
                 if (old_pad & (BUTTON_SELECT))
                 {
-                    if(DrawDialogYesNo(language[DRAWSCREEN_RESTART]) == 1) {SaveGameList(); set_install_pkg = true; game_cfg.direct_boot = 0; fun_exit(0);}
+                    if(DrawDialogYesNo(language[DRAWSCREEN_RESTART]) == YES) {SaveGameList(); set_install_pkg = true; game_cfg.direct_boot = 0; fun_exit(0);}
                 }
                 if (old_pad & (BUTTON_R2))
                 {
-                    if(DrawDialogYesNo(language[DRAWSCREEN_SHUTDOWN]) == 1) {SaveGameList(); bAutoLaunchPrxLoader = false; set_install_pkg = false; fun_exit(0); sys_shutdown();}
+                    if(DrawDialogYesNo(language[DRAWSCREEN_SHUTDOWN]) == YES) {SaveGameList(); bAutoLaunchPrxLoader = false; set_install_pkg = false; fun_exit(0); sys_shutdown();}
                 }
                 else
                 {
-                    if(DrawDialogYesNo(language[DRAWSCREEN_EXITXMB]) == 1) {SaveGameList(); exit_program = true; fun_exit(0); return r;}
+                    if(DrawDialogYesNo(language[DRAWSCREEN_EXITXMB]) == YES) {SaveGameList(); exit_program = true; fun_exit(0); return r;}
                 }
 
                 tiny3d_Flip();
@@ -7167,7 +7174,7 @@ autolaunch_proc:
                                 if(fdevices & (1 << n))
                                 {
                                     sprintf(temp_buffer, "%s\n\n%s%c?", language[DRAWSCREEN_GAMEINOFMNT], language[DRAWSCREEN_GAMEIASKDIR], 47 + n);
-                                    if(DrawDialogYesNo(temp_buffer) == 1)
+                                    if(DrawDialogYesNo(temp_buffer) == YES)
                                     {
                                         sprintf(tmp_path, "/dev_usb00%c/GAMEI", 47 + n);
                                         mkdir_secure(tmp_path);
@@ -7181,7 +7188,7 @@ autolaunch_proc:
                              if(n == BDVD_DEVICE)
                              {
                                  sprintf(temp_buffer, "%s\n\n%s", language[DRAWSCREEN_GAMEICANTFD], language[DRAWSCREEN_GAMEIWLAUNCH]);
-                                 if(DrawDialogYesNo(temp_buffer) != 1) return r;
+                                 if(DrawDialogYesNo(temp_buffer) != YES) return r;
                              }
                         }
                     }
@@ -7189,7 +7196,7 @@ autolaunch_proc:
                     if((fdevices & D_FLAG_USB) == 0)
                     {
                         sprintf(temp_buffer, "%s\n\n%s", language[DRAWSCREEN_GAMEICANTFD], language[DRAWSCREEN_GAMEIWLAUNCH]);
-                        if(DrawDialogYesNo(temp_buffer) != 1) return r;
+                        if(DrawDialogYesNo(temp_buffer) != YES) return r;
                     }
 
                 }
@@ -7226,6 +7233,7 @@ autolaunch_proc:
                         add_sys8_path_table("/dev_bdvd/PS3_GAME/USRDIR/EBOOT.BIN", tmp_path);
                     }
                 }
+
                 load_from_bluray = game_cfg.useBDVD;
 
                 if(!game_cfg.useBDVD || noBDVD) sys8_sys_configure(CFG_XMB_DEBUG); else sys8_sys_configure(CFG_XMB_RETAIL);
@@ -7234,7 +7242,7 @@ autolaunch_proc:
                 sys8_sys_configure(CFG_UNPATCH_APPVER + (game_cfg.updates != 0));
 
                 if((game_cfg.bdemu && (directories[currentgamedir].flags & D_FLAG_HDD0)) ||
-                     (!(directories[currentgamedir].flags & D_FLAG_HDD0) && game_cfg.bdemu_ext == 1))
+                                    (!(directories[currentgamedir].flags & D_FLAG_HDD0) && game_cfg.bdemu_ext == 1))
                 {
                     load_from_bluray |= 1;
 
@@ -7340,7 +7348,7 @@ autolaunch_proc:
                 }
                 else
                 {
-                    // USB LIBFS (for game cacheds)
+                    // USB LIBFS (for cached games)
                     if(is_libfs_patched() && (!(directories[currentgamedir].flags & D_FLAG_HDD0) && game_cfg.bdemu_ext == 2) &&
                        !(directories[currentgamedir].flags & D_FLAG_BDVD))
                     {
@@ -7538,27 +7546,26 @@ autolaunch_proc:
 
                 if(noBDVD && !use_cobra)
                 {
-                    struct stat s;
                     patch_bdvdemu(NTFS_FLAG/*directories[currentgamedir].flags & GAMELIST_FILTER*/);
 
                     if(load_from_bluray)
                     {
                         if((firmware & 0xF) == 0xD)
-                            sprintf(temp_buffer, "%s/explore_plugin_%xdex.sprx", self_path, firmware>>4);
+                            sprintf(tmp_path, "%s/explore_plugin_%xdex.sprx", self_path, firmware>>4);
                         else
-                            sprintf(temp_buffer, "%s/explore_plugin_%x.sprx", self_path, firmware>>4);
+                            sprintf(tmp_path, "%s/explore_plugin_%x.sprx", self_path, firmware>>4);
 
-                        if(stat(temp_buffer, &s) != SUCCESS)
+                        if(!is_file_exist(tmp_path))
                         {
                              if(noBDVD == MODE_DISCLESS)
-                                 strcat(temp_buffer, " not found\n\nIt reduces the game compatibility");
+                                 strcat(tmp_path, " not found\n\nIt reduces the game compatibility");
                              else
-                                 strcat(temp_buffer, " not found\n\npath from /app_home");
+                                 strcat(tmp_path, " not found\n\npath from /app_home");
 
-                             DrawDialogOKTimer(temp_buffer + strlen(self_path) + 1, 2000.0f);
+                             DrawDialogOKTimer(tmp_path + strlen(self_path) + 1, 2000.0f);
                         }
                         else
-                            add_sys8_path_table("/dev_flash/vsh/module/explore_plugin.sprx", temp_buffer);
+                            add_sys8_path_table("/dev_flash/vsh/module/explore_plugin.sprx", tmp_path);
                     }
 
                 }
@@ -7758,7 +7765,7 @@ ask_delete_item:
                                 else
                                     return r;
 
-                                if(DrawDialogYesNo(temp_buffer + 1024) == 1)
+                                if(DrawDialogYesNo(temp_buffer + 1024) == YES)
                                 {
                                     pause_music(1);
 
@@ -9163,7 +9170,7 @@ void draw_options(float x, float y, int index)
     if(strlen(directories[currentgamedir].title_id) == 9 && strstr("HTSS00003|NETBROWSE|IRISMAN00", directories[currentgamedir].title_id) != NULL)
     {
         sprintf(temp_buffer, "%s\n\nDo you want to remove Showtime and Internet Browser icons from the Game List?", directories[currentgamedir].title);
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             show_custom_icons = 0;
             manager_cfg.show_custom_icons = show_custom_icons;
@@ -10070,7 +10077,7 @@ void draw_iso_options(float x, float y, int index)
                        sprintf(temp_buffer, "%s\n\n%s EXT%c?", directories[currentgamedir].title, language[GAMEDELSL_WANTDELETE], directories[currentgamedir].path_name[4]);
                    else break;
 
-                   if(DrawDialogYesNo(temp_buffer) == 1)
+                   if(DrawDialogYesNo(temp_buffer) == YES)
                    {
                        pause_music(1);
 
@@ -10439,27 +10446,12 @@ void draw_configs(float x, float y, int index)
      }
 }
 
-/*
-static char help1[]= {
-    "Test of Character Set\n"
-    "Hola Hello Bonjour Ciao Hallo مرحبا\n"
-    "привет Γεια σας もしもし Merhaba ğ\n"
-    "안녕하세요. 你好\n"
-    "Dışişleri Bakanlığı\n"
-    "Мне нужно немного водки\n"
-    "我想貴國訪問\n"
-    "Γαμημένοι πολιτικοί που έχουν προκαλέσει αναστάτωση\n"
-    "スペインからのご挨拶\n"
-    "تحيات من اسبانيا\n"
-};
-*/
-
 void draw_gbloptions(float x, float y)
 {
 
     float y2;
     static float x3 = -1;
-    static int help = 0;
+    static int enable_event_flag = 0;
 
     SetCurrentFont(FONT_TTF);
 
@@ -10611,47 +10603,36 @@ void draw_gbloptions(float x, float y)
     {
         SetFontSize(16, 20);
 
-        DrawFormatString(0, y2 - 28, "%x%s  -  %s", firmware>>4, (firmware & 0xF) == 0xD ? "DEX": "CEX", payload_str);
+        if(enable_event_flag && !use_cobra)
+        {
+            if(lv2peek(0x80000000000004E8ULL))
+            {
+                u32 eid = (u32) syscall_40(4, 0);
+
+                DrawFormatString(0, y2 - 28, "Event ID: %x / VSH ID %x", eid, manager_cfg.event_flag);
+
+                if(eid != 0)
+                {
+                    eid -= 0x100;
+
+                    if(eid != manager_cfg.event_flag)
+                    {
+                        manager_cfg.event_flag = eid;
+                        SaveManagerCfg();
+                    }
+                }
+            }
+        }
+        else
+            DrawFormatString(0, y2 - 28, "%x%s  -  %s", firmware>>4, (firmware & 0xF) == 0xD ? "DEX": "CEX", payload_str);
     }
 
     SetFontAutoCenter(0);
 
-/*
-    if(help)
-    {
-        DrawBox((848 - 624)/2, (512 - 424)/2, 0, 624, 424, 0x602060ff);
-        DrawBox((848 - 616)/2, (512 - 416)/2, 0, 616, 416, 0x802080ff);
-        set_ttf_window((848 - 600)/2, (512 - 416)/2, 600, 416, WIN_AUTO_LF);
-
-        display_ttf_string(0, 0, help1, 0xffffffff, 0, 18, 24);
-
-        SetFontAutoCenter(1);
-
-        if(lv2peek(0x80000000000004E8ULL) && !use_cobra)
-            DrawFormatString(0, (512 - 416)/2 - 20, "Event ID: %x / VSH ID %x", (u32) syscall_40(4, 0), manager_cfg.event_flag);
-        SetFontAutoCenter(0);
-
-        if(lv2peek(0x80000000000004E8ULL) && !use_cobra)
-        {
-            u32 eid= (u32) syscall_40(4, 0);
-
-            if(eid != 0)
-            {
-                eid -= 0x100;
-                if(eid != manager_cfg.event_flag)
-                {
-                    manager_cfg.event_flag = eid;
-                    SaveManagerCfg();
-                }
-            }
-        }
-    }
-*/
-
     tiny3d_Flip();
     ps3pad_read();
 
-    //if(new_pad & ) help^=1;
+    if((new_pad & BUTTON_SELECT) && select_option < 1 && !use_cobra) enable_event_flag ^= 1;
 
     if(new_pad & (BUTTON_CIRCLE | BUTTON_TRIANGLE))
     {
@@ -10671,12 +10652,13 @@ exit_gbloptions:
            get_games();
            load_gamecfg(RESET_GAME_INFO); // force refresh game info
         }
-        help = 0;
+
+        enable_event_flag = 0;
         return_to_game_list(false);
         return;
     }
 
-    //if(help) return;
+    if(enable_event_flag) return;
 
     if((new_pad & BUTTON_CROSS) ||
        ((new_pad & (BUTTON_LEFT | BUTTON_RIGHT)) &&
@@ -10776,7 +10758,7 @@ exit_gbloptions:
                         download_file("http://localhost/mount_ps3/net0/PKG", NULL, 0, NULL);
 
                         sprintf(temp_buffer, "Mounted /net_host0/PKG as /dev_bdvd\n\n%s", language[DRAWSCREEN_EXITXMB]);
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                             exit(0);
                         else
                             file_manager("/dev_bdvd", NULL);
@@ -10813,7 +10795,7 @@ exit_gbloptions:
                         download_file("http://localhost/mount_ps3/net1/PKG", NULL, 0, NULL);
 
                         sprintf(temp_buffer, "Mounted /net_host0/PKG as /dev_bdvd\n\n%s", language[DRAWSCREEN_EXITXMB]);
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                             exit(0);
                         else
                             file_manager("/dev_bdvd", NULL);
@@ -10939,20 +10921,15 @@ exit_gbloptions:
                         int r = get_net_status();
 
                         r = ftp_init();
-                        if(r == 0)
+                        if(r == SUCCESS)
                         {
                             ftp_inited = true;
-                            if(DrawDialogYesNo(language[DRAWGLOPT_FTPINITED]) != 1)
+                            if(DrawDialogYesNo(language[DRAWGLOPT_FTPINITED]) != YES)
                                 break;
                         }
                         else
                         {
-                            if(r == -1) DrawDialogOK("Error in netInitialize()");
-                            else if(r == -2) DrawDialogOK("Error in netCtlInit()");
-                            else if(r == -3) DrawDialogOK("Error in netCtlGetInfo()");
-                            else if(r == -4) DrawDialogOK("Net Disconnected or Connection not Established");
-                            else DrawDialogOK(language[DRAWGLOPT_FTPARINITED]);
-
+                            show_ftp_error(r);
                             break;
                         }
                     }
@@ -11828,7 +11805,7 @@ void draw_cachesel(float x, float y)
 
         sprintf(temp_buffer, language[DRAWCACHE_ASKTODEL], cache_list[select_option].title_id);
 
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             sprintf(tmp_path, "%s/cache/%s", self_path, cache_list[select_option].title_id);
             DeleteDirectory(tmp_path);

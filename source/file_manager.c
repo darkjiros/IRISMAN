@@ -1355,7 +1355,7 @@ static int copy_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
     {
         sprintf(temp_buffer, "Do you want to %s %s\n\nfrom %s\n\nto %s?", cpy_str, ent[sel].d_name, path1, path2);
 
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             double_bar(cpy_str);
             msg_en = 1;
@@ -1407,7 +1407,7 @@ static int copy_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
         // multiple
         sprintf(temp_buffer, "Do you want to %s the selected Files and Folders\n\nfrom %s\n\nto %s?", cpy_str, path1, path2);
 
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             double_bar(cpy_str);
             msg_en = 1;
@@ -1560,7 +1560,7 @@ int copy_archive_file(char *path1, char *path2, char *file, u64 free)
 
 
     sprintf(temp_buffer, "Copy %s\n\nfrom %s\n\nto %s?", file, path1, path2);
-    if(DrawDialogYesNo(temp_buffer) == 1)
+    if(DrawDialogYesNo(temp_buffer) == YES)
     {
         double_bar(cpy_str);
         msg_en = 1;
@@ -1661,7 +1661,7 @@ static int move_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
     if(sel >= 0)
     {
         sprintf(temp_buffer, "Do you want to Move %s\n\nfrom %s\n\nto %s?", ent[sel].d_name, path1, path2);
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             double_bar(cpy_str);
 
@@ -1724,7 +1724,7 @@ static int move_file_manager(char *path1, char *path2, sysFSDirent *ent, int nen
     {
         // multiple
         sprintf(temp_buffer, "Do you want to Move the selected Files and Folders\n\nfrom %s\n\nto %s?", path1, path2);
-        if(DrawDialogYesNo(temp_buffer) == 1)
+        if(DrawDialogYesNo(temp_buffer) == YES)
         {
             double_bar(cpy_str);
 
@@ -2842,14 +2842,14 @@ read_file:
             }
             else
             {
-                if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                 {
                     save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
                     locked = 0;
                 }
 
-                if(locked == 0 || DrawDialogYesNo("Exit from Hex Editor?") == 1)
+                if(locked == 0 || DrawDialogYesNo("Exit from Hex Editor?") == YES)
                 {
                     if(hex_mode == 1) lv1_pos = pos;
                     else if(hex_mode == 2) lv2_pos = pos;
@@ -2872,7 +2872,7 @@ read_file:
 
             if((new_pad & BUTTON_R3) && find_len)
             {
-                if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                 {
                     save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -2907,7 +2907,7 @@ read_file:
 
             if((new_pad & BUTTON_L3) && find_len)
             {
-                if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                 {
                     save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -2948,7 +2948,7 @@ read_file:
                 {
                     e_y = 0;
 
-                    if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                    if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                     {
                         save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                         memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -2977,7 +2977,7 @@ read_file:
                 {
                     e_y = 23;
 
-                    if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                    if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                     {
                         save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                         memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3003,7 +3003,7 @@ read_file:
                     if(e_y < 0)
                     {
                         e_y = 0;
-                        if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                        if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                         {
                             save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                             memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3036,7 +3036,7 @@ read_file:
                     if(e_y > 23)
                     {
                         e_y = 23;
-                        if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                        if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                         {
                             save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                             memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3056,7 +3056,7 @@ read_file:
             {
                 u64 incre = 0x80ULL;
 
-                if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                 {
                     save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3084,7 +3084,7 @@ read_file:
             {
                 u64 incre = 128ULL;
 
-                if(locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+                if(locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
                 {
                     save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                     memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3506,7 +3506,8 @@ read_file:
                                         (u32) (my_pos>>32), (u32) my_pos);
                                 }
 
-                                if(DrawDialogYesNo(temp_buffer + 3072) == 1) {
+                                if(DrawDialogYesNo(temp_buffer + 3072) == YES)
+                                {
                                     int ret = 0;
 
                                     ret = save_hex(is_ntfs, fd, my_pos, copy_mem, my_len);
@@ -3550,7 +3551,7 @@ read_file:
             f_pos = 0;
             f_len = (find_len > 8) ? 16 : find_len * 2;
 
-            if(enable_menu && locked && DrawDialogYesNo("Do you want to save the changes?") == 1)
+            if(enable_menu && locked && DrawDialogYesNo("Do you want to save the changes?") == YES)
             {
                 save_hex(is_ntfs, fd, pos, temp_buffer + 0x800, readed);
                 memcpy(temp_buffer + 0xA00, temp_buffer + 0x800, 384);
@@ -3602,7 +3603,7 @@ void launch_ps2classic(char *ps2iso_path, char *ps2iso_title)
             char msg[400];
             sprintf(msg, "%s\n\nDo you want to copy the PS2 image to PS2 Classics Placeholder?", ps2iso_title);
 
-            if(DrawDialogYesNo(msg) == 1)
+            if(DrawDialogYesNo(msg) == YES)
             {
                 sprintf(temp_buffer, "%s", ps2iso_path);
 
@@ -3656,7 +3657,7 @@ void launch_ps2classic(char *ps2iso_path, char *ps2iso_title)
 
         if(ret)
             DrawDialogOKTimer("ERROR: PS2 image could not be copied to PS2 Classics Placeholder", 5000.0f);
-        else if(DrawDialogYesNoDefaultYes("Do you want to exit to XMB to launch the mounted game with PS2 Classics Placeholder?") == 1)
+        else if(DrawDialogYesNoDefaultYes("Do you want to exit to XMB to launch the mounted game with PS2 Classics Placeholder?") == YES)
             exit(0);
     }
     else
@@ -6022,7 +6023,7 @@ int file_manager(char *pathw1, char *pathw2)
             if(new_pad & BUTTON_START) break;
             else if(new_pad & BUTTON_CIRCLE)
             {
-                if(DrawDialogYesNo("Exit to XMB?") == 1) exit(0);
+                if(DrawDialogYesNo("Exit to XMB?") == YES) exit(0);
                 new_pad = 0;
             }
         }
@@ -6276,7 +6277,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                      ps3pad_read();
 
-                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == YES)
                      {
                          exitcode = REFRESH_GAME_LIST;
 
@@ -6324,7 +6325,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                      ps3pad_read();
 
-                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == YES)
                      {
                          exitcode = REFRESH_GAME_LIST;
 
@@ -6505,7 +6506,7 @@ int file_manager(char *pathw1, char *pathw2)
                     // multiple
                     sprintf(temp_buffer, "Do you want to delete the selected Files and Folders?\n\n(%i) Items", files);
 
-                    if(DrawDialogYesNo(temp_buffer) == 1)
+                    if(DrawDialogYesNo(temp_buffer) == YES)
                     {
                         exitcode = REFRESH_GAME_LIST;
 
@@ -6562,7 +6563,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                     if(!strcmp(entries[sel].d_name, "..")) {set_menu2 = 0;goto skip_menu2;}
 
-                    if(DrawDialogYesNo(temp_buffer) == 1)
+                    if(DrawDialogYesNo(temp_buffer) == YES)
                     {
                         sprintf(temp_buffer, "%s/%s", path, entries[sel].d_name);
 
@@ -6620,7 +6621,7 @@ int file_manager(char *pathw1, char *pathw2)
 
                      ps3pad_read();
 
-                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == YES)
                      {
                          exitcode = REFRESH_GAME_LIST;
 
@@ -7095,7 +7096,7 @@ int file_manager(char *pathw1, char *pathw2)
                            (!strcmp(ext, ".p3t") || !strcmp(ext, ".P3T")))
                     {
                         sprintf(temp_buffer, "Do you want to copy %s to dev_hdd0/theme folder?", entries1[sel1].d_name);
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                         {
                           sprintf(temp_buffer, "%s/%s", path1, entries1[sel1].d_name);
                           sprintf(temp_buffer + 2048, "/dev_hdd0/theme/%s", entries1[sel1].d_name);
@@ -7217,7 +7218,7 @@ int file_manager(char *pathw1, char *pathw2)
                     if(!strncmp((char *) entries1[sel1].d_name, "ntfs", 4) || !strncmp((char *) entries1[sel1].d_name, "ext", 3))
                     {
                         sprintf(temp_buffer, "Do you want to unmount USB00%i device?", NTFS_Test_Device(entries1[sel1].d_name));
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                         {
                             int i = NTFS_Test_Device(entries1[sel1].d_name);
                             if(mounts[i])
@@ -7583,7 +7584,7 @@ int file_manager(char *pathw1, char *pathw2)
                            (!strcmp(ext, ".p3t") || !strcmp(ext, ".P3T")))
                     {
                         sprintf(temp_buffer, "Do you want to copy %s to dev_hdd0/theme folder?", entries2[sel2].d_name);
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                         {
                           sprintf(temp_buffer, "%s/%s", path2, entries2[sel2].d_name);
                           sprintf(temp_buffer + 2048, "/dev_hdd0/theme/%s", entries2[sel2].d_name);
@@ -7705,7 +7706,7 @@ int file_manager(char *pathw1, char *pathw2)
                     if(!strncmp((char *) entries2[sel2].d_name, "ntfs", 4) || !strncmp((char *) entries2[sel2].d_name, "ext", 3))
                     {
                         sprintf(temp_buffer, "Do you want to unmount USB00%i device?", NTFS_Test_Device(entries2[sel2].d_name));
-                        if(DrawDialogYesNo(temp_buffer) == 1)
+                        if(DrawDialogYesNo(temp_buffer) == YES)
                         {
                             int i = NTFS_Test_Device(entries2[sel2].d_name);
                             if(mounts[i])

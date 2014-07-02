@@ -356,22 +356,26 @@ void install_pkg(char *path, char *filename)
 
     int is_ntfs = 0; if(!strncmp(path, "/ntfs", 5) || !strncmp(path, "/ext", 4)) is_ntfs = 1;
 
-    if(firmware == 0x341C || firmware == 0x355C || firmware == 0x355D) use_folder =1;
+    if(firmware == 0x341C || firmware == 0x355C || firmware == 0x355D) use_folder = 1;
 
     sysFsGetFreeSize("/dev_hdd0/", &blockSize, &freeSize);
     free_hdd0 = ( ((u64)blockSize * freeSize));
 
     sprintf(temp_buffer, "%s/%s", path, filename);
 
-    if((!is_ntfs && stat(temp_buffer, &s) == 0) || (is_ntfs && ps3ntfs_stat(temp_buffer, &s) == 0)) {
-
-    if(s.st_size + 0x40000000ULL > free_hdd0/*|| s.st_size >= 0x100000000ULL*/)
-        {DrawDialogOK(language[PKG_ERRTOBIG]);return;}
-    } else return; // error
+    if((!is_ntfs && stat(temp_buffer, &s) == 0) || (is_ntfs && ps3ntfs_stat(temp_buffer, &s) == 0))
+    {
+        if(s.st_size + 0x40000000ULL > free_hdd0/*|| s.st_size >= 0x100000000ULL*/)
+        {
+            DrawDialogOK(language[PKG_ERRTOBIG]);
+            return;
+        }
+    }
+    else return; // error
 
     sprintf(temp_buffer + 1024, "%s\n\n%s", language[PKG_WANTINSTALL], filename);
 
-    if(DrawDialogYesNo(temp_buffer + 1024) != 1) return;
+    if(DrawDialogYesNo(temp_buffer + 1024) != YES) return;
 
 //    sys8_perm_mode(1);
 

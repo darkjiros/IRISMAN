@@ -3589,7 +3589,7 @@ static int my_game_test(char *path)
                         if(nfilecached < MAX_FILECACHED)
                         {
                             sprintf(buff, language[GAMETESTS_FOUNDINSTALL], entry->d_name);
-                            if(DrawDialogYesNo(buff) == 1)
+                            if(DrawDialogYesNo(buff) == YES)
                             {
                                 sprintf(&filecached[nfilecached][0][0], "%s/%s", path, entry->d_name);
                                 sprintf(&filecached[nfilecached][1][0], "%s", entry->d_name);
@@ -3623,7 +3623,7 @@ static int my_game_test(char *path)
                         if(nfilecached < MAX_FILECACHED)
                         {
                             sprintf(buff, language[GAMETESTS_FOUNDINSTALL], entry->d_name);
-                            if(DrawDialogYesNo(buff) == 1)
+                            if(DrawDialogYesNo(buff) == YES)
                             {
                                 sprintf(&filecached[nfilecached][0][0], "%s/%s", path, entry->d_name);
                                 sprintf(&filecached[nfilecached][1][0], "%s", entry->d_name);
@@ -4018,7 +4018,7 @@ void copy_from_selection(int game_sel)
 
     if(abort_copy) //abort by user or got an error
     {
-        if(DrawDialogYesNo(language[GAMECPYSL_GSIZEABCNTASK]) != 1)
+        if(DrawDialogYesNo(language[GAMECPYSL_GSIZEABCNTASK]) != YES)
         {
             forcedevices = D_FLAG_USB;
             return;

@@ -863,7 +863,7 @@ int cover_update(char *title_id)
                     dialog_action = 0;
 
                     msgType mdialogyesno3 = MSG_DIALOG_NORMAL | MSG_DIALOG_BTN_TYPE_YESNO | MSG_DIALOG_DISABLE_CANCEL_ON | MSG_DIALOG_DEFAULT_CURSOR_NO | MSG_DIALOG_BKG_INVISIBLE;
-                    msgDialogOpen2(mdialogyesno3, "Replace Left Cover with Right Cover?\n\nReemplazar Caratula Izquierda por Caratula Derecha?", my_dialog, (void*)  0x0000aaaa, NULL );
+                    msgDialogOpen2(mdialogyesno3, "Replace Left Cover with Right Cover?\n\nReemplazar Carátula Izquierda por Carátula Derecha?", my_dialog, (void*)  0x0000aaaa, NULL );
 
                     while(!dialog_action)
                     {
@@ -1126,7 +1126,7 @@ int game_update(char *title_id)
     else if (ret == -2) DrawDialogOKTimer("Invalid Cover", 2000.0f);
 
     sprintf(temp_buffer, "Do you want you update the game %s?", title_id);
-    if(DrawDialogYesNoDefaultYes(temp_buffer) != 1) return 0;
+    if(DrawDialogYesNoDefaultYes(temp_buffer) != YES) return 0;
 
     strcpy(ver_app, "00.00");
 
@@ -1214,7 +1214,7 @@ no_system:
         {
             sprintf(temp_buffer + 1024, "Do you want to download this update?\n\nVersion: %s for System Ver %s\n\n%s", version, system, o + 1);
 
-            if(DrawDialogYesNo2(temp_buffer + 1024) == 1)
+            if(DrawDialogYesNo2(temp_buffer + 1024) == YES)
             {
                 max_list++; if(max_list >=128) break;
             }

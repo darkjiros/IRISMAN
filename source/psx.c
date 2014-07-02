@@ -444,7 +444,7 @@ void draw_psx_options(float x, float y, int index)
 
             if(stat(temp_buffer + 1024, &s) >= 0)
             {
-                if(DrawDialogYesNo("Internal_MC already exits\n\nDo you want to overwrite the file?") == 1)
+                if(DrawDialogYesNo("Internal_MC already exits\n\nDo you want to overwrite the file?") == YES)
                 {
                     unlink_secure(temp_buffer + 1024);
                 } else return; // cancel
@@ -513,7 +513,7 @@ void draw_psx_options(float x, float y, int index)
             case 4: // Copy Game
                 if(mode_homebrew == 1) break;
                 if(test_ftp_working()) break;
-                if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1)
+                if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == YES)
                 {
                     if(SavePSXOptions(PSX_LAST_PATH) == 0)
                     {
@@ -631,7 +631,7 @@ void draw_psx_options(float x, float y, int index)
                 break;
 
             case 8: // Return
-                if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1)
+                if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == YES)
                 {
                     SavePSXOptions(PSX_LAST_PATH);
                 }
@@ -741,7 +741,7 @@ void draw_psx_options(float x, float y, int index)
     {
         if(old_pad & BUTTON_SELECT)
         { /* cancel without any change */ }
-        else if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == 1)
+        else if(psx_modified && DrawDialogYesNo(language[DRAWPSX_SAVEASK]) == YES)
         {
             if(SavePSXOptions(PSX_LAST_PATH) == 0)
             {
@@ -945,7 +945,8 @@ void draw_psx_options2(float x, float y, int index)
 
             case 5: // Format Internal_MC
                 if(!((directories[currentgamedir].flags  & GAMELIST_FILTER) ==  BDVD_FLAG) &&
-                    DrawDialogYesNo(language[DRAWPSX_ASKFORMAT]) == 1) {
+                    DrawDialogYesNo(language[DRAWPSX_ASKFORMAT]) == YES)
+                {
 
                     int flen = strlen(directories[currentgamedir].path_name) - 4;
 
@@ -1555,7 +1556,7 @@ int psx_cd_with_cheats(void)
         closedir(dir);
     }
 
-    if(cur_sz && DrawDialogYesNo(language[DRAWPSX_ASKCHEATS]) == 1)
+    if(cur_sz && DrawDialogYesNo(language[DRAWPSX_ASKCHEATS]) == YES)
     {
         int n;
 
@@ -1908,7 +1909,7 @@ skip_scan_folder_isos:
 
                         if(sector_size == s_z)
                         {
-                            if(DrawDialogYesNo(language[DRAWPSX_ASKCHEATS]) == 1)
+                            if(DrawDialogYesNo(language[DRAWPSX_ASKCHEATS]) == YES)
                             {
                                 nfiles++;
                                 int m;
@@ -1935,7 +1936,7 @@ skip_scan_folder_isos:
                 if(are_using_cheats == 2)
                 {
                     // try build one
-                    if(DrawDialogYesNo(language[DRAWPSX_CHEATMAKE]) == 1)
+                    if(DrawDialogYesNo(language[DRAWPSX_CHEATMAKE]) == YES)
                     {
                         if(build_iso(files[8], sector_size) == 0)
                         {
@@ -2922,7 +2923,8 @@ void copy_PSX_game_from_CD()
         int f;
 
         sprintf(temp_buffer + 1024, "%s#%i",language[DRAWPSX_PUTADISC], disc);
-        while((ret = DrawDialogYesNo2(temp_buffer + 1024)) == 1) {
+        while((ret = DrawDialogYesNo2(temp_buffer + 1024)) == YES)
+        {
             //Reset_BDVD(); //  in the callback!
 
             for(f = 0; f < 15; f++)
@@ -2967,7 +2969,7 @@ void copy_PSX_game_from_CD()
         if(stat(temp_buffer + 1024, &s) >= 0)
         {
             sprintf(temp_buffer + 2048, "disc%i.img %s", disc, language[DRAWPSX_ISOEXITS]);
-            if(DrawDialogYesNo2(temp_buffer + 2048) == 1)
+            if(DrawDialogYesNo2(temp_buffer + 2048) == YES)
             {
                 close_bdvd();
                 continue;
@@ -3083,7 +3085,7 @@ void copy_PSX_game_from_CD()
             if(new_pad & BUTTON_CROSS) {break;}
         }
 
-        if(DrawDialogYesNo("Do you want to copy a New Disc?") != 1) break;
+        if(DrawDialogYesNo("Do you want to copy a New Disc?") != YES) break;
         close_bdvd();
 
     }
@@ -3098,7 +3100,7 @@ void copy_PSX_game_from_CD()
 
     if(aborted)
     {
-        if(DrawDialogYesNo("Do you want to delete all datas copied?") == 1)
+        if(DrawDialogYesNo("Do you want to delete all datas copied?") == YES)
         {
             sprintf(temp_buffer + 1024, "/dev_hdd0/PSXGAMES/%s", temp_buffer);
             DeleteDirectory(temp_buffer + 1024);

@@ -10,7 +10,7 @@
 #define create_kernel_object_symbol			0x10790
 #define destroy_kernel_object_symbol			0x100F4
 #define destroy_shared_kernel_object_symbol		0xFA68
-#define open_kernel_object_symbol			0x10DE0 
+#define open_kernel_object_symbol			0x10DE0
 #define open_shared_kernel_object_symbol		0x10BF0
 #define close_kernel_object_handle_symbol		0x10210
 
@@ -69,7 +69,7 @@
 #define semaphore_trywait_symbol			0x2E8B4
 #define semaphore_post_ex_symbol			0x2EA00
 
-#define event_port_create_symbol			0x11858	
+#define event_port_create_symbol			0x11858
 #define event_port_destroy_symbol			0x11CC0
 #define event_port_connect_symbol			0x11D38
 #define event_port_disconnect_symbol			0x11C64
@@ -96,7 +96,7 @@
 #define pathdup_from_user_symbol			0x1b3b3c
 #define	open_path_symbol				0x2aafc8
 #define open_fs_object_symbol				0x198B6C
-#define close_fs_object_symbol				0x197D54		
+#define close_fs_object_symbol				0x197D54
 
 #define storage_get_device_info_symbol			0x293A18
 #define storage_get_device_config_symbol		0x2936E8
@@ -137,7 +137,7 @@
 /* Calls, jumps */
 #define device_event_port_send_call			0x29BD48
 
-#define ss_pid_call_1					0x25EC18	
+#define ss_pid_call_1					0x25EC18
 
 #define read_module_header_call				0x7CAC0
 #define read_module_body_call				0x5354
@@ -190,7 +190,7 @@
 #define open_shared_kernel_object_symbol		0x12244
 #define close_kernel_object_handle_symbol		0x11864
 
-#define alloc_symbol					0x60B78	
+#define alloc_symbol					0x60B78
 #define dealloc_symbol					0x60FB4
 #define copy_to_user_symbol				0xF6A4
 #define copy_from_user_symbol				0xF8C0
@@ -343,7 +343,7 @@
 #define update_mgr_read_eeprom_symbol			0x249170
 #define update_mgr_write_eeprom_symbol			0x2490B8
 
-#define ss_params_get_update_status_symbol		0x50DB4		
+#define ss_params_get_update_status_symbol		0x50DB4
 
 #define syscall_table_symbol				0x346570
 #define syscall_call_offset				0x297DB0
@@ -357,7 +357,7 @@
 /* Calls, jumps */
 #define device_event_port_send_call			0x2A3FCC
 
-#define ss_pid_call_1					0x238D00	
+#define ss_pid_call_1					0x238D00
 
 #define read_module_header_call				0x7CE48
 #define read_module_body_call				0x59CC
@@ -372,7 +372,7 @@
 /* Patches */
 #define shutdown_patch_offset				0x992C
 #define module_sdk_version_patch_offset			0x28A430
-#define module_add_parameter_to_parse_sprxpatch_offset	0x85B7C		
+#define module_add_parameter_to_parse_sprxpatch_offset	0x85B7C
 
 #define user_thread_prio_patch				0x20140
 #define user_thread_prio_patch2				0x2014C
@@ -399,12 +399,12 @@
 /* Permissions */
 #define permissions_func_symbol				0xE7F0 /* before it was patch_func5+patch_func5_offset */
 #define permissions_exception1 				0x24E44 /* before it was patch_func6+patch6_func6_offset */
-#define permissions_exception2				0xC1DD0	/* before it was patch_func7+patch7_func7_offset */	
+#define permissions_exception2				0xC1DD0	/* before it was patch_func7+patch7_func7_offset */
 #define permissions_exception3				0x20214 /* Added in v 3.0 */
 
 /* Legacy patches with no names yet */
 /* Kernel offsets */
-#define patch_data1_offset		0x3c2f00 
+#define patch_data1_offset		0x3c2f00
 #define patch_func2 			0x7A7C4
 #define patch_func2_offset 		0x2C
 #define patch_func8 			0x55D20 //lv2open update patch
@@ -880,7 +880,7 @@
 #define open_shared_kernel_object_symbol		0x123F8
 #define close_kernel_object_handle_symbol		0x11A18
 
-#define alloc_symbol					0x64028	
+#define alloc_symbol					0x64028
 #define dealloc_symbol					0x64464
 #define copy_to_user_symbol				0xF858
 #define copy_from_user_symbol				0xFA74
@@ -1033,7 +1033,7 @@
 #define update_mgr_read_eeprom_symbol			0x254DD4
 #define update_mgr_write_eeprom_symbol			0x254D1C
 
-#define ss_params_get_update_status_symbol		0x5198C		
+#define ss_params_get_update_status_symbol		0x5198C
 
 #define syscall_table_symbol				0x35DBE0
 #define syscall_call_offset				0x2A5440
@@ -1049,7 +1049,7 @@
 /* Calls, jumps */
 #define device_event_port_send_call			0x2B16A8
 
-#define ss_pid_call_1					0x2445F8	
+#define ss_pid_call_1					0x2445F8
 
 #define read_module_header_call				0x7EBAC
 #define read_module_body_call				0x671C
@@ -1064,7 +1064,7 @@
 /* Patches */
 #define shutdown_patch_offset				0xAAA8
 #define module_sdk_version_patch_offset			0x297A04
-#define module_add_parameter_to_parse_sprxpatch_offset	0x879A0		
+#define module_add_parameter_to_parse_sprxpatch_offset	0x879A0
 
 #define user_thread_prio_patch				0x201B0
 #define user_thread_prio_patch2				0x201BC
@@ -1093,7 +1093,7 @@
 /* Permissions */
 #define permissions_func_symbol				0x3560  /* before it was patch_func5+patch_func5_offset */
 #define permissions_exception1 				0x24EB4 /* before it was patch_func6+patch6_func6_offset */
-#define permissions_exception2				0xC444C	/* before it was patch_func7+patch7_func7_offset */	
+#define permissions_exception2				0xC444C	/* before it was patch_func7+patch7_func7_offset */
 #define permissions_exception3				0x20284 /* Added in v 3.0 */
 
 /* Legacy patches with no names yet */
@@ -1123,7 +1123,7 @@
 #define open_shared_kernel_object_symbol		0x12474
 #define close_kernel_object_handle_symbol		0x11A94
 
-#define alloc_symbol					0x62F78	
+#define alloc_symbol					0x62F78
 #define dealloc_symbol					0x633B4
 #define copy_to_user_symbol				0xF85C
 #define copy_from_user_symbol				0xFA78
@@ -1277,7 +1277,7 @@
 #define update_mgr_read_eeprom_symbol			0x2542AC
 #define update_mgr_write_eeprom_symbol			0x2541F4
 
-#define ss_params_get_update_status_symbol		0x508DC		
+#define ss_params_get_update_status_symbol		0x508DC
 
 #define syscall_table_symbol				0x35E860
 #define syscall_call_offset				0x2A5D54
@@ -1313,7 +1313,7 @@
 /* Patches */
 #define shutdown_patch_offset				0xAAA8
 #define module_sdk_version_patch_offset			0x297340
-#define module_add_parameter_to_parse_sprxpatch_offset	0x86940		
+#define module_add_parameter_to_parse_sprxpatch_offset	0x86940
 
 #define user_thread_prio_patch				0x2022C
 #define user_thread_prio_patch2				0x20238
@@ -1342,7 +1342,7 @@
 /* Permissions */
 #define permissions_func_symbol				0x3560  /* before it was patch_func5+patch_func5_offset */
 #define permissions_exception1 				0x24F30 /* before it was patch_func6+patch6_func6_offset */
-#define permissions_exception2				0xC3554	/* before it was patch_func7+patch7_func7_offset */	
+#define permissions_exception2				0xC3554	/* before it was patch_func7+patch7_func7_offset */
 #define permissions_exception3				0x20300 /* Added in v 3.0 */
 
 /* Legacy patches with no names yet */
@@ -1368,7 +1368,7 @@
 #define open_shared_kernel_object_symbol		0x12474
 #define close_kernel_object_handle_symbol		0x11A94
 
-#define alloc_symbol					0x62F78	
+#define alloc_symbol					0x62F78
 #define dealloc_symbol					0x633B4
 #define copy_to_user_symbol				0xF85C
 #define copy_from_user_symbol				0xFA78
@@ -1497,7 +1497,7 @@
 
 #define extend_kstack_symbol				0x6E7C4
 
-#define get_pseudo_random_number_symbol			0x2587A0	
+#define get_pseudo_random_number_symbol			0x2587A0
 
 #define syscall_table_symbol				0x35E860
 #define syscall_call_offset				0x2A5D54
@@ -1546,7 +1546,7 @@
 /* Permissions */
 //#define permissions_func_symbol				0x3560  /* before it was patch_func5+patch_func5_offset */
 //#define permissions_exception1 				0x24F30 /* before it was patch_func6+patch6_func6_offset */
-//#define permissions_exception2				0xC3554	/* before it was patch_func7+patch7_func7_offset */	
+//#define permissions_exception2				0xC3554	/* before it was patch_func7+patch7_func7_offset */
 //#define permissions_exception3				0x20300 /* Added in v 3.0 */
 
 /* Legacy patches with no names yet */
@@ -1578,7 +1578,7 @@
 #define open_shared_kernel_object_symbol		0x12474
 #define close_kernel_object_handle_symbol		0x11A94
 
-#define alloc_symbol					0x62F78	
+#define alloc_symbol					0x62F78
 #define dealloc_symbol					0x633B4
 #define copy_to_user_symbol				0xF85C
 #define copy_from_user_symbol				0xFA78
@@ -1741,7 +1741,7 @@
 #define open_shared_kernel_object_symbol		0x12AB8 //done
 #define close_kernel_object_handle_symbol		0x120D8 //done
 
-#define alloc_symbol					0x66944 //done	
+#define alloc_symbol					0x66944 //done
 #define dealloc_symbol					0x66D80 //done
 #define copy_to_user_symbol				0xFEA0 //done
 #define copy_from_user_symbol				0x100BC //done
@@ -1840,7 +1840,7 @@
 
 #define extend_kstack_symbol				0x72310 //done
 
-#define get_pseudo_random_number_symbol			0x236E0C //done	
+#define get_pseudo_random_number_symbol			0x236E0C //done
 
 #define syscall_table_symbol				0x383658 //done
 #define syscall_call_offset				0x286370 //done??
@@ -1888,11 +1888,163 @@
 // TODO: #define open_psid_buf_symbol			0x45218C
 #define thread_info_symbol				0x39DAB0 //done
 
+#elif defined(FIRMWARE_4_55)
+
+#define TOC						0x34E620
+
+#define open_shared_kernel_object_symbol		0x12484 // y
+#define close_kernel_object_handle_symbol		0x11AA4
+
+#define alloc_symbol					0x643B4	// y
+#define dealloc_symbol					0x647F0
+#define copy_to_user_symbol				0xF86C // x
+#define copy_from_user_symbol			0xFA88
+#define copy_to_process_symbol			0xF924
+#define copy_from_process_symbol		0xF734
+#define page_allocate_symbol			0x5FF24 // y 143C
+#define page_free_symbol				0x5F988
+#define page_export_to_proc_symbol		0x600C0
+#define page_unexport_from_proc_symbol	0x5F87C
+#define kernel_ea_to_lpar_addr_symbol	0x6FCA8
+#define map_process_memory_symbol		0x76DC8
+
+#define memcpy_symbol					0x7E488 // x
+#define memset_symbol					0x4D6D8 // 244
+#define memcmp_symbol					0x4C9E8
+
+#define sprintf_symbol					0x4EB00
+#define snprintf_symbol					0x4EA6C
+#define strcpy_symbol					0x4D884
+#define strncpy_symbol					0x4D94C
+#define strlen_symbol					0x4D8AC
+#define strcat_symbol					0x4D7B4
+#define strcmp_symbol					0x4D830
+#define strncmp_symbol					0x4D8D8
+#define strchr_symbol					0x4D7EC
+
+#define spin_lock_irqsave_ex_symbol			0x277630 // y
+#define spin_unlock_irqrestore_ex_symbol	0x277604
+
+#define load_process_symbol				0x5004
+
+#define ppu_thread_create_symbol			0x13F3C // y
+#define ppu_thread_exit_symbol				0x13FF4
+#define ppu_thread_join_symbol				0x14048
+#define ppu_thread_delay_symbol				0x28810 // + 244
+
+#define create_user_thread2_symbol			0x250F4 //y + 244
+#define start_thread_symbol				    0x23DC0
+#define run_thread_symbol				    0x235F0 /* y temp name + 244*/
+#define register_thread_symbol				0x27183C // +184C
+#define allocate_user_stack_symbol			0x272024
+
+#define mutex_create_symbol				0x136B0 // x
+#define mutex_destroy_symbol		    0x13648
+#define mutex_lock_symbol				0x13640
+#define mutex_unlock_symbol				0x13638
+
+#define event_port_create_symbol			0x130EC // x
+#define event_port_destroy_symbol			0x13554
+#define event_port_connect_symbol			0x135CC
+#define event_port_disconnect_symbol		0x134F8
+#define event_port_send_symbol				0x130E4
+
+#define event_queue_create_symbol			0x133F4 //y
+#define event_queue_destroy_symbol			0x1337C
+#define event_queue_receive_symbol			0x131C0
+
+#define cellFsOpen_symbol				0x29FA10 // y +1850
+#define cellFsClose_symbol				0x29F878
+#define cellFsRead_symbol				0x29F9B4
+#define cellFsWrite_symbol				0x29F920
+#define cellFsLseek_symbol				0x29EFA8
+#define cellFsStat_symbol				0x29F22C
+#define cellFsUnlink_internal_symbol	0x19D83C // +14ec  find "F821FEF17C0802A62C240000FBE101083FE08001FB8100F0FBA100F8FBC10100"
+
+#define cellFsUtilMount_symbol				0x29ED88 //y +1850
+#define cellFsUtilUmount_symbol				0x29ED5C
+#define pathdup_from_user_symbol			0x1A3730 // +14EC
+#define	open_path_symbol				    0x29F748
+#define open_fs_object_symbol				0x18BB60
+#define close_fs_object_symbol				0x18AA9C // +1470 find "7C83237838A0000038800000"
+
+#define storage_get_device_info_symbol			0x283980 // y +1850
+#define storage_open_symbol				        0x283390
+#define storage_close_symbol				    0x283180
+#define storage_read_symbol				        0x2826F0
+#define storage_send_device_command_symbol		0x28227C
+#define storage_map_io_memory_symbol			0x28383C
+#define storage_unmap_io_memory_symbol			0x283708
+#define storage_internal_get_device_object_symbol	0x281D34
+
+
+#define decrypt_func_symbol				    0x349DC //y find "F821FF717C0802A6FB810070FBA100787C7C1B787C9D2378F80100A04BFFFF95"
+#define lv1_call_99_wrapper_symbol			0x4EF14 // find "F821FF717C0802A6FBA100787C7D1B78FB810070386300807C9C2378F80100A0"
+#define modules_verification_symbol			0x586E8 // find "3884FFFA7C0802A6F821FF912B840036F8010080419D00FC"
+//#define authenticate_program_segment_symbol		0x59C64
+
+
+#define prx_load_module_symbol				0x88680
+#define prx_start_module_symbol				0x8734C // +144C
+#define prx_stop_module_symbol				0x88724
+#define prx_unload_module_symbol			0x87080 // +144C find "F821FF617C0802A6FB810080FBC100907C7C07B47C9E2378FBA10088"
+
+
+#define extend_kstack_symbol				0x6FC00 //y +143C
+
+#define get_pseudo_random_number_symbol			0x2321D4 //y ok find "7C8523787C04037848000404"
+
+#define syscall_table_symbol			0x362680 // y
+#define syscall_call_offset				0x27FA84
+
+#define read_bdvd0_symbol				0x1AE6A0 // y +14EC
+#define read_bdvd1_symbol				0x1B02CC // +14EC find "F821FF317C0802A6FB8100B0F80100E0EB8300207CA02B78FAE100882FBC0000"
+#define read_bdvd2_symbol				0x1BD454 // +14BC find "F821FF517C0802A6FBE100A8F80100C07C7F1B78E8630090"
+
+/* Calls, jumps */
+#define device_event_port_send_call			0x28BEEC // y search (near) 78050620E8CA00387D052B78
+
+//#define ss_pid_call_1					0x243AD0
+
+#define process_map_caller_call			0x4D24
+
+#define fsloop_open_call				0x29FBA8 //y search (near) 8063000880AA00187C6307B4E8CA0020
+#define fsloop_close_call				0x29FBF8
+#define fsloop_read_call				0x29FC38
+
+/* Patches */
+
+#define user_thread_prio_patch				0x20470 //y find "419DFF842B9E0BFF900100D0419D02587B8007A0"
+#define user_thread_prio_patch2				0x2047C
+
+/* Rtoc entries */
+
+#define io_rtoc_entry_1					-0x1B8
+#define io_sub_rtoc_entry_1				-0x7EA0
+
+#define decrypt_rtoc_entry_2 				-0x66A8
+//#define decrypter_data_entry				-0x7F10
+
+#define storage_rtoc_entry_1				0x1E10
+
+#define device_event_rtoc_entry_1			0x2080
+
+/* Legacy patches with no names yet */
+/* Kernel offsets */
+
+#define patch_func2 					0x59990 //y modules_patching
+#define patch_func2_offset 				0x2C
+
+
+/* vars */
+// TODO: #define open_psid_buf_symbol			0x45218C
+#define thread_info_symbol				0x37C7B0 //y ref aPu_thrD> # "PU_THR%d" (busca cadena y luego la direccion abs de la cadena)
+
 #elif defined(FIRMWARE_4_55DEX)
 
 #define TOC						0x3738E0 //done
 
-#define open_shared_kernel_object_symbol		0x12ACC //done 
+#define open_shared_kernel_object_symbol		0x12ACC //done
 #define close_kernel_object_handle_symbol		0x120EC //done
 
 #define alloc_symbol					0x67D84 //done
@@ -1923,18 +2075,18 @@
 #define strchr_symbol					0x51194 //done
 
 #define spin_lock_irqsave_ex_symbol			0x27F544 //done
-#define spin_unlock_irqrestore_ex_symbol		0x27F518 //done 
+#define spin_unlock_irqrestore_ex_symbol		0x27F518 //done
 
 #define load_process_symbol				0x5004 //done same as 4.50
 
 #define ppu_thread_create_symbol			0x14670 //done
-#define ppu_thread_exit_symbol				0x14728 //done 
+#define ppu_thread_exit_symbol				0x14728 //done
 #define ppu_thread_join_symbol				0x1477C //done
 #define ppu_thread_delay_symbol				0x2A754 //done
 
 #define create_user_thread2_symbol			0x26DA4 //done
 #define start_thread_symbol				0x258DC //done
-#define run_thread_symbol				0x250A0 /* temp name */ 
+#define run_thread_symbol				0x250A0 /* temp name */
 #define register_thread_symbol				0x278160 //done
 #define allocate_user_stack_symbol			0x278948 //done
 
@@ -1963,7 +2115,7 @@
 
 //RE-DONE
 #define cellFsUtilMount_symbol				0x2B93B4 //done
-#define cellFsUtilUmount_symbol				0x2B9388 //done 
+#define cellFsUtilUmount_symbol				0x2B9388 //done
 
 #define pathdup_from_user_symbol			0x1A9BE0 //done
 #define	open_path_symbol				0x2B9C14 //done
@@ -1976,7 +2128,7 @@
 #define storage_open_symbol				0x296AE4 //done
 #define storage_close_symbol				0x2952D0 //done
 #define storage_read_symbol				0x29424C // FIXED!!!!!!!!!!!!!!!
-//#define storage_write_symbol				0x2926EC 
+//#define storage_write_symbol				0x2926EC
 #define storage_send_device_command_symbol		0x293D6C //done
 #define storage_map_io_memory_symbol			0x296768 //done
 #define storage_unmap_io_memory_symbol			0x296624 //done
@@ -1985,7 +2137,7 @@
 #define decrypt_func_symbol				0x382FC //done
 #define lv1_call_99_wrapper_symbol			0x528BC //done
 #define modules_verification_symbol			0x5C0B8 //done
-//#define authenticate_program_segment_symbol		0x5D630 
+//#define authenticate_program_segment_symbol		0x5D630
 
 #define prx_load_module_symbol				0x8CD84 //done
 #define prx_start_module_symbol				0x8BA50 //done
@@ -2006,13 +2158,13 @@
 /* Calls, jumps */
 #define device_event_port_send_call			0x2A0AB8 //done
 
-//#define ss_pid_call_1					0x222110 
+//#define ss_pid_call_1					0x222110
 
 #define process_map_caller_call				0x4D24 //done same as 4.50
 
 #define fsloop_open_call				0x2BA074 //done
 #define fsloop_close_call				0x2BA0C4 //done
-#define fsloop_read_call				0x2BA104 //done 
+#define fsloop_read_call				0x2BA104 //done
 
 /* Patches */
 
@@ -2021,11 +2173,11 @@
 
 /* Rtoc entries */
 
-#define io_rtoc_entry_1					-0x88 //done 
+#define io_rtoc_entry_1					-0x88 //done
 #define io_sub_rtoc_entry_1				-0x7EA0 //done?
 
-#define decrypt_rtoc_entry_2 				-0x65C8 //done 
-//#define decrypter_data_entry				-0x7F10 
+#define decrypt_rtoc_entry_2 				-0x65C8 //done
+//#define decrypter_data_entry				-0x7F10
 
 #define storage_rtoc_entry_1				0x22E8 //done
 
@@ -2040,7 +2192,7 @@
 
 /* vars */
 // TODO: #define open_psid_buf_symbol			0x45218C
-#define thread_info_symbol				0x3A2930 //done 
+#define thread_info_symbol				0x3A2930 //done
 
 #endif /* FIRMWARE */
 

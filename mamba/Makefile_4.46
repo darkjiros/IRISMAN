@@ -7,7 +7,6 @@ ifeq ($(shell uname -s),Linux)
 	ZLIBUTIL = ./zlibutil
 endif
 
-
 CC		:= ppu-gcc
 CXX		:= ppu-g++
 LD		:= ppu-ld 
@@ -39,6 +38,7 @@ all: mamba_$(MAMBA_VER).bin
 
 objdump: stage$(MAMBA_VER).bin
 	$(OBJDUMP) -D -EB -b binary -m powerpc:common64 mamba_$(MAMBA_VER).bin
+
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@	
 	$(ZLIBUTIL) mamba_$(MAMBA_VER).bin mamba_$(MAMBA_VER).lz.bin

@@ -206,6 +206,8 @@ MKV file : D_FLAG_HOMEB_DPL | D_FLAG_HOMEB_MKV | x (from /MKV    , x = D_FLAG_HD
 
 #define DISABLED -1
 
+#define YES 1
+
 #define REFRESH_GAME_LIST    1
 
 #define NTFS_DEVICE_MOUNT    1
