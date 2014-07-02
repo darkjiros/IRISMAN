@@ -1616,6 +1616,8 @@ int delete_custom_icons(t_directories *list, int *max)
             n++;
     }
 
+    if((*max) >= MAX_DIRECTORIES) return deleted;
+
     list[(*max)].flags = 0;
     list[(*max)].title[0] = 0;
     list[(*max)].title_id[0] = 0;
@@ -1655,6 +1657,8 @@ int delete_entries(t_directories *list, int *max, u32 flag)
         else
             n++;
     }
+
+    if((*max) >= MAX_DIRECTORIES) return deleted;
 
     list[(*max)].flags = 0;
     list[(*max)].title[0] = 0;

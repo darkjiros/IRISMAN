@@ -5946,27 +5946,14 @@ int file_manager(char *pathw1, char *pathw2)
 
                 bool blink = (set_menu2 == 1  && (frame & 16));
 
-                switch(mount_option)
-                {
-                    case 1:
-                        display_ttf_string(0, py, "Mount /net_host0", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                    case 2:
-                        display_ttf_string(0, py, "Mount /net_host0/PKG", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                    case 3:
-                        display_ttf_string(0, py, "Mount /net_host1", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                    case 4:
-                        display_ttf_string(0, py, "Mount /net_host1/PKG", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                    case 5:
-                        display_ttf_string(0, py, "Unmount /dev_bdvd", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                    default:
-                        display_ttf_string(0, py, !dev_blind ? "Mount /dev_blind" : "Unmount /dev_blind", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
-                        break;
-                }
+                display_ttf_string(0, py, (mount_option == 1) ? "Mount /net_host0" :
+                                          (mount_option == 2) ? "Mount /net_host0/PKG" :
+                                          (mount_option == 3) ? "Mount /net_host0/VIDEO" :
+                                          (mount_option == 4) ? "Mount /net_host1" :
+                                          (mount_option == 5) ? "Mount /net_host1/PKG" :
+                                          (mount_option == 6) ? "Mount /net_host1/VIDEO" :
+                                          (mount_option == 7) ? "Unmount /dev_bdvd" :
+                                          !dev_blind ? "Mount /dev_blind" : "Unmount /dev_blind", blink ? BLACK : WHITE, 0, 16, 24); py += 24;
 
                 display_ttf_string(0, py, "LV2 Dump", (set_menu2 == 2  && (frame & 16)) ? 0 : WHITE, 0, 16, 24); py += 24;
 
@@ -6081,9 +6068,9 @@ int file_manager(char *pathw1, char *pathw2)
             else if((set_menu2 == 1) && (max_menu2 == 6))
             {
                 if(new_pad & BUTTON_LEFT)
-                    ROT_DEC(mount_option, 0, 5)
+                    ROT_DEC(mount_option, 0, 7)
                 else if(new_pad & BUTTON_RIGHT)
-                    ROT_INC(mount_option, 5, 0)
+                    ROT_INC(mount_option, 7, 0)
                 else if(new_pad & BUTTON_SELECT)
                     mount_option = 0;
             }
@@ -6127,21 +6114,34 @@ int file_manager(char *pathw1, char *pathw2)
                             }
                             else if(mount_option == 3)
                             {
+                                download_file("http://localhost/mount_ps3/net0/VIDEO", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host0/VIDEO as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 4)
+                            {
                                 download_file("http://localhost/mount_ps3/net1/.", NULL, 0, NULL);
                                 DrawDialogTimer("Mounted /net_host1 as local /dev_bdvd", 2000.0f);
                             }
-                            else if(mount_option == 4)
+                            else if(mount_option == 5)
                             {
                                 download_file("http://localhost/mount_ps3/net1/PKG", NULL, 0, NULL);
                                 DrawDialogTimer("Mounted /net_host1/PKG as local /dev_bdvd", 2000.0f);
                             }
-                            else if(mount_option == 5)
+                            else if(mount_option == 6)
                             {
-                                download_file("http://localhost//mount.ps3/unmount", NULL, 0, NULL);
+                                download_file("http://localhost/mount_ps3/net1/VIDEO", NULL, 0, NULL);
+                                DrawDialogTimer("Mounted /net_host1/VIDEO as local /dev_bdvd", 2000.0f);
+                            }
+                            else if(mount_option == 7)
+                            {
+                                download_file("http://localhost/mount.ps3/unmount", NULL, 0, NULL);
                                 DrawDialogTimer("Unmounted /dev_bdvd", 2000.0f);
+
+                                if(!strncmp(path1, "/dev_bdvd", 9)) {path1[1] = 0; nentries1 = 0;}
+                                if(!strncmp(path2, "/dev_bdvd", 9)) {path2[1] = 0; nentries2 = 0;}
                             }
 
-                            if(is_file_exist("/dev_bdvd"))
+                            if(mount_option != 7 && is_file_exist("/dev_bdvd"))
                             {
                                 if(!fm_pane)
                                 {
@@ -6273,7 +6273,10 @@ int file_manager(char *pathw1, char *pathw2)
                      if(buffer1[0] == 0) {set_menu2 = 0; goto skip_menu2;}
 
                      sprintf(temp_buffer, "Do you want to create the new folder %s\non %s ?", buffer1, !fm_pane ? path1 : path2);
-                     if(DrawDialogYesNo(temp_buffer) == 1)
+
+                     ps3pad_read();
+
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
                      {
                          exitcode = REFRESH_GAME_LIST;
 
@@ -6319,7 +6322,9 @@ int file_manager(char *pathw1, char *pathw2)
                      sprintf(temp_buffer, "Do you want to rename %s\nto %s ?",
                                           !fm_pane ? entries1[sel1].d_name : entries2[sel2].d_name, buffer1);
 
-                     if(DrawDialogYesNo(temp_buffer) == 1)
+                     ps3pad_read();
+
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
                      {
                          exitcode = REFRESH_GAME_LIST;
 
@@ -6499,7 +6504,9 @@ int file_manager(char *pathw1, char *pathw2)
                 {
                     // multiple
                     sprintf(temp_buffer, "Do you want to delete the selected Files and Folders?\n\n(%i) Items", files);
-                    if(DrawDialogYesNo(temp_buffer) == 1) {
+
+                    if(DrawDialogYesNo(temp_buffer) == 1)
+                    {
                         exitcode = REFRESH_GAME_LIST;
 
                         single_bar("Deleting...");
@@ -6610,7 +6617,10 @@ int file_manager(char *pathw1, char *pathw2)
                      if(buffer1[0] == 0) {DrawDialogOKTimer("Invalid filename", 2000.0f);set_menu2 = 0;goto skip_menu2;}
 
                      sprintf(temp_buffer, "Do you want to create the new file %s.bin\non %s ?", buffer1, !fm_pane ? path1 : path2);
-                     if(DrawDialogYesNo(temp_buffer) == 1)
+
+                     ps3pad_read();
+
+                     if((old_pad | BUTTON_L2) || DrawDialogYesNo(temp_buffer) == 1)
                      {
                          exitcode = REFRESH_GAME_LIST;
 

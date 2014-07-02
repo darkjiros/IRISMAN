@@ -1940,7 +1940,7 @@ void LoadGameList()
 
                     bSkipParseXML = true;
                 }
-                else if(!strcmp(directories[i].path_name, "/dev_bdvd") || !is_file_exist(directories[i].path_name))
+                else if(!strncmp(directories[i].path_name, "/dev_bdvd", 9) || !is_file_exist(directories[i].path_name))
                 {
                     directories[i].flags = 0;
                     directories[i].title[0] = 0;
@@ -2931,6 +2931,17 @@ void read_settings()
     mkdir_secure(updates_path);
 }
 
+void clear_game_list()
+{
+    Png_offset[BIG_PICT] = 0;
+
+    delete_entries(directories, &ndirectories, 0xFFFFFFFF);
+    for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
+
+    ndirectories = currentgamedir = currentdir = select_px = select_py = 0;
+}
+
+//////
 
 s32 main(s32 argc, const char* argv[])
 {
@@ -4131,7 +4142,8 @@ s32 main(s32 argc, const char* argv[])
             else
                 sprintf(filename, "/dev_usb00%c", 47 + find_device);
 
-            if((!forcedevices || (fdevices & D_FLAG_BDVD)) && find_device == BDVD_DEVICE && bdvd_notify == 0) {goto skip_bdvd;}
+
+            if((!forcedevices || (fdevices & D_FLAG_BDVD)) && find_device == BDVD_DEVICE && bdvd_notify == 0) goto skip_bdvd;
 
             sysFSStat dstat;
             int ret;
@@ -4222,7 +4234,8 @@ skip_bdvd:
                         bluray_game[63] = 0;
                     }
 
-                    if(((fdevices>>BDVD_DEVICE) & 1)  && !mode_homebrew && (noBDVD == MODE_WITHBDVD))
+
+                    if(((fdevices>>BDVD_DEVICE) & 1)  && (mode_homebrew == GAMEBASE_MODE) && (noBDVD == MODE_WITHBDVD))
                     {
                         if(ndirectories >= MAX_DIRECTORIES) ndirectories = MAX_DIRECTORIES - 1;
 
@@ -4359,7 +4372,7 @@ skip_bdvd:
                     sysFsGetFreeSize(filename, &blockSize, &freeSize);
                     double space = ( ((double)blockSize) * ((double) freeSize) ) /  GIGABYTES;
                     freeSpace[find_device] = (float) space;
-                    if(!mode_homebrew)
+                    if(mode_homebrew == GAMEBASE_MODE)
                         sprintf(filename, "/dev_usb00%c/GAMES", 47 + find_device);
                     else
                         sprintf(filename, "/dev_usb00%c/game", 47 + find_device);
@@ -4380,6 +4393,9 @@ skip_bdvd:
 
                     nd = ndirectories;
 
+                    strcpy(file, "/dev_bdvd"); n = 9;
+                    fill_directory_entries_with_alt_path(file, n, "/.", "/.", directories, &ndirectories, D_FLAG_HOMEB | D_FLAG_HOMEB_BD | (1<<find_device));
+
                     strncpy(file, filename, 0x420);
                     n = 1; while(file[n] != '/' && file[n] != 0) n++;
 
@@ -4398,7 +4414,7 @@ skip_bdvd:
                     if(fill_entries_from_device(filename, directories, &ndirectories, (1<<find_device) | (HOMEBREW_FLAG * (mode_homebrew != 0)), 0 | (2 * (mode_homebrew != 0)), false) == SUCCESS)
                     {
                         //append gamez, games_dup, games_bad
-                        if(!mode_homebrew || (mode_homebrew && find_device != 0))
+                        if((mode_homebrew == GAMEBASE_MODE) || (mode_homebrew && find_device != 0))
                         {
                             sprintf(filename, "/dev_usb00%c/GAMEZ", 47 + find_device);
                             if (fill_entries_from_device(filename, directories, &ndirectories, (1<<find_device) | (HOMEBREW_FLAG * (mode_homebrew != 0)), 0 | (2 * (mode_homebrew != 0)), true) == SUCCESS)
@@ -4460,10 +4476,8 @@ skip_bdvd:
                             {
                                 if(find_device) {fdevices_old = fdevices; break;}
 
-                                delete_entries(directories, &ndirectories, 0xFFFFFFFF);
-                                for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
+                                clear_game_list();
 
-                                ndirectories = currentgamedir = currentdir = select_px = select_py = 0;
                                 found_game_remove = true;
 
                                 find_device = filter_by_device - 12;
@@ -6854,7 +6868,7 @@ int gui_control()
             }
         }
 
-        if(!mode_homebrew)
+        if(mode_homebrew == GAMEBASE_MODE)
         {
             if(!bdvd_ejected)
                 Eject_BDVD(NOWAIT_BDVD | EJECT_BDVD);
@@ -7711,7 +7725,7 @@ autolaunch_proc:
 
 
                     // access to PSX configuration menu
-                    if(!mode_homebrew && (directories[indx].flags & (ISO_FLAGS)) == PS1_FLAG) // add PSX iso
+                    if((mode_homebrew == GAMEBASE_MODE) && (directories[indx].flags & (ISO_FLAGS)) == PS1_FLAG) // add PSX iso
                     {
                         if(!(directories[indx].flags & BDVD_FLAG))
                             LoadPSXOptions(directories[indx].path_name);
@@ -7759,7 +7773,7 @@ ask_delete_item:
                            return r; // ignore Options menu
                        }
 
-                       if(!mode_homebrew && (directories[indx].flags & (BDVD_FLAG | PS3_FLAG)) == PS3_FLAG)
+                       if((mode_homebrew == GAMEBASE_MODE) && (directories[indx].flags & (BDVD_FLAG | PS3_FLAG)) == PS3_FLAG)
                             menu_screen = SCR_MENU_ISO_OPTIONS;
                        else
                             menu_screen = SCR_MENU_GAME_OPTIONS;
@@ -8299,10 +8313,7 @@ ask_delete_item:
         while((new_pad | old_pad) & BUTTON_R3) ps3pad_read();
         old_pad = r;
 
-        // clean all
-        delete_entries(directories, &ndirectories, 0xFFFFFFFF);
-        for(int n = 0; n < BIG_PICT; n++) {Png_iscover[n] = Png_offset[n] = 0; Png_index[n] = n;}
-
+        clear_game_list();
 
         if(old_pad & BUTTON_SELECT)
         {   // [SELECT + R3] = List All Games
@@ -8325,7 +8336,7 @@ ask_delete_item:
                 game_list_category = GAME_LIST_ALL;
                 mode_favourites = 0;
             }
-            else if(game_list_category == 1 && !mode_homebrew)
+            else if(game_list_category == 1 && (mode_homebrew == GAMEBASE_MODE))
             {
                 SetFavourites(mode_homebrew);
                 mode_homebrew = HOMEBREW_MODE;
@@ -8346,8 +8357,7 @@ ask_delete_item:
             else
             {
                 mode_favourites = 0;
-                game_list_category--;
-                if(game_list_category < 0) {game_list_category = 2;}
+                ROT_DEC(game_list_category, 0, 2); // ALL <- PS3 Only <- HOMEBREW
             }
         }
         else
@@ -8355,7 +8365,7 @@ ask_delete_item:
 
             read_settings();
 
-            if(game_list_category == GAME_LIST_ALL && !mode_homebrew)
+            if(game_list_category == GAME_LIST_ALL && (mode_homebrew == GAMEBASE_MODE))
             {
                 SetFavourites(mode_homebrew);
                 mode_homebrew = VIDEOS_MODE;
@@ -8376,7 +8386,7 @@ ask_delete_item:
             else
             {
                 mode_favourites = 0;
-                game_list_category++;
+                game_list_category++; // ALL -> PS3 Only -> HOMEBREW
                 if(game_list_category > 2) {game_list_category = GAME_LIST_ALL; mode_favourites = 1;}
             }
         }
@@ -8399,14 +8409,12 @@ void return_to_game_list(bool update)
         new_pad = old_pad = 0;
         anim_mode = anim_step = 0;
 
-        ndirectories = 0;
-
-        fdevices = fdevices_old = forcedevices = find_device = 0;
+        clear_game_list();
 
         bdvd_notify = 1;
-        Png_offset[BIG_PICT] = 0;
+        forcedevices = 1;
+        fdevices ^= 1;
 
-        currentgamedir = currentdir = select_px = select_py = 0;
         load_gamecfg(RESET_GAME_INFO); // force refresh game info
     }
 
@@ -10536,28 +10544,22 @@ void draw_gbloptions(float x, float y)
 
     bool bSelected = (flash && (select_option == 6));
 
-    if(!bAllowNetGames &&  !(net_option == 0 || (net_option >= 7 && net_option <= 9))) net_option = 0;
+    if(!bAllowNetGames &&  !(net_option == 0 || (net_option >= 9 && net_option <= 11))) net_option = 0;
 
     if (net_option == 0)
         DrawButton1_UTF8((848 - 520) / 2, y2, 520, (ftp_ip_str[0]) ? ftp_ip_str : language[DRAWGLOPT_INITFTP], bSelected);
-    else if (net_option == 1)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Mount /net_host0 as /dev_bdvd", bSelected);
-    else if (net_option == 2)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Mount /net_host0/PKG as /dev_bdvd", bSelected);
-    else if (net_option == 3)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Mount /net_host1 as /dev_bdvd", bSelected);
-    else if (net_option == 4)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Mount /net_host1/PKG as /dev_bdvd", bSelected);
-    else if (net_option == 5)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Refresh My Games (XML)", bSelected);
-    else if (net_option == 6)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "webMAN Setup", bSelected);
-    else if (net_option == 7)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Download Latest webMAN", bSelected);
-    else if (net_option == 8)
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Showtime", bSelected);
     else
-        DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Internet Browser", bSelected);
+        DrawButton1_UTF8((848 - 520) / 2, y2, 520, (net_option ==  1) ? "Mount /net_host0 as /dev_bdvd" :
+                                                   (net_option ==  2) ? "Mount /net_host0/PKG as /dev_bdvd" :
+                                                   (net_option ==  3) ? "Mount /net_host0/VIDEO as /dev_bdvd" :
+                                                   (net_option ==  4) ? "Mount /net_host1 as /dev_bdvd" :
+                                                   (net_option ==  5) ? "Mount /net_host1/PKG as /dev_bdvd" :
+                                                   (net_option ==  6) ? "Mount /net_host1/VIDEO as /dev_bdvd" :
+                                                   (net_option ==  7) ? "Refresh My Games (XML)" :
+                                                   (net_option ==  8) ? "webMAN Setup" :
+                                                   (net_option ==  9) ? "Download Latest webMAN" :
+                                                   (net_option == 10) ? "Showtime" :
+                                                   (net_option == 11) ? "Internet Browser" : "", bSelected);
 
     y2+= 48;
 
@@ -10776,7 +10778,24 @@ exit_gbloptions:
                             file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 3: // Mount net1/
+                  case 3: // Mount net0/VIDEO
+                    if(bAllowNetGames && get_net_status() == SUCCESS)
+                    {
+                        download_file("http://localhost/mount_ps3/net0/VIDEO", NULL, 0, NULL);
+
+                        sprintf(temp_buffer, "Mounted /net_host0/VIDEO as /dev_bdvd");
+
+                        if(gui_mode == MODE_XMB_LIKE || bk_picture == BG_PIC1) load_background_picture();
+
+                        DrawDialogTimer(temp_buffer, 1200.0f);
+                        game_list_category = GAME_LIST_PS3_ONLY;
+                        mode_homebrew = VIDEOS_MODE;
+                        mode_favourites = 0;
+
+                        return_to_game_list(true);
+                    }
+                    break;
+                  case 4: // Mount net1/
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net1/.", NULL, 0, NULL);
@@ -10784,7 +10803,7 @@ exit_gbloptions:
                         file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 4: // Mount net1/PKG
+                  case 5: // Mount net1/PKG
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         download_file("http://localhost/mount_ps3/net1/PKG", NULL, 0, NULL);
@@ -10796,7 +10815,24 @@ exit_gbloptions:
                             file_manager("/dev_bdvd", NULL);
                     }
                     break;
-                  case 5: // Refresh webMAN
+                  case 6: // Mount net1/VIDEO
+                    if(bAllowNetGames && get_net_status() == SUCCESS)
+                    {
+                        download_file("http://localhost/mount_ps3/net1/VIDEO", NULL, 0, NULL);
+
+                        sprintf(temp_buffer, "Mounted /net_host1/VIDEO as /dev_bdvd");
+
+                        if(gui_mode == MODE_XMB_LIKE || bk_picture == BG_PIC1) load_background_picture();
+
+                        DrawDialogTimer(temp_buffer, 1200.0f);
+                        game_list_category = GAME_LIST_PS3_ONLY;
+                        mode_homebrew = VIDEOS_MODE;
+                        mode_favourites = 0;
+
+                        return_to_game_list(true);
+                    }
+                    break;
+                  case 7: // Refresh webMAN
                     if(bAllowNetGames && get_net_status() == SUCCESS)
                     {
                         DrawDialogTimer("webMAN is refreshing My Games (XML)\n\nPlease wait ...", 1200.0f);
@@ -10813,7 +10849,7 @@ exit_gbloptions:
                         return_to_game_list(true);
                     }
                     break;
-                  case 6: // Setup webMAN
+                  case 8: // Setup webMAN
                     fun_exit();
 
                     char* launchargv[2];
@@ -10828,7 +10864,7 @@ exit_gbloptions:
 
                     break;
 
-                  case 7: // Download Latest webMAN
+                  case 9: // Download Latest webMAN
                     if(!use_cobra)
                     {
                         DrawDialogOK(credits_str1);
@@ -10868,7 +10904,7 @@ exit_gbloptions:
                     return_to_game_list(false);
                     return;
 
-                  case 8: // Launch Showtime
+                  case 10: // Launch Showtime
                     fun_exit();
                     if((old_pad & (BUTTON_SELECT | BUTTON_L2)) && is_file_exist("/dev_hdd0/game/HTSS00003/USRDIR/showtime.self"))
                     {
@@ -10881,7 +10917,7 @@ exit_gbloptions:
                     return;
                     break;
 
-                  case 9: // Launch Internet Browser
+                  case 11: // Launch Internet Browser
                     fun_exit();
 
                     sprintf(tmp_path, "%s/USRDIR/browser.self", self_path);
@@ -11086,9 +11122,9 @@ exit_gbloptions:
     else if(select_option == 6)
     {
         if(new_pad & (BUTTON_LEFT))
-            ROT_DEC(net_option, 0, 8)
+            ROT_DEC(net_option, 0, 11)
         else if(new_pad & (BUTTON_RIGHT))
-            ROT_INC(net_option, 8, 0)
+            ROT_INC(net_option, 11, 0)
         else if(new_pad & (BUTTON_SELECT | BUTTON_SQUARE))
             net_option = 0;
     }
