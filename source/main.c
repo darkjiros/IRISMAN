@@ -232,6 +232,7 @@ u64 val_psid_part2 = 0;
 
 char psid[33];
 char console_id[33];
+char default_psid[33];
 char default_console_id[33];
 
 void UTF8_to_Ansi(char *utf8, char *ansi, int len); // from osk_input
@@ -3714,6 +3715,9 @@ s32 main(s32 argc, const char* argv[])
     // get default console id
     get_console_id_eid5();
     strcpy(default_console_id, console_id);
+
+    get_psid_lv2();
+    strcpy(default_psid, psid);
 
     // spoof console id (idps)/psid
     load_spoofed_console_id();
@@ -12168,7 +12172,8 @@ void draw_console_id_tools(float x, float y)
 
     y2+= 48;
 
-    DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Restore default console id", (flash && (select_option == 3)));
+    DrawButton1_UTF8((848 - 520) / 2, y2, 520, "Restore default PSID & console id", (flash && (select_option == 3)));
+
 
     for(int n = 0; n < 5; n++) y2+= 48;
 
@@ -12193,14 +12198,14 @@ void draw_console_id_tools(float x, float y)
     SetFontSize(14, 16);
     SetFontAutoCenter(1);
     get_console_id_lv2();
-    DrawFormatString(500, y2, "Console id: %s", console_id );
+    DrawFormatString(500, y2 - 100, "Console id: %s", console_id );
     SetFontAutoCenter(0);
 
     if(strncmp(console_id, psid, 32))
     {
         SetFontAutoCenter(1);
         get_psid_lv2();
-        DrawFormatString(500, y2 - 32, "PSID: %s", psid );
+        DrawFormatString(500, y2 - 132, "PSID: %s", psid );
     }
 
     tiny3d_Flip();
@@ -12266,28 +12271,28 @@ void draw_console_id_tools(float x, float y)
 
                 break;
 
-            case 3: //restore default console id
-                sprintf(tmp_path, "%s/config/idps", self_path);
-                unlink_secure(tmp_path);
-
+            case 3: //restore default PSID
                 sprintf(tmp_path, "%s/config/psid", self_path);
                 unlink_secure(tmp_path);
 
-                if( strcmp( console_id, default_console_id ) == 0 )
+                sprintf(tmp_path, "%s/config/idps", self_path);
+                unlink_secure(tmp_path);
+
+                if( strcmp(psid, default_psid) == SUCCESS && strcmp(console_id, default_console_id) == SUCCESS)
                 {
-                    sprintf(temp_buffer, "Console ID is already the default:\n\n%s", console_id);
+                    sprintf(temp_buffer, "PSID & Console ID are already the default.");
                     DrawDialogOKTimer(temp_buffer, 3000.0f);
-                    break; //default idps is already set
+                    break; //default already set
                 }
+
+                strcpy( psid, default_psid );
+                set_psid_lv2();
 
                 strcpy( console_id, default_console_id );
                 set_console_id_lv2();
 
-                sprintf(temp_buffer, "The default console id has been restored.\n\nDo you want to save the default console id?\n\nConsole ID: %s", console_id);
-                if(DrawDialogYesNoDefaultYes(temp_buffer) == 1)
-                {
-                    save_spoofed_console_id();
-                }
+                sprintf(temp_buffer, "The default PSID & Console ID have been restored.");
+                DrawDialogOKTimer(temp_buffer, 3000.0f);
                 break;
 
             default:
