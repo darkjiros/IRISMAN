@@ -18,4 +18,7 @@ all:
 	make -f Makefile_4.55D clean --no-print-directory
 	make -f Makefile_4.55D --no-print-directory
 
+	make -f Makefile_4.60 clean --no-print-directory
+	make -f Makefile_4.60 --no-print-directory
+
 	rm -f *.o *.elf *.map stage2/*.o lv2/src/*.o lv1/src/*.o

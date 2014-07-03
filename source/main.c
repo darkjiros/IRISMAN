@@ -695,6 +695,9 @@ int get_icon(char * path, const int num_dir)
         return SUCCESS;
     }
 
+    if(cover_mode == 0 && ((directories[num_dir].flags & (ISO_FLAGS)) == (PS3_FLAG)) && strstr(directories[num_dir].path_name, "/PS3ISO/") != NULL)
+        return GET_ICON_FROM_ISO;
+
     if((directories[num_dir].flags & (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG)) == (PSP_FLAG | RETRO_FLAG | PS2_CLASSIC_FLAG))
     {
         bool is_retro = (strlen(retro_root_path) > 0 && strstr(directories[num_dir].path_name, retro_root_path) != NULL);

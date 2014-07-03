@@ -2194,6 +2194,155 @@
 // TODO: #define open_psid_buf_symbol			0x45218C
 #define thread_info_symbol				0x3A2930 //done
 
+#elif defined(FIRMWARE_4_60)
+
+#define TOC                                     0x34F950 //done
+
+#define open_shared_kernel_object_symbol        0x1240C //done // y
+#define close_kernel_object_handle_symbol       0x11A2C //done
+
+#define alloc_symbol                            0x64798 //done        // y
+#define dealloc_symbol                          0x64BD4 //done
+#define copy_to_user_symbol                     0xF868  //done // x
+#define copy_from_user_symbol                   0xFA84  //done
+#define copy_to_process_symbol                  0xFA84  //unconfirmed
+#define copy_from_process_symbol                0xF730  //unconfirmed
+#define page_allocate_symbol                    0x60308 //unconfirmed // y 143C
+#define page_free_symbol                        0x5FD6C //unconfirmed
+#define page_export_to_proc_symbol              0x604A4 //unconfirmed
+#define page_unexport_from_proc_symbol          0x5FC60 //unconfirmed //E8630030480110
+#define kernel_ea_to_lpar_addr_symbol           0x700C0 //unconfirmed //4E800020 E922A1
+#define map_process_memory_symbol               0x771E0 //unconfirmed //7D800026F821FEE1 FAC100D07CF63B78
+
+#define memcpy_symbol                           0x7E8A0 //done        // x
+#define memset_symbol                           0x4D668 //done        // 244
+#define memcmp_symbol                           0x4C978 //unconfirmed //38A500017CA903A6 4240003088030000
+
+#define sprintf_symbol                          0x4EA90 //unconfirmed //F821FF817C0802A6 F8A100C0F8010090
+#define snprintf_symbol                         0x4E9FC //unconfirmed //F821FF71 7C0802A6F8C100D8 F80100A0
+#define strcpy_symbol                           0x4D814 //done //88040000 2F80000098030000 4D9E00207C691B78
+#define strncpy_symbol                          0x4D8DC //unconfirmed //2C250000 4D82002088040000 7C6B1B78
+#define strlen_symbol                           0x4D83C //done //7C691B78 3860000088090000 2F800000
+#define strcat_symbol                           0x4D744 //unconfirmed //88030000 7C691B782F800000 419E00108C090001
+#define strcmp_symbol                           0x4D7C0 //unconfirmed //880300007C691B78 896400007F8B0000
+#define strncmp_symbol                          0x4D868 //done //2C25000041820050 8964000089230000
+#define strchr_symbol                           0x4D77C //unconfirmed //88030000 2F800000419E0024 7F802000
+
+#define spin_lock_irqsave_ex_symbol             0x27641c //unconfirmed // y //7D0000A655000420 2FA00000419E006C
+#define spin_unlock_irqrestore_ex_symbol        0x2763f0 //unconfirmed //7C2004AC 2F85000038000000 3920000090030000
+
+#define load_process_symbol                     0x5004   //unconfirmed //7D800026 F821FF11FAC100A0
+
+#define ppu_thread_create_symbol                0x13EC4  //unconfirmed // y //7D800026 F821FF81FBC10070 FBE10078
+#define ppu_thread_exit_symbol                  0x13F7c  //unconfirmed //F821FF81 7C0802A6FBE10078 F80100907C7F1B78
+#define ppu_thread_join_symbol                  0x13FD0  //unconfirmed //F821FF617C0802A6 FB810080F80100B0
+#define ppu_thread_delay_symbol                 0x287A0  //unconfirmed // + 244 //F821FF017C0802A6 FAC100B0FAE100B8
+
+#define create_user_thread2_symbol              0x2507C  //unconfirmed //y + 244 //F821FEF1 7C0802A6FA8100B0 F801012080090028
+#define start_thread_symbol                     0x23D48  //unconfirmed //7D800026F821FF61 FB410070FB610078
+#define run_thread_symbol                       0x23578  //unconfirmed /* y temp name + 244*/ //7C641B78E8630048 48002EB0F821FF71
+#define register_thread_symbol                  0x2705D0 //unconfirmed  // +184C //7D800026 F821FF712C240000
+#define allocate_user_stack_symbol              0x270DB8 //unconfirmed //F821FF61 7C0802A6FBA10088 F80100B0E8030030
+
+#define mutex_create_symbol                     0x13638  //unconfirmed // x //2F8500207C0802A6 F821FF71FBA10078
+#define mutex_destroy_symbol                    0x135D0  //unconfirmed //F821FF817C0802A6
+#define mutex_lock_symbol                       0x135C8  //unconfirmed //38A000004800A58C
+#define mutex_unlock_symbol                     0x135C0  //unconfirmed //48009CD44800990C
+
+#define event_port_create_symbol                0x13074  //unconfirmed // x //F821FF71 7C0802A6FBA10078
+#define event_port_destroy_symbol               0x134DC  //unconfirmed // F821FF71 7C0802A6FBC10080 EBC2859038800000
+#define event_port_connect_symbol               0x13554  //unconfirmed //F821FF61 7C0802A6FB610078 EB628590
+#define event_port_disconnect_symbol            0x13480  //unconfirmed //F821FF717C0802A6 FB810070EB828590
+#define event_port_send_symbol                  0x1306C  //unconfirmed //4BFFFFB8 38E00001
+
+#define event_queue_create_symbol               0x1337C  //unconfirmed // y //F821FF61 7C0802A6FBE10098 F80100B03806FFFF
+#define event_queue_destroy_symbol              0x13304  //unconfirmed //F821FF71 7C0802A6FBC10080 EBC28590
+#define event_queue_receive_symbol              0x13148  //unconfirmed //F821FF617C0802A6 FBE10098F80100B0
+
+#define cellFsOpen_symbol                       0x2A0584 //unconfirmed // y +1850 //F821FF517C0802A6 FB010070FB610088
+#define cellFsClose_symbol                      0x2A03EC //unconfirmed //F821FF61 7C0802A6FBC10090
+#define cellFsRead_symbol                       0x2A0528 //unconfirmed //2C260000 7C0802A63D208001 F821FF71FBE10080
+#define cellFsWrite_symbol                      0x2A0494 //unconfirmed //F821FF517C0802A6 FBC100A0EBC2
+#define cellFsLseek_symbol                      0x29FB1C //unconfirmed //F821FF517C0802A6 FBC100A0EBC22598
+#define cellFsStat_symbol                       0x29FDA0 //unconfirmed //F821FF61 7C0802A6FB610078 FBA10088
+#define cellFsUnlink_internal_symbol            0x19C4AC //unconfirmed // +14ec  find "F821FEF17C0802A62C240000FBE101083FE08001FB8100F0FBA100F8FBC10100"
+
+#define cellFsUtilMount_symbol                  0x29F8FC //unconfirmed // y +1850 //F821FED1 7C0802A6FBA10118 3BA10080
+#define cellFsUtilUmount_symbol                 0x29F8D0 //unconfirmed // y +1850 //FBC1FFF0
+#define pathdup_from_user_symbol                0x1A23A0 //unconfirmed //   +14EC //F821FF517C0802A6 FB210078FB410080
+#define open_path_symbol                        0x2A02BC //unconfirmed //F821FF61 7C0802A6FB810080 FBA10088FBE10098 FB410070FB610078 F80100B0
+#define open_fs_object_symbol                   0x18A7D0 //unconfirmed // +14EC //7D800026F821FF31 FBC100C0EBC2FDD0
+#define close_fs_object_symbol                  0x18970C //unconfirmed // +1470 find "7C83237838A0000038800000"
+
+#define storage_get_device_info_symbol          0x282784 //unconfirmed // y +1850 //E9221DD8 7C0802A6F821FF71F80100A0
+#define storage_open_symbol                     0x282194 //unconfirmed //E9221DD8 7C0802A6F821FF11 F8010100FBA100D8
+#define storage_close_symbol                    0x281F84 //unconfirmed //E9221DD8 7C0802A6F821FF51 F80100C0FBE100A8
+#define storage_read_symbol                     0x2814F4 //unconfirmed //F821FF017C0802A6 FBE100F83BE10070
+#define storage_send_device_command_symbol      0x281080 //unconfirmed //E9621DD87C0802A6 F821FEF1F8010120
+#define storage_map_io_memory_symbol            0x282640 //unconfirmed //E9221DD87C0802A6 F821FF61F80100B0
+#define storage_unmap_io_memory_symbol          0x283BD4 //unconfirmed //E9221DD8 7C0802A6F821FF71 F80100A0
+#define storage_internal_get_device_object_symbol   0x280B38 //unconfirmed //F821FF71 7C0802A6FBA10078 F80100A0E8030000
+
+#define decrypt_func_symbol                     0x3496C  //unconfirmed //y find "F821FF717C0802A6FB810070FBA100787C7C1B787C9D2378F80100A04BFFFF95"
+#define lv1_call_99_wrapper_symbol              0x4EEA4  //unconfirmed //  find "F821FF717C0802A6FBA100787C7D1B78FB810070386300807C9C2378F80100A0"
+#define modules_verification_symbol             0x58A48  //unconfirmed //  find "3884FFFA7C0802A6F821FF912B840036F8010080419D00FC"
+//#define authenticate_program_segment_symbol   0x59FCC // 897F0006 895F000798010090 9921009199610092 99410093881F0008 893F0009
+
+#define prx_load_module_symbol                  0x88B78  //unconfirmed //F821FF717C0802A6 FB8100707CBC2B78 38A00001FBA10078 FBC10080FBE10088
+#define prx_start_module_symbol                 0x87844  //unconfirmed // +144C //7D800026 F821FEF1FB2100D8 FB4100E07C7907B4 7C9A2378FB0100D0 FB8100F0
+#define prx_stop_module_symbol                  0x88C1C  //unconfirmed //F821FF61 7C0802A6FBA10088 FBC100907C7D1B78 7C9E2378FB810080 F80100B0
+#define prx_unload_module_symbol                0x87578  //unconfirmed // +144C find "F821FF617C0802A6FB810080FBC100907C7C07B47C9E2378FBA10088"
+
+#define extend_kstack_symbol                    0x70018  //unconfirmed //y +143C //F821FF717C0802A6 FB810070F80100A0
+
+#define get_pseudo_random_number_symbol         0x230E74 //unconfirmed //y ok find "7C8523787C04037848000404" //7C601B78 E86203A87C852378 7C04037848000404
+
+#define syscall_table_symbol                    0x3628B8 //unconfirmed // y //0x361480 ??
+#define syscall_call_offset                     0x27E888 //unconfirmed //4E80002138210070 F821FFB1F8610008
+
+#define read_bdvd0_symbol                       0x1AD310 //unconfirmed //F821FEB17C0802A6 FB0101107C781B78
+#define read_bdvd1_symbol                       0x1AEF3C //unconfirmed // +14EC find "F821FF317C0802A6FB8100B0F80100E0EB8300207CA02B78FAE100882FBC0000"
+#define read_bdvd2_symbol                       0x1BC0F4 //unconfirmed // +14BC find "F821FF517C0802A6FBE100A8F80100C07C7F1B78E8630090"
+
+/* Calls, jumps */
+#define device_event_port_send_call             0x28ACF0 //unconfirmed //4BD8837CF821FF617C0802A6
+
+//#define ss_pid_call_1                         0x242834 // E8620828 3880000038A000617FC7F3784803
+
+#define process_map_caller_call                 0x4D24 //480145F5 2F8300007C7D1B78
+
+#define fsloop_open_call                        0x2A071C //unconfirmed //4BFFFE69 7C6307B44BFFFFC0 80630008
+#define fsloop_close_call                       0x2A076C //unconfirmed //4BFFFC817C6307B4 4BFFFF7080630008
+#define fsloop_read_call                        0x2A07AC //unconfirmed //4BFFFD7D 7C6307B44BFFFF30 F821FF31
+
+/* Patches */
+
+#define user_thread_prio_patch                  0x203F8 //unconfirmed  //y find "419DFF842B9E0BFF900100D0419D02587B8007A0"
+#define user_thread_prio_patch2                 0x20404 //unconfirmed //419D0258 7B8007A03FE08001 2FA00003
+
+/* Rtoc entries */
+
+#define io_rtoc_entry_1                         -0x1B8
+#define io_sub_rtoc_entry_1                     -0x7EA0
+
+#define decrypt_rtoc_entry_2                    -0x66A8
+//#define decrypter_data_entry                  -0x7F10
+
+#define storage_rtoc_entry_1                    0x1E10
+
+#define device_event_rtoc_entry_1               0x2080
+
+/* Legacy patches with no names yet */
+/* Kernel offsets */
+
+#define patch_func2                             0x059CF8 //unconfirmed //F821FF617C0802A6 FBC100907C9E2378
+#define patch_func2_offset                      0x2C
+
+
+/* vars */
+// TODO: #define open_psid_buf_symbol           0x45218C
+#define thread_info_symbol                      0x37DBB0 //unconfirmed  //y ref aPu_thrD> # "PU_THR%d" (busca cadena y luego la direccion abs de la cadena)
+
 #endif /* FIRMWARE */
 
 #endif /* __FIRMWARE_SYMBOLS_H_S__ */
