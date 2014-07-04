@@ -3536,6 +3536,12 @@ s32 main(s32 argc, const char* argv[])
                     load_payload_460(payload_mode);
                     __asm__("sync");
                     sleep(1); /* maybe need it, maybe not */
+
+                    if(!use_cobra)
+                    {
+                        load_ps3_mamba_payload();
+                        use_mamba = true;
+                    }
                     break;
                 case SKY10_PAYLOAD:
                     break;

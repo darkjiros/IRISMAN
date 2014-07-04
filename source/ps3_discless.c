@@ -27,6 +27,7 @@
 #include "mamba_4_53_lz_bin.h"
 #include "mamba_4_55_lz_bin.h"
 #include "mamba_4_55DEX_lz_bin.h"
+#include "mamba_4_60_lz_bin.h"
 
 int zlib_decompress(char *source, char *dest, int in_size, int *out_size);
 
@@ -371,21 +372,30 @@ void load_ps3_mamba_payload()
     }
     */
 
-    if(firmware == 0x446C)
-        zlib_decompress((char *) mamba_4_46_lz_bin, (char *) addr, mamba_4_46_lz_bin_size, &out_size);
-    else if(firmware == 0x453C)
-        zlib_decompress((char *) mamba_4_53_lz_bin, (char *) addr, mamba_4_53_lz_bin_size, &out_size);
-    else if(firmware == 0x455C)
-        zlib_decompress((char *) mamba_4_55_lz_bin, (char *) addr, mamba_4_55_lz_bin_size, &out_size);
-    else if(firmware == 0x450D)
-        zlib_decompress((char *) mamba_4_50DEX_lz_bin, (char *) addr, mamba_4_50DEX_lz_bin_size, &out_size);
-    else if(firmware == 0x455D)
-        zlib_decompress((char *) mamba_4_55DEX_lz_bin, (char *) addr, mamba_4_55DEX_lz_bin_size, &out_size);
-    else
+    switch(firmware)
     {
-        DrawDialogOK("MAMBA is not supported for this CFW");
-        free(addr);
-        return;
+        case 0x446C:
+            zlib_decompress((char *) mamba_4_46_lz_bin, (char *) addr, mamba_4_46_lz_bin_size, &out_size);
+            break;
+        case 0x453C:
+            zlib_decompress((char *) mamba_4_53_lz_bin, (char *) addr, mamba_4_53_lz_bin_size, &out_size);
+            break;
+        case 0x455C:
+            zlib_decompress((char *) mamba_4_55_lz_bin, (char *) addr, mamba_4_55_lz_bin_size, &out_size);
+            break;
+        case 0x460C:
+            zlib_decompress((char *) mamba_4_60_lz_bin, (char *) addr, mamba_4_60_lz_bin_size, &out_size);
+            break;
+        case 0x450D:
+            zlib_decompress((char *) mamba_4_50DEX_lz_bin, (char *) addr, mamba_4_50DEX_lz_bin_size, &out_size);
+            break;
+        case 0x455D:
+            zlib_decompress((char *) mamba_4_55DEX_lz_bin, (char *) addr, mamba_4_55DEX_lz_bin_size, &out_size);
+            break;
+        default:
+            DrawDialogOK("MAMBA is not supported for this CFW");
+            free(addr);
+            return;
     }
 
     out_size = (out_size + 0x4000) & ~127;
