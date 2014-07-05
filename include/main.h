@@ -131,20 +131,23 @@ void load_gamecfg (int current_dir);
 void read_settings();
 
 // FLAGS
-#define HDD0_FLAG      (1)
-#define BDVD_FLAG      (1<<11)    //2048
-#define NTFS_FLAG      (1<<15)
-#define USB_FLAG       (0x3ff<<1) //2046
+#define HDD0_FLAG         (1)
+#define BDVD_FLAG         (1<<11)    //2048
+#define NTFS_FLAG         (1<<15)
+#define USB_FLAG          (0x3ff<<1) //2046
 
-#define HOMEBREW_FLAG  (1<<31)
+#define PS3_FOLDER_FLAG   0
+#define HOMEBREW_FLAG     (1<<31)
 
-#define ISO_FLAGS         (1<<23) | (1<<24)
+#define ISO_FLAGS         ((1<<23) | (1<<24))
+#define GAME_FLAGS        ((1<<23) | (1<<24) | (1<<25))
+
 #define PS1_FLAG          (1<<23)
-#define PS2_FLAG          (ISO_FLAGS)
+#define PS2_FLAG          ISO_FLAGS
 #define PS3_FLAG          (1<<24)
-#define PSP_FLAG          (ISO_FLAGS | (1<<25))
-#define RETRO_FLAG        (ISO_FLAGS | (1<<25))
-#define PS2_CLASSIC_FLAG  (ISO_FLAGS | (1<<25))
+#define PSP_FLAG          GAME_FLAGS
+#define RETRO_FLAG        GAME_FLAGS
+#define PS2_CLASSIC_FLAG  GAME_FLAGS
 #define IS_PS2_FLAG       (1<<24)
 
 #define PS1_BIT        23

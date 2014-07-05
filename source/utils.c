@@ -2252,6 +2252,9 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
         return SUCCESS;
     }
 
+    msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX0);
+    //strcpy(progress_bar_title, language[GAMELIST_SCANNING1]);
+
     while(true)
     {
         if(*max >= MAX_DIRECTORIES) break;
@@ -2271,11 +2274,7 @@ int fill_entries_from_device(char *path, t_directories *list, int *max, u32 flag
 
         in_progress++; // delayed show progress
         if (in_progress == 10)
-        {
             msgDialogOpen2(mdialogprogress, progress_bar_title, progress_callback, (void *) 0xadef0045, NULL);
-            msgDialogProgressBarSetMsg(MSG_PROGRESSBAR_INDEX0, "Scanning games . . .");
-            msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX0);
-        }
 
         list[*max].flags = flag;
 
@@ -2959,7 +2958,7 @@ int fast_copy_process()
             }
             else files_opened++;
 
-            msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX1);write_progress = 0;
+            msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX1); write_progress = 0;
             msgDialogProgressBarSetMsg(MSG_PROGRESSBAR_INDEX1, getfilename_part(fast_files[current_fast_file_r].pathw));
             if(sysFsOpen(fast_files[current_fast_file_r].pathw, SYS_O_CREAT | SYS_O_TRUNC | SYS_O_WRONLY, &fdw, 0, 0) != 0)
             {
@@ -3309,7 +3308,7 @@ int fast_copy_process()
                 sprintf(&fast_files[current_fast_file_w].pathw[fast_files[current_fast_file_w].pos_path], ".666%2.2i",
                     fast_files[current_fast_file_w].number_frag);
                 DPrintf("    -> .666%2.2i\n", fast_files[current_fast_file_w].number_frag);
-                //msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX1);write_progress = 0;
+                //msgDialogProgressBarReset(MSG_PROGRESSBAR_INDEX1); write_progress = 0;
                 msgDialogProgressBarSetMsg(MSG_PROGRESSBAR_INDEX1, getfilename_part(fast_files[current_fast_file_w].pathw));
                 if(sysFsOpen(fast_files[current_fast_file_w].pathw, SYS_O_CREAT | SYS_O_TRUNC | SYS_O_WRONLY, &fdw, 0, 0) != 0)
                 {
